@@ -1,0 +1,13 @@
+# Framework Laptop 16 LED Matrix input modules — access for the local seat user.
+#
+# Both modules ship with the SAME USB serial number (FRAKDEBZ0100000000), so
+# /dev/serial/by-id/ collapses to a single symlink and cannot distinguish left
+# from right. This rule therefore matches on vendor/product only; the daemon
+# addresses the two panels via /dev/serial/by-path/, which encodes USB topology
+# and is stable per physical bay.
+#
+# TAG+="uaccess" grants access through a POSIX ACL to whoever owns the active
+# local session, rather than adding the user to `uucp` — which would hand out
+# every serial device on the machine, permanently, to get at these two.
+
+SUBSYSTEM=="tty", ATTRS{idVendor}=="32ac", ATTRS{idProduct}=="0020", TAG+="uaccess"

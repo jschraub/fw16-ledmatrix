@@ -1,0 +1,108 @@
+# fw16-ledmatrix
+
+Status daemon for the Framework Laptop 16 LED Matrix input modules — drives the
+two 9×34 panels flanking the keyboard as ambient displays.
+
+**Left panel = machine** (time, battery). **Right panel = Claude Code** (5-hour
+and weekly rate limits, context usage). Values that you change rather than
+watch — volume, screen brightness — get no permanent space; they take over a
+panel for ~2s at the moment you change them, then it returns to ambient.
+
+> **Status: in progress.** The transport layer, hardware characterisation, and
+> the design are done — see [DECISIONS.md](DECISIONS.md). The daemon itself is
+> not written yet. What ships today is `tools/smoke.py` and the udev rule.
+
+## Install
+
+```sh
+git clone https://github.com/jschraub/fw16-ledmatrix ~/code/matrix
+cd ~/code/matrix && ./install.sh
+```
+
+`install.sh` installs a udev rule (needs `sudo`) granting the active-seat user
+access to the modules. Nothing else requires root, and there are no Python
+dependencies — the transport is raw `termios`, no `pyserial`.
+
+## Try it
+
+```sh
+tools/smoke.py probe              # firmware version on each panel; changes nothing
+tools/smoke.py sweep              # light each panel in turn — tells you which bay is which
+tools/smoke.py on left            # fill one panel
+tools/smoke.py hold left 1 25     # hold a brightness level to judge it
+tools/smoke.py ramp left          # step the brightness range to calibrate by eye
+tools/smoke.py off all
+```
+
+## Hardware notes
+
+Findings from characterising the modules, all measured rather than assumed.
+These cost real time to discover, so they are written down here in the hope
+they save someone else the same afternoon.
+
+**Both modules report the same USB serial number** (`FRAKDEBZ0100000000`), so
+`/dev/serial/by-id/` collapses to a single symlink and cannot distinguish left
+from right. Enumerate via `/dev/serial/by-path/` instead — USB topology is
+stable per physical bay, and it also survives `ttyACM*` renumbering across
+suspend, which would otherwise silently mirror your layout.
+
+**Nothing in USB topology reveals which bay is which.** You have to light one
+and look. On this machine, USB port `3.3` is the *right* bay and `4.2` is the
+*left* — note the inversion, the lower-numbered port is the right-hand side.
+Verify yours with `tools/smoke.py sweep`.
+
+**The firmware sleeps on an idle timer** (default 60s, reset by any command).
+A sleeping module does not answer: the first command wakes it and is consumed
+doing so, and waking fades the LEDs in over a period during which commands are
+not serviced. A bare version query after an idle period reliably returns zero
+bytes, which looks exactly like a broken device. Send an explicit wake
+(`Sleep 0`) first, allow ~0.4s, and retry the query.
+
+The corollary matters for any always-on display: **you must send traffic more
+often than the idle timer** or the firmware will blank your panels for you.
+
+**Opening the port costs ~0.2s** before the device will accept a command
+(CDC-ACM line-state settling). Hold ports open for the process lifetime rather
+than reopening per frame.
+
+**Command timings** (measured, warmed):
+
+| path | per frame | rate |
+|---|---|---|
+| `Brightness` (global, 1 byte) | 13.9 ms | 72/s |
+| `DrawBW` full frame (39 bytes, 1-bit) | 25.3 ms | 39 fps |
+| single `StageCol` (35 bytes) | 16.9 ms | 59/s |
+| greyscale full frame (9 × `StageCol` + `FlushCols`) | 169 ms | 5.9 fps |
+
+So 1-bit drawing is effectively free and greyscale is not — smooth animation is
+off the table, but static greyscale content that changes rarely costs nothing
+you can perceive. `Brightness` is **global per panel**; per-zone intensity
+requires the greyscale path. The two compose: global brightness scales the
+greyscale values rather than overriding them.
+
+## Protocol
+
+USB CDC-ACM, 115200 8N1. Every command is `0x32 0xAC` then a command byte then
+its payload.
+
+| command | id | payload | response |
+|---|---|---|---|
+| Brightness | `0x00` | 1 byte | — |
+| Sleep | `0x03` | 1 byte (or none to query) | — (1 byte if querying) |
+| DrawBW | `0x06` | 39 bytes (9×34 bits) | — |
+| StageCol | `0x07` | 1 byte column + 34 bytes | — |
+| FlushCols | `0x08` | — | — |
+| Version | `0x20` | — | 3 bytes (bcdDevice MSB, LSB, pre-release flag) |
+
+Version bytes are **BCD**: `00 20 00` is firmware 0.20, not 0.32.
+
+Full protocol: [FrameworkComputer/inputmodule-rs](https://github.com/FrameworkComputer/inputmodule-rs).
+
+## Design
+
+[DECISIONS.md](DECISIONS.md) records the design and, more usefully, the
+reasoning and the rejected alternatives.
+
+## License
+
+MIT

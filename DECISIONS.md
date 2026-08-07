@@ -1,0 +1,254 @@
+# matrix — design decisions
+
+A background daemon driving the two Framework Laptop 16 LED Matrix modules as
+ambient status displays.
+
+Everything below marked **[measured]** was verified on this machine on
+2026-08-07. Everything marked **[open]** is undecided.
+
+## Hardware facts [measured]
+
+| | |
+|---|---|
+| Panels | 2 × 9 wide × 34 tall, 306 LEDs, per-LED greyscale |
+| USB | `32ac:0020`, CDC-ACM, 115200 8N1 |
+| Protocol | `0x32 0xAC` + command byte + payload |
+| Firmware | 0.20 on both |
+| Commands used | `0x00` brightness (1 byte), `0x03` sleep (1 byte / query), `0x06` DrawBW (39 bytes), `0x20` version (→3 bytes BCD) |
+
+**Both modules report the same USB serial** (`FRAKDEBZ0100000000`), so
+`/dev/serial/by-id/` collapses to one symlink and cannot distinguish them.
+Address by USB topology instead:
+
+| USB port | tty | bay |
+|---|---|---|
+| `3.3` | ttyACM0 | **RIGHT** |
+| `4.2` | ttyACM1 | **LEFT** |
+
+Note the inversion — the lower-numbered port is the right-hand bay. This maps
+*bays*, not modules; the modules are interchangeable.
+
+### Firmware idle sleep — the big constraint
+
+The firmware sleeps on an idle timer (**default 60s, reset by any command**).
+A sleeping module does not answer: the first command wakes it and is consumed
+doing so, and waking fades the LEDs in over a period during which commands are
+not serviced. Consequences:
+
+- An always-on ambient display **must** send traffic more often than the idle
+  timer or the firmware blanks it. Keepalive at ~30s.
+- Ports are held open for the daemon's lifetime. Reopening costs a 0.2s settle
+  plus a wake fade — more than the entire takeover latency budget.
+- `Sleep 1` is the correct way to go dark: it powers down the LED controller
+  and gives a fade for free, unlike drawing a zeroed bitmap.
+
+## Access
+
+`/etc/udev/rules.d/60-framework-ledmatrix.rules` grants the active-seat user
+access via `TAG+="uaccess"` — no `uucp` group membership, which would hand out
+every serial device on the machine to reach these two. **[measured]** ACL
+verified as `user:jars:rw-`.
+
+Because `uaccess` ACLs are tied to an active seat session, the daemon **must**
+be user-scope and session-bound. A system unit would have no ACL.
+
+## Panel assignment
+
+- **LEFT = machine.** Time (rows 0–10, two stacked 2-digit rows) and battery
+  (22 rows ≈ 4.5% granularity).
+- **RIGHT = Claude.** 5h (rows 0–12), 7d (14–19), context% (21–33). Asymmetric
+  on purpose: the 7d limit is rarely near its ceiling, so it gets 6 levels
+  while the two that matter get 13 each.
+
+Zones are **fixed**, never reflowed. The context band goes dark when no session
+is running rather than the others resizing — spatial constancy is the whole
+value of an ambient surface, and a layout that moves converts a glance into a
+lookup.
+
+Orientation is **upright**: the 34px axis runs front-to-back, so text gets only
+9px of width — two 3×5 digits, no more. `100%` has no honest text rendering.
+This is accepted rather than worked around: the surface shows magnitudes and
+two-digit numbers, not language.
+
+All bars are **linear**. A nonlinear scale weighted to the top end was
+considered and rejected — it destroys rate reading (steady burn should move the
+bar at a steady pace) and reintroduces a memorised scale into the one surface
+that should need no parsing. Top-end emphasis goes in brightness instead.
+
+Volume and brightness get **no ambient zone at all** — they are takeover-only.
+They are self-knowledge (you set them, you know them), and their value is
+concentrated entirely at the instant of change, which the takeover already
+covers.
+
+## Interaction model
+
+Ambient by default; a **takeover** fills one panel for ~2s then returns.
+
+Takeovers are for **confirmations only** — volume, brightness, AC plug. Alerts
+(battery low, 5h at 90%, context at 80%) instead pulse the relevant zone in
+place. An unbidden takeover arrives with no action available to you and
+destroys the ability to read a takeover as "here is the thing you just
+changed". The right panel never takes over.
+
+## Data sources
+
+| Signal | Source | Latency |
+|---|---|---|
+| 5h / 7d limits | `GET https://api.anthropic.com/api/oauth/usage`, OAuth bearer from `~/.claude/.credentials.json` **[measured]** | 60s poll |
+| Context % | statusline shim writing a snapshot; per-session, no endpoint exists | on render |
+| Volume | `pactl subscribe`, filtered to the default sink | event |
+| Brightness | **keybind hook** in `common.lua`, not udev | event |
+| Battery / AC | udev `power_supply` + lazy timer | event |
+| Clock | timer | 1 min |
+
+The usage endpoint is **undocumented** — treat a parse failure as "hide the
+zone", never as a crash. It also returns a `severity` field per limit, and a
+`weekly_scoped` per-model bucket (unused).
+
+Credentials are read **read-only**. The daemon never refreshes the token: that
+would rotate the refresh token and rewrite a file Claude Code owns, and a
+concurrent refresh would log you out of Claude Code. On 401 the Claude zone
+goes stale.
+
+Brightness uses a keybind hook rather than udev **because udev cannot tell your
+thumb from a timer** — `hypridle` writes brightness on idle, and a udev-driven
+takeover would fire a full-panel brightness popup at the exact moment you
+walked away from the machine.
+
+## Brightness
+
+Panel brightness tracks **screen** brightness, not keyboard backlight. The
+keyboard route was investigated and rejected: `rgb:kbd_backlight` does not
+exist on this machine (it is EC-controlled, needing `framework-system`, a
+privileged `/dev/cros_ec`, and polling since Fn+Space never reaches the OS) —
+and more importantly the mapping is backwards, since people raise keyboard
+backlight in the dark and turn it off in daylight.
+
+Calibration **[measured]**, dark room:
+
+| screen | panel | note |
+|---|---|---|
+| 2/100 | 1/255 | visible and comfortable — the floor |
+| 100/100 | **[open]** | needs daylight to anchor honestly |
+
+Clamp the panel minimum to 1 while the display is meant to be on; 0 is off, not
+dim. **[open]** whether the curve should match the `-e4` exponential of the
+existing brightness keybinds.
+
+### Severity — resolved, not compromised
+
+`CMD_BRIGHTNESS` is **global per panel**; it cannot make one zone brighter than
+another. Per-zone intensity requires the greyscale path. That turns out to
+resolve the apparent conflict rather than force a tradeoff, because the two
+channels are orthogonal and compose **[measured]**:
+
+- **Global brightness** = base level, follows screen brightness.
+- **Per-pixel greyscale** = relative emphasis *within* the frame.
+
+So severity needs no headroom above the base and no pulse — an alerting zone
+simply renders at a higher greyscale value than its neighbours. That is also a
+persistent state rather than a flash, which is what Q6 wanted from alerts.
+
+## Rendering [measured]
+
+| path | per frame | rate |
+|---|---|---|
+| `CMD_BRIGHTNESS` (global) | 13.9 ms | 72/s |
+| `DrawBW` full frame, 1-bit | 25.3 ms | 39 fps |
+| single `StageCol` | 16.9 ms | 59/s |
+| greyscale full frame (9 × `StageCol` + `FlushCols`) | 169 ms | 5.9 fps |
+
+(An earlier 430ms greyscale figure was unwarmed, taken during the wake fade.
+169ms is the warmed number; design against that.)
+
+**Ambient frames render as greyscale.** They change rarely — clock once a
+minute, battery glacially, limits on a 60s poll — so 169ms is imperceptible
+when it happens, and greyscale buys per-zone severity emphasis, dim separator
+rules that don't compete with data, and **sub-level bar resolution** (a partial
+-intensity top row roughly doubles effective granularity, so the 13-row 5h bar
+reads more like 26 levels).
+
+**Takeovers render as 1-bit `DrawBW`** — 25ms, where latency is the whole
+point. **Transitions use global brightness steps** — 14ms each, smooth.
+
+Smooth *animation* is not available (5.9fps on greyscale) and the design does
+not require any: severity is static, transitions ride global brightness, and
+full on/off gets the firmware's own fade for free via `Sleep`.
+
+### Takeover arbitration
+
+**One takeover slot per panel** — what is shown, and when it expires. Not a
+queue, not a stack. Any new event overwrites both fields, and **the timer is
+measured from the last event, not the first**, so holding a key keeps the bar up
+continuously and it lingers exactly 2s after release.
+
+Queuing was rejected on a category error: a takeover is feedback about *current
+state*, not a message. Six volume taps are one thing whose value changed six
+times; a queue would spend twelve seconds showing values that are no longer
+true.
+
+The ambient frame keeps updating underneath while hidden, so returning from a
+takeover is an instant 25ms `DrawBW` of already-current content rather than a
+169ms greyscale render at the worst moment.
+
+## Robustness
+
+Device loss (suspend, brownout, unplug) is handled by **udev `tty` add/remove**
+for `32ac:0020`, with **write errors (`ENODEV`/`EIO`) as a backstop** — a device
+can wedge without emitting a udev event. udev is authoritative and immediate;
+without it a dead panel would only be discovered at the next keepalive up to
+30s later, and any takeover fired in that window would silently do nothing.
+
+On reopen: wake, set brightness, redraw from scratch (modules come back blank
+and possibly asleep). Restore via `DrawBW` first for an instant repaint, with
+the greyscale ambient frame following behind.
+
+**`/dev/ttyACM*` numbering can swap across a suspend cycle** — addressing by USB
+path rather than kernel enumeration order is what prevents the entire layout
+from silently mirroring itself. **[open]** unverified in practice; not worth a
+suspend cycle to test mid-session.
+
+## Language
+
+**Python**, with a possible Rust port once it is built and working. Design
+consequence to honour now: keep the render layer a **pure function**
+(state → frame bytes), with transport and event plumbing around it. That is the
+part that ports mechanically and the part worth unit-testing.
+
+## Claude activity indicator
+
+The **separator rule above the context band** doubles as an activity light:
+lit while Claude is working, dim otherwise. Choosing greyscale for ambient made
+rules dim by design, so "fully lit rule" is a state that cannot be confused with
+data — a rule and a bar are different shapes in different places. Costs zero
+data rows.
+
+Hook edges **[measured]** — all exist and are sufficient:
+
+| event | use |
+|---|---|
+| `SessionStart` / `SessionEnd` | session liveness; gates the context band |
+| `UserPromptSubmit` | turn starts — rule on |
+| `Stop` / `StopFailure` | turn ends — rule off |
+| `PermissionRequest` / `Notification` | **blocked** — available, deliberately unused for now |
+
+**Two states only, not three.** `PermissionRequest` would distinguish *blocked*
+from *finished*, which is arguably the highest-value signal here — but a third
+state needs three intensity levels on a 1px × 9px line in peripheral vision,
+asking for absolute-intensity discrimination rather than change detection. That
+reads well in a mockup and badly on hardware. The daemon consumes these hooks
+either way, so the upgrade path costs nothing to preserve; revisit after living
+with lit/unlit.
+
+The rule tracks **the same session the context band shows** (the newest, per the
+data-sources section) — otherwise the panel contradicts itself, showing one
+session's context under another session's activity light.
+
+## Open questions
+
+- systemd user unit (restart-on-failure, `journalctl`) vs `common.lua:46`
+  `exec_cmd` alongside swaync/hyprpaper/hypridle.
+- Daylight brightness ceiling; whether the curve matches the `-e4` keybinds.
+- Time format details; battery charging indication; AC-plug takeover.
+- Dead `rgb:kbd_backlight` hypridle listener: remove, or repoint at
+  `framework_tool`.

@@ -124,12 +124,12 @@ privileged `/dev/cros_ec`, and polling since Fn+Space never reaches the OS) —
 and more importantly the mapping is backwards, since people raise keyboard
 backlight in the dark and turn it off in daylight.
 
-Calibration **[measured]**, dark room:
+Calibration:
 
 | screen | panel | note |
 |---|---|---|
-| 2/100 | 1/255 | visible and comfortable — the floor |
-| 100/100 | **[open]** | needs daylight to anchor honestly |
+| 2/100 | 1/255 | **[measured]** visible and comfortable in the dark — the floor |
+| 100/100 | 255/255 | ceiling is the hardware maximum |
 
 Clamp the panel minimum to 1 while the display is meant to be on; 0 is off, not
 dim. **[open]** whether the curve should match the `-e4` exponential of the
@@ -244,11 +244,60 @@ The rule tracks **the same session the context band shows** (the newest, per the
 data-sources section) — otherwise the panel contradicts itself, showing one
 session's context under another session's activity light.
 
+## Left panel details
+
+**Clock is 24-hour**, two stacked 2-digit rows (`HH` over `MM`). 12-hour would
+need an AM/PM marker, and there is no width for one.
+
+**AC plug and unplug both earn a takeover.** They are confirmations under the
+Q6 taxonomy — you did them, and the panel acknowledges. Unplug matters as much
+as plug: it is the moment the battery number starts mattering.
+
+**Charging is indicated by a pulse**, carried on **global brightness across the
+whole left panel** rather than greyscale on the battery zone alone. Greyscale
+frames cost 169ms, so animating one zone would run the serial link at or near
+100% duty purely to breathe, and a takeover would then queue behind an in-flight
+frame — up to 169ms of the ~300ms feedback budget. Global brightness is 14ms, so
+a 3s breathe costs ~28% duty and worst-case queueing is 14ms.
+
+The cost is that the clock breathes too. That is acceptable: it reads as *the
+machine panel* indicating a machine state, and whole-panel breathing has exactly
+one meaning assigned to it.
+
+Pulse amplitude is proportional to the base level, and **biased upward at low
+base** — at base 1 there is no room to modulate downward without switching off,
+so the breathe runs 1 → ~4 → 1.
+
+## Supervision
+
+**systemd user unit**, `WantedBy=default.target`, `Restart=on-failure`.
+
+The usual Hyprland objection does not apply: this daemon needs no Wayland
+environment. Its inputs are serial devices, sysfs, udev, the PipeWire socket,
+and one HTTPS call — all reachable from a plain user unit with `XDG_RUNTIME_DIR`
+alone. Nothing calls `hyprctl`.
+
+Chosen over `exec_cmd` because three things here will fail and should recover
+unattended: the `pactl subscribe` child (dies with PipeWire), the serial fds
+(die on every suspend), and the daemon itself.
+
+A user unit can start before the seat session goes active, and the `uaccess` ACL
+is not applied until it does — so the first open may return `EACCES`. That is
+the same path the robustness backstop already handles.
+
+## Distribution
+
+Standalone repo `jschraub/fw16-ledmatrix`, MIT. `install.sh` owns the udev rule.
+
+Dotfiles integrates via its existing `delegate` convention — registry item
+`matrix` → `install-matrix.sh`, which clones or fast-forwards into
+`$MATRIX_DIR` (default `~/code/matrix`) and runs the repo's own installer. Not a
+submodule: the project should be installable by people who are not the author.
+
 ## Open questions
 
-- systemd user unit (restart-on-failure, `journalctl`) vs `common.lua:46`
-  `exec_cmd` alongside swaync/hyprpaper/hypridle.
-- Daylight brightness ceiling; whether the curve matches the `-e4` keybinds.
-- Time format details; battery charging indication; AC-plug takeover.
-- Dead `rgb:kbd_backlight` hypridle listener: remove, or repoint at
-  `framework_tool`.
+- Whether the brightness curve matches the `-e4` exponential of the keybinds.
+- `framework_tool` requires root and `/dev/cros_ec` is `root:root` with no udev
+  rule. Unknown whether it uses the `cros_ec` driver (fixable with a udev rule)
+  or port I/O (needs `CAP_SYS_RAWIO`, not fixable that way). Must be tested
+  before the hypridle keyboard-backlight listener can be repointed at it.

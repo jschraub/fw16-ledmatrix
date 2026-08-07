@@ -294,10 +294,25 @@ Dotfiles integrates via its existing `delegate` convention — registry item
 `$MATRIX_DIR` (default `~/code/matrix`) and runs the repo's own installer. Not a
 submodule: the project should be installable by people who are not the author.
 
+## Keyboard backlight — abandoned
+
+Tying anything to the FW16 keyboard backlight is not practical. It is
+EC-controlled with no `/sys/class/leds` entry, and every route to it is
+root-gated **[measured]**:
+
+| route | blocker |
+|---|---|
+| `framework_tool --kblight` | reads `/sys/firmware/dmi/tables/DMI`, `-r-------- root root`. Also **exits 0 on failure** |
+| `ectool` via `/dev/cros_ec` | `crw------- root root`, no udev rule; needs AUR `fw-ectool-git` |
+| HID to the keyboard module | `/dev/hidraw*` are `crw------- root root`, no `uaccess` |
+
+Granting `uaccess` on `/dev/cros_ec` looks like the LED-matrix rule but is not a
+comparable trade — the EC also controls fans, charging, and firmware paths. A
+`NOPASSWD` sudoers entry is worse. Neither is worth a cosmetic idle behaviour.
+
+The dead hypridle listener that targeted `rgb:kbd_backlight` has been removed;
+it had been silently failing since it was written, without being missed.
+
 ## Open questions
 
 - Whether the brightness curve matches the `-e4` exponential of the keybinds.
-- `framework_tool` requires root and `/dev/cros_ec` is `root:root` with no udev
-  rule. Unknown whether it uses the `cros_ec` driver (fixable with a udev rule)
-  or port I/O (needs `CAP_SYS_RAWIO`, not fixable that way). Must be tested
-  before the hypridle keyboard-backlight listener can be repointed at it.

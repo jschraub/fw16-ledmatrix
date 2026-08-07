@@ -104,6 +104,23 @@ you can perceive. `Brightness` is **global per panel**; per-zone intensity
 requires the greyscale path. The two compose: global brightness scales the
 greyscale values rather than overriding them.
 
+**Writes do not block, so those timings are not what your caller experiences.**
+The tty buffers them: a write returns in ~0.1ms while the data drains in the
+background at the rates above. A frame is therefore *not* on screen when the
+write returns, and anything written behind a queued greyscale frame is delayed
+by up to 165ms — so a takeover issued mid-frame appears late even though its own
+write costs 25ms. Use `tcdrain()` if you need to know it landed.
+
+**`TIOCOUTQ` does not report bytes on `cdc-acm`.** It reports
+`writesize × URBs in flight` — measured at 1280 per outstanding write, so a
+greyscale frame (which is ten separate writes) reads 12800 for ~345 bytes of
+payload, and it saturates at 16 URBs (20480) however much more you queue. Useful
+as a busy/idle signal, useless as a byte count.
+
+Do **not** flush the output queue to make a takeover jump the line: truncating a
+`StageCol` mid-payload leaves the module's command parser consuming your next
+command as payload bytes. A late frame is much cheaper than a desynced parser.
+
 ## Protocol
 
 USB CDC-ACM, 115200 8N1. Every command is `0x32 0xAC` then a command byte then

@@ -121,6 +121,46 @@ class TestDigits(unittest.TestCase):
             seen[key] = d
 
 
+class TestVisibility(unittest.TestCase):
+    """Encodes the measured threshold model so the intent survives refactoring."""
+
+    def test_threshold_matches_hardware_measurements(self):
+        # digits (greyscale 200): legible at global 3, not at 2
+        self.assertTrue(r.is_visible(3, r.DATA))
+        self.assertFalse(r.is_visible(2, r.DATA))
+        # rules (greyscale 60): legible at global 9, not at 8
+        self.assertTrue(r.is_visible(9, r.RULE))
+        self.assertFalse(r.is_visible(8, r.RULE))
+
+    def test_rules_vanish_at_the_floor(self):
+        """DELIBERATE. Rules are invisible at the bottom of the range.
+
+        A rule that cleared the threshold at AMBIENT_FLOOR would need greyscale
+        near DATA, at which point it competes with the data it separates. Losing
+        decoration is the right trade — band positions are fixed and learned.
+
+        If this test fails because someone raised RULE, that person should read
+        the comment block in render.py before changing it back.
+        """
+        self.assertFalse(r.is_visible(r.AMBIENT_FLOOR, r.RULE))
+
+    def test_data_and_emphasis_survive_the_floor(self):
+        """The corollary: everything that carries meaning must stay legible."""
+        self.assertTrue(r.is_visible(r.AMBIENT_FLOOR, r.DATA))
+        self.assertTrue(r.is_visible(r.AMBIENT_FLOOR, r.EMPHASIS))
+
+    def test_activity_indicator_works_at_the_floor(self):
+        """Its lit state must read even when its dim state cannot."""
+        busy = r.render_claude(r.ClaudeState(working=True))
+        idle = r.render_claude(r.ClaudeState(working=False))
+        self.assertTrue(r.is_visible(r.AMBIENT_FLOOR, busy[r.RIGHT_RULE_2_Y][0]))
+        self.assertFalse(r.is_visible(r.AMBIENT_FLOOR, idle[r.RIGHT_RULE_2_Y][0]))
+
+    def test_everything_is_visible_at_the_ceiling(self):
+        for value in (r.RULE, r.DATA, r.EMPHASIS):
+            self.assertTrue(r.is_visible(r.AMBIENT_CEILING, value))
+
+
 class TestEncoders(unittest.TestCase):
     def test_drawbw_is_row_major_lsb_first(self):
         """Measured on hardware: byte0=0x07 lit the three leftmost LEDs of the

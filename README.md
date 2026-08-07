@@ -79,6 +79,16 @@ Getting any of these backwards renders mirrored, transposed, or upside down
 while looking perfectly plausible in code, so they are worth five minutes with
 `tools/preview.py` on your own machine rather than trusting this table.
 
+**Visibility is a product, not a level.** An LED reads as lit when
+`global_brightness × greyscale ≳ 520`. Neither number matters on its own —
+digits at greyscale 200 are legible at global 3 but not 2 (600 vs 400), and
+rules at greyscale 60 are legible at global 9 but not 8 (540 vs 480).
+
+A corollary that costs people time: **calibrate against representative content,
+never a solid fill.** A full panel lights all 306 LEDs and reads as a glow at
+currents where a few thin bands are completely invisible. A floor derived from a
+fill will be far too low for a real frame.
+
 **Command timings** (measured, warmed):
 
 | path | per frame | rate |

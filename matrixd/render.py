@@ -36,6 +36,53 @@ RULE = 60
 DATA = 200
 EMPHASIS = 255
 
+# Perceptual visibility threshold, measured on hardware. An LED reads as lit
+# when (global_brightness * greyscale) is roughly >= 520. Neither number matters
+# on its own — it is the product. Verified across a 3x range of both:
+#
+#     digits, greyscale 200 : legible at global 3 (600), not at 2 (400)
+#     rules,  greyscale  60 : legible at global 9 (540), not at 8 (480)
+#
+VISIBILITY_THRESHOLD = 520
+
+# Global brightness range the daemon drives from screen brightness.
+AMBIENT_FLOOR = 3
+AMBIENT_CEILING = 255
+
+
+def is_visible(global_brightness: int, greyscale: int) -> bool:
+    """Whether a pixel at this greyscale reads as lit at this global brightness.
+
+    See VISIBILITY_THRESHOLD. Useful for asserting intent in tests rather than
+    rediscovering the constraint on hardware.
+    """
+    return global_brightness * greyscale >= VISIBILITY_THRESHOLD
+
+
+# ── Deliberate: rules disappear at low brightness ────────────────────────────
+#
+# This surprises people, so it is stated plainly: at the bottom of the
+# brightness range the separator rules are INVISIBLE, and that is intended.
+#
+# At AMBIENT_FLOOR (global 3), a rule would need greyscale >= ~173 to clear the
+# threshold — so close to DATA (200) that it would stop reading as a separator
+# and start competing with the data it separates. You cannot have a rule that is
+# both visible and subordinate at the floor; that is a property of the hardware,
+# not a tuning problem.
+#
+# Given the choice, decoration is what gets dropped. Band *positions* are fixed
+# and learned, so losing the dividers costs nothing in legibility — the top band
+# is still the top band. The activity indicator keeps working throughout,
+# because its lit state is EMPHASIS (product 765 at global 3, comfortably clear)
+# and only its dim state vanishes, which makes "not working" read as off rather
+# than dim.
+#
+# The practical effect is that the display gets richer as the room does: bare
+# data at the darkest setting, full structure in daylight. Rules begin appearing
+# around global 9, which corresponds to roughly 5% screen brightness.
+#
+# Do not "fix" this by lifting RULE. See test_rules_vanish_at_the_floor.
+
 Frame = list[list[int]]
 
 

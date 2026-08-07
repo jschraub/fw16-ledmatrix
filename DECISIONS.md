@@ -124,16 +124,57 @@ privileged `/dev/cros_ec`, and polling since Fn+Space never reaches the OS) —
 and more importantly the mapping is backwards, since people raise keyboard
 backlight in the dark and turn it off in daylight.
 
+### Visibility is a product, not a level
+
+**[measured]** An LED reads as lit when `global_brightness × greyscale ≳ 520`.
+Neither number matters alone. Verified across a 3× range of both:
+
+| element | greyscale | visible at | product |
+|---|---|---|---|
+| digits | 200 | global 3, not 2 | 600 ✓ / 400 ✗ |
+| rules | 60 | global 9, not 8 | 540 ✓ / 480 ✗ |
+
 Calibration:
 
 | screen | panel | note |
 |---|---|---|
-| 2/100 | 1/255 | **[measured]** visible and comfortable in the dark — the floor |
+| 2/100 | 3/255 | floor — lowest at which real content is legible |
 | 100/100 | 255/255 | ceiling is the hardware maximum |
 
-Clamp the panel minimum to 1 while the display is meant to be on; 0 is off, not
-dim. **[open]** whether the curve should match the `-e4` exponential of the
-existing brightness keybinds.
+> **An earlier figure of 1/255 was wrong and is corrected here.** It came from
+> ramping a *solid fill*, which lights all 306 LEDs, and was then applied to
+> sparse content that lights maybe a fifth of them. At threshold current a full
+> panel reads as a glow while a few thin bands do not register at all. Calibrate
+> against representative content, never a fill.
+
+**[open]** whether the curve should match the `-e4` exponential of the existing
+brightness keybinds.
+
+### Rules vanish at the floor — deliberately
+
+At the floor, a rule would need greyscale ≈ 173 to clear the threshold, so close
+to `DATA` (200) that it would stop reading as a separator and start competing
+with the data. **You cannot have a rule that is both visible and subordinate at
+the floor**; that is hardware, not tuning.
+
+Decoration is what gets dropped. Band positions are fixed and learned, so losing
+the dividers costs nothing in legibility. The activity indicator keeps working
+throughout — its lit state is `EMPHASIS` (product 765 at the floor) and only its
+dim state disappears, making "not working" read as off rather than dim.
+
+The display gets richer as the room does: bare data at the darkest setting, full
+structure in daylight. Rules begin appearing around global 9, roughly 5% screen.
+
+This is surprising enough to be mistaken for a bug, so it is stated in a comment
+block in `render.py` and pinned by `test_rules_vanish_at_the_floor`.
+
+### Takeovers will read brighter than ambient
+
+A full-height gauge is close to a solid fill; an ambient frame is mostly dark.
+At equal global brightness the takeover therefore emits far more light. That is
+desirable for something meant to grab attention, but it is a consequence of
+coverage rather than a decision — worth revisiting if takeovers turn out to be
+startling at night.
 
 ### Severity — resolved, not compromised
 

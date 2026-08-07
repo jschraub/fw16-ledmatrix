@@ -8,9 +8,11 @@ and weekly rate limits, context usage). Values that you change rather than
 watch — volume, screen brightness — get no permanent space; they take over a
 panel for ~2s at the moment you change them, then it returns to ambient.
 
-> **Status: in progress.** The transport layer, hardware characterisation, and
-> the design are done — see [DECISIONS.md](DECISIONS.md). The daemon itself is
-> not written yet. What ships today is `tools/smoke.py` and the udev rule.
+> **Status: in progress.** The render layer, serial transport, and most data
+> sources are built and verified against real hardware; the event loop that ties
+> them together is not written yet, so nothing runs unattended. See
+> [STATUS.md](STATUS.md) for exactly where things stand and what is next, and
+> [DECISIONS.md](DECISIONS.md) for why anything is the way it is.
 
 ## Install
 

@@ -313,6 +313,36 @@ comparable trade — the EC also controls fans, charging, and firmware paths. A
 The dead hypridle listener that targeted `rgb:kbd_backlight` has been removed;
 it had been silently failing since it was written, without being missed.
 
+## Render layer
+
+`matrixd/render.py` is pure — no I/O, no sleeps, no hardware. Every function is
+a pure function of its arguments, which is what makes the layout testable
+without a laptop attached and what makes it the piece that ports to Rust
+mechanically. `tools/preview.py` is the only place render meets hardware.
+
+Coordinate conventions **[measured]** — see README for the table. All four were
+found by lighting patterns and looking; none are documented upstream.
+
+Relative intensity ladder within a frame: `RULE 60`, `DATA 200`,
+`EMPHASIS 255`. `DATA` sits below full scale so severity has somewhere to go,
+since there is no headroom above 255.
+
+**[measured]** The ladder survives at the bottom of the range: at global
+brightness 1, digits, bars, *and* the dim rules were all still legible. The
+concern that a rule at 60/255 of a minimal drive current would vanish — taking
+the separators and the activity indicator with it — did not materialise. (Noted
+under a 19/100 screen rather than the 2/100 of the original floor calibration,
+so worth re-checking in a genuinely dark room.)
+
+Bars carry a **partial-intensity top row** proportional to the remainder,
+roughly doubling effective resolution — a 13-row bar reads closer to 26 levels.
+Bars are inset 1px; rules span the full width. That shape difference is what
+keeps a lit rule from being mistaken for data.
+
+Two-digit values are **clamped, not truncated**: 123 renders as `99`, because a
+confidently wrong reading is worse than a visibly pinned one.
+
 ## Open questions
 
 - Whether the brightness curve matches the `-e4` exponential of the keybinds.
+- Re-check the intensity ladder at 2/100 screen in a genuinely dark room.

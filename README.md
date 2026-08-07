@@ -65,6 +65,20 @@ often than the idle timer** or the firmware will blank your panels for you.
 (CDC-ACM line-state settling). Hold ports open for the process lifetime rather
 than reopening per frame.
 
+**Coordinate conventions**, none of which are documented anywhere and all of
+which were found by lighting patterns and looking:
+
+| | |
+|---|---|
+| `y = 0` | far end of the panel, toward the screen |
+| `y = 33` | near end, toward you |
+| `x = 0` | your left — on **both** panels; the modules are seated alike, so no per-panel mirroring |
+| `DrawBW` packing | row-major, `bit = y*9 + x`, **LSB-first** within each byte |
+
+Getting any of these backwards renders mirrored, transposed, or upside down
+while looking perfectly plausible in code, so they are worth five minutes with
+`tools/preview.py` on your own machine rather than trusting this table.
+
 **Command timings** (measured, warmed):
 
 | path | per frame | rate |

@@ -8,11 +8,21 @@ and weekly rate limits, context usage). Values that you change rather than
 watch — volume, screen brightness — get no permanent space; they take over a
 panel for ~2s at the moment you change them, then it returns to ambient.
 
-> **Status: in progress.** The render layer, serial transport, and most data
-> sources are built and verified against real hardware; the event loop that ties
-> them together is not written yet, so nothing runs unattended. See
+> **Status: in progress.** The daemon runs — every layer is built and verified
+> against real hardware — but there is no service unit yet, so it does not start
+> on login. Run it by hand with `python3 -m matrixd`. See
 > [STATUS.md](STATUS.md) for exactly where things stand and what is next, and
 > [DECISIONS.md](DECISIONS.md) for why anything is the way it is.
+
+## Run it
+
+```sh
+python3 -m matrixd        # left panel: clock + battery; right: Claude usage
+python3 -m matrixd -v     # log takeovers and panel connect/disconnect
+```
+
+Ctrl-C or `SIGTERM` puts both panels to sleep on the way out. Idle cost is one
+wakeup a second and no measurable CPU.
 
 ## Install
 
@@ -117,7 +127,25 @@ A sleeping module does not answer: the first command wakes it and is consumed
 doing so, and waking fades the LEDs in over a period during which commands are
 not serviced. A bare version query after an idle period reliably returns zero
 bytes, which looks exactly like a broken device. Send an explicit wake
-(`Sleep 0`) first, allow ~0.4s, and retry the query.
+(`Sleep 0`) first, allow **1s**, and retry the query.
+
+**That settle needs to be a full second, and 0.4s is a trap** — long enough for
+a command to be accepted, so it looks like it works, but not for the link to be
+back at full speed. Draining a greyscale frame written at varying delays after
+a wake:
+
+| settle | drain | | settle | drain |
+|---|---|---|---|---|
+| 0.0s | 654 ms | | 1.0s | 165 ms |
+| 0.4s | 253 ms | | 5.0s | 165 ms |
+
+165ms is the steady-state figure, so anything past 1s buys nothing and anything
+under it makes the first frames after a wake crawl. This is specifically the
+fade, not a cold link: with no traffic at all for 1, 5, 15, 30 and 45 seconds,
+drains stayed at 130-165ms throughout.
+
+Worth knowing because it hides well. It surfaces as *shutdown* being slow, or a
+panel being sluggish only right after a resume — never as an error.
 
 The corollary matters for any always-on display: **you must send traffic more
 often than the idle timer** or the firmware will blank your panels for you.

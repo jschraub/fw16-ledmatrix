@@ -97,7 +97,7 @@ changed". The right panel never takes over.
 | 5h / 7d limits | `GET https://api.anthropic.com/api/oauth/usage`, OAuth bearer from `~/.claude/.credentials.json` **[measured]** | 60s poll |
 | Context % | statusline shim writing a per-session snapshot; no endpoint exists **[measured]** | on render |
 | Volume | `pactl subscribe`, filtered to sink/server events, then re-read **[measured]** | event |
-| Brightness | **keybind hook** in `common.lua`, not udev | event |
+| Brightness | udev `backlight`, plus a marker file to spot automatic changes **[revised]** | event |
 | Battery / AC | udev `power_supply` + lazy timer | event |
 | Clock | timer | 1 min |
 
@@ -110,10 +110,29 @@ would rotate the refresh token and rewrite a file Claude Code owns, and a
 concurrent refresh would log you out of Claude Code. On 401 the Claude zone
 goes stale.
 
-Brightness uses a keybind hook rather than udev **because udev cannot tell your
-thumb from a timer** — `hypridle` writes brightness on idle, and a udev-driven
-takeover would fire a full-panel brightness popup at the exact moment you
+Brightness was going to use a keybind hook rather than udev, **because udev
+cannot tell your thumb from a timer** — `hypridle` writes brightness on idle,
+and a udev-driven takeover would fire a full-panel gauge at the exact moment you
 walked away from the machine.
+
+**That was revised during implementation**, and the reasoning is worth keeping
+because the original was answering the wrong question. A keybind hook only fires
+for the *keyboard*: brightness changed by a settings slider, a script, or a
+docking profile would leave the panels at a stale level indefinitely. That is a
+correctness bug, where the thing it was avoiding is a papercut.
+
+So the two questions are separated. **Tracking** the level is udev's job, and
+udev sees every change whatever caused it. **Reacting** with a takeover needs
+one extra bit that udev genuinely cannot supply, so `idle-dim.sh` supplies it:
+it touches a marker file immediately before and after each of its own writes,
+and the daemon suppresses the takeover — but not the tracking — when that marker
+is fresh.
+
+Marked on both sides of the write on purpose. The kernel emits the uevent during
+the write while the daemon reads it asynchronously, so a marker set only before,
+or only after, leaves a race in which an automatic change looks deliberate.
+Absence of the marker means "deliberate", which is the right way to fail: with
+the idle script not installed, every brightness change really is yours.
 
 The Claude session feed's producing half **ships in this repo**
 (`integration/claude/`), installed into `~/.claude` by `install.sh`. It lived in

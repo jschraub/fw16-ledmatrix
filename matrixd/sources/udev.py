@@ -1,12 +1,16 @@
 """Kernel device events, over a netlink socket.
 
-Gives the event loop a single pollable fd for two unrelated jobs:
+Gives the event loop a single pollable fd for three unrelated jobs:
 
 - **`power_supply`** — AC plugged or unplugged, which earns a takeover.
 - **`tty`** — a panel appearing or disappearing, which is the authoritative
   signal for `transport.reconnect()`. Without it a dead panel is only noticed at
   the next keepalive up to 30s later, and any takeover fired in that window
   silently does nothing.
+- **`backlight`** — screen brightness changed, which the panels follow. udev
+  sees changes from every source, not just the keyboard, which is why tracking
+  is done here rather than from a keybind; see `sources/screen.py` for why
+  *reacting* needs one extra bit of information that udev cannot supply.
 
 Why a raw socket rather than the alternatives: `pyudev` is a third-party
 dependency this project does not otherwise need, and parsing `udevadm monitor`
@@ -98,7 +102,7 @@ class Watcher:
     """Netlink uevent listener, filtered to the subsystems you care about."""
 
     def __init__(self, subsystems: set[str] | None = None) -> None:
-        self.subsystems = subsystems or {"tty", "power_supply"}
+        self.subsystems = subsystems or {"tty", "power_supply", "backlight"}
         self._sock = socket.socket(
             socket.AF_NETLINK, socket.SOCK_DGRAM, NETLINK_KOBJECT_UEVENT
         )
@@ -160,3 +164,14 @@ def affects_panels(event: Event) -> bool:
 def affects_power(event: Event) -> bool:
     """Whether this event should trigger a re-read of battery and AC state."""
     return event.subsystem == "power_supply"
+
+
+def affects_brightness(event: Event) -> bool:
+    """Whether this event means the screen brightness moved.
+
+    Says nothing about *who* moved it — that question is answered by
+    `screen.changed_automatically()`, and deliberately kept separate. This
+    function decides whether to re-read the level; that one decides whether to
+    react to it.
+    """
+    return event.subsystem == "backlight" and event.action == "change"

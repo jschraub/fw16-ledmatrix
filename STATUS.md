@@ -3,10 +3,13 @@
 Last touched 2026-08-07. Read this first, then [DECISIONS.md](DECISIONS.md) for
 *why* anything is the way it is.
 
-Everything below is committed and pushed. 95 tests pass (`python3 -m unittest
-discover -s tests -t .`). The daemon does not exist yet — there is no event loop
-and nothing runs unattended; what exists is every layer beneath it, each verified
-against real hardware.
+Everything below is committed and pushed. 159 tests pass (`python3 -m unittest
+discover -s tests -t .`).
+
+**The daemon runs.** `python3 -m matrixd` drives both panels from live state.
+What is missing is only the service unit, so it does not start on login yet.
+Measured over a 24s run: 0% CPU, 6MB RSS, and SIGTERM to both-panels-asleep in
+22ms.
 
 ## Built
 
@@ -20,7 +23,8 @@ against real hardware.
 | `matrixd/sources/udev.py` | netlink watcher: `tty` + `power_supply` | parses real captured messages |
 | `matrixd/sources/audio.py` | volume + mute, supervised `pactl subscribe` | live: real changes seen, beeps ignored |
 | `matrixd/sources/claude_session.py` | context %, session liveness | live: read a real running session |
-| `install.sh` | udev `uaccess` rule | installed and working |
+| `matrixd/daemon.py` | the event loop — one epoll, all inputs, both panels | live: every takeover path driven end to end |
+| `install.sh` | udev rule + Claude scripts | installed and working |
 
 The disconnect/reconnect path **has now been run** — `tools/test-reconnect.py`
 passed end to end: udev reported the removal, the write backstop raised
@@ -50,14 +54,13 @@ conversation rather than of an account.
 
 ## Next, in dependency order
 
-1. **The event loop** — one epoll over the udev fd, the `pactl` child, the
-   brightness keybind socket, and timers for the clock, the 60s usage poll, and
-   the 30s keepalive. Note the audio fd is not stable: it changes across a
-   respawn and is -1 while there is no child, so it must be re-registered rather
-   than registered once (`Subscriber`'s docstring has the loop shape).
-2. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
+1. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
    Deliberately *not* tied to `graphical-session.target`: this daemon needs no
    Wayland environment, so it avoids the usual Hyprland unit plumbing entirely.
+   `install.sh` should install and enable it.
+2. **Watch it for a day.** Everything has been exercised in bursts of seconds.
+   The failure modes that need real uptime are still untested: a suspend/resume
+   cycle, an OAuth token expiring, PipeWire restarting under the subscriber.
 
 ## Known gaps and risks
 
@@ -111,3 +114,13 @@ Written down because each one cost real time to find:
 - A session id from the status line payload becomes a path component, and
   `SessionEnd` feeds it to `rm -f`. Both producing scripts validate it: an id of
   `../../escape` was confirmed to write outside the directory without the guard.
+- **Writing during the post-wake fade is slow, and looks like nothing.** At the
+  old 0.4s settle a greyscale frame took 253ms to drain instead of 165ms, and at
+  0s it took 654ms. `WAKE_SETTLE` is now 1.0s. It showed up as a two-second
+  shutdown, not as an error.
+- An absolute monotonic deadline initialised to `0.0` is not "do it now", it is
+  permanently overdue — every poll returns immediately and the loop spins at
+  100% of a core while looking perfectly healthy. Seed deadlines from the clock.
+- A respawned child process usually gets the dead one's fd number back, and
+  closing an fd silently drops it from the epoll set. An unchanged fd number
+  therefore does **not** mean it is still registered.

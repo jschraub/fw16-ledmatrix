@@ -68,7 +68,20 @@ SIDE_BY_USB_PORT = {"3.3": "right", "4.2": "left"}
 # ── timings, all measured ────────────────────────────────────────────────────
 
 OPEN_SETTLE = 0.2  # CDC-ACM line state; commands before this are dropped
-WAKE_SETTLE = 0.4  # LED fade-in; the module ignores commands during it
+
+# LED fade-in, during which the module services commands only sluggishly. This
+# was 0.4s, which is long enough for a command to be *accepted* but not for the
+# link to be back at full speed — measured by draining a greyscale frame at
+# varying settles after a wake:
+#
+#     0.0s -> 654ms      1.0s -> 165ms
+#     0.4s -> 253ms      5.0s -> 165ms
+#
+# 165ms is the steady-state figure, so anything above 1.0s buys nothing and
+# anything below it makes the first frame after a wake crawl. Idle time was
+# ruled out separately: gaps of 1-45s with no traffic all drain at 130-165ms,
+# so this is specifically the fade and not a cold link.
+WAKE_SETTLE = 1.0
 IDLE_TIMEOUT = 60.0  # firmware sleeps after this, reset by any command
 KEEPALIVE_INTERVAL = 30.0  # comfortably inside IDLE_TIMEOUT
 
@@ -207,14 +220,24 @@ class Panel:
 
     # ── commands ─────────────────────────────────────────────────────────────
 
+    def begin_wake(self) -> None:
+        """Start the wake without waiting for the fade.
+
+        Split out so a caller with several panels can wake them concurrently and
+        pay the settle once rather than once each — the wait is the module
+        fading in, not the command being delivered, and the two panels fade in
+        parallel. Callers must wait WAKE_SETTLE before expecting full speed.
+        """
+        self._send(CMD_SLEEP, bytes([0]))
+
     def wake(self) -> None:
         """Wake and wait out the fade.
 
         The module does not service commands while fading in, so anything sent
-        during WAKE_SETTLE is silently lost. This is the single most common way
-        to conclude a working module is broken.
+        during WAKE_SETTLE is silently lost or delivered at a crawl. This is the
+        single most common way to conclude a working module is broken.
         """
-        self._send(CMD_SLEEP, bytes([0]))
+        self.begin_wake()
         time.sleep(WAKE_SETTLE)
 
     def sleep(self) -> None:
@@ -308,6 +331,14 @@ class Panel:
         return None
 
     # ── keepalive ────────────────────────────────────────────────────────────
+
+    def next_keepalive_at(self) -> float:
+        """Monotonic time the idle timer next needs resetting.
+
+        Exposed so an event loop can fold this into its sleep deadline instead
+        of polling `keepalive_due()` on a tick.
+        """
+        return self._last_write + KEEPALIVE_INTERVAL
 
     def keepalive_due(self, now: float | None = None) -> bool:
         now = time.monotonic() if now is None else now

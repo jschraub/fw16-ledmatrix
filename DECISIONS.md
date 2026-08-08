@@ -402,6 +402,37 @@ A user unit can start before the seat session goes active, and the `uaccess` ACL
 is not applied until it does — so the first open may return `EACCES`. That is
 the same path the robustness backstop already handles.
 
+### Details settled while writing the unit
+
+**It runs out of the checkout** — `WorkingDirectory` points at wherever
+`install.sh` was run from, and nothing is copied. `git pull` is therefore the
+entire update procedure, and there is no second copy of the code to go stale.
+The unit in the repo carries an `@INSTALL_DIR@` placeholder that the installer
+substitutes, so the file under `~/.config/systemd/user` is generated, not
+edited.
+
+**`ExecStart=/usr/bin/env python3 -m matrixd`** rather than a hardcoded
+interpreter path, which differs across distributions. The cost is that the
+journal would otherwise label every line `env[1234]`; `SyslogIdentifier=matrixd`
+buys the name back.
+
+**`Restart=on-failure`, not `always`.** A clean exit is the daemon being told to
+stop, and restarting it then would make `systemctl --user stop` unable to stop
+it. `RestartSec=5s` matches the panel retry interval — there is nothing to gain
+from returning faster than the hardware becomes available.
+
+**`TimeoutStopSec=10s`** is slack, not an expectation. SIGTERM to both panels
+asleep is 21ms **[measured, via systemd]**; the timeout covers only the
+pathological case where a greyscale frame is still draining behind the `Sleep`.
+
+The `pactl subscribe` child lands in the service cgroup, so it is killed with
+the unit and cannot outlive it as an orphan **[measured: `Tasks: 2`]**.
+
+`install.sh` restarts the service when the unit content changed and leaves it
+alone when it did not — `enable --now` starts a stopped service but will not
+restart a running one, so without that check a re-run after an edit would
+report success while the old code kept running.
+
 ## Distribution
 
 Standalone repo `jschraub/fw16-ledmatrix`, MIT. `install.sh` owns the udev rule.

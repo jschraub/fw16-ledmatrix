@@ -6,20 +6,22 @@
 # a POSIX ACL. Deliberately NOT `usermod -aG uucp`, which would hand out every
 # serial device on the machine, permanently, to reach these two.
 #
-# Also installs the two Claude Code integration scripts into ~/.claude. They are
-# inert until settings.json refers to them, and the exact JSON to add is printed
-# at the end. Editing settings.json is left to you on purpose: it is your file,
-# it may carry anything, and a merge that mangled it would be a poor trade for
-# saving one paste.
+# Also installs a systemd *user* service that runs the daemon from this
+# checkout, and the two Claude Code integration scripts into ~/.claude. The
+# scripts are inert until settings.json refers to them, and the exact JSON to
+# add is printed at the end. Editing settings.json is left to you on purpose:
+# it is your file, it may carry anything, and a merge that mangled it would be
+# a poor trade for saving one paste.
 #
 # Idempotent: safe to re-run. Only the udev rule needs root; nothing else here
 # does, and there are no Python dependencies.
 #
 # Usage:
-#   ./install.sh              install
-#   ./install.sh --dry-run    show what would happen
-#   ./install.sh --uninstall  remove the udev rule and the Claude scripts
-#   ./install.sh --no-claude  skip the Claude Code integration
+#   ./install.sh               install
+#   ./install.sh --dry-run     show what would happen
+#   ./install.sh --uninstall   remove everything this installed
+#   ./install.sh --no-claude   skip the Claude Code integration
+#   ./install.sh --no-service  skip the systemd user service
 
 set -euo pipefail
 
@@ -31,6 +33,11 @@ CLAUDE_SRC="$SCRIPT_DIR/integration/claude"
 CLAUDE_DST="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 CLAUDE_SCRIPTS=(matrix-statusline-tap.sh matrix-session-hook.sh)
 
+UNIT_NAME="matrixd.service"
+UNIT_SRC="$SCRIPT_DIR/systemd/$UNIT_NAME"
+UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+UNIT_DST="$UNIT_DIR/$UNIT_NAME"
+
 info()  { printf '\033[1;34m::\033[0m %s\n' "$*"; }
 warn()  { printf '\033[1;33m::\033[0m %s\n' "$*"; }
 ok()    { printf '\033[1;32m::\033[0m %s\n' "$*"; }
@@ -39,13 +46,17 @@ error() { printf '\033[1;31m::\033[0m %s\n' "$*" >&2; exit 1; }
 DRY_RUN=0
 UNINSTALL=0
 WITH_CLAUDE=1
+WITH_SERVICE=1
 for arg in "$@"; do
     case "$arg" in
-        --dry-run)   DRY_RUN=1 ;;
-        --uninstall) UNINSTALL=1 ;;
-        --no-claude) WITH_CLAUDE=0 ;;
-        -h|--help)   sed -n '2,23p' "$0"; exit 0 ;;
-        *)           error "unknown argument: $arg" ;;
+        --dry-run)    DRY_RUN=1 ;;
+        --uninstall)  UNINSTALL=1 ;;
+        --no-claude)  WITH_CLAUDE=0 ;;
+        --no-service) WITH_SERVICE=0 ;;
+        # Print the header block rather than a hardcoded line range, which
+        # goes stale the first time anyone edits the comment above.
+        -h|--help)    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"; exit 0 ;;
+        *)            error "unknown argument: $arg" ;;
     esac
 done
 
@@ -62,6 +73,66 @@ reload_udev() {
     # Re-run rules against existing devices so the ACL applies without a replug.
     # The modules are internal, so replugging is not a reasonable ask.
     run sudo udevadm trigger --subsystem-match=tty
+}
+
+# Whether there is a user manager to talk to at all. `systemctl --user` fails
+# with a confusing error over a bare ssh session or in a container, and under
+# `set -e` that would abort the whole install over an optional extra.
+user_systemd_ok() {
+    command -v systemctl >/dev/null 2>&1 &&
+        systemctl --user show-environment >/dev/null 2>&1
+}
+
+install_service() {
+    [[ -f "$UNIT_SRC" ]] || { warn "missing $UNIT_SRC — skipping the service"; return; }
+
+    # The unit runs the daemon out of this checkout rather than copying code
+    # anywhere, so `git pull` is the whole update procedure.
+    local rendered
+    rendered=$(sed "s|@INSTALL_DIR@|$SCRIPT_DIR|g" "$UNIT_SRC")
+
+    local changed=1
+    if [[ -f "$UNIT_DST" ]] && [[ "$rendered" == "$(cat "$UNIT_DST")" ]]; then
+        changed=0
+        ok "service unit already current"
+    else
+        info "installing $UNIT_DST"
+        if [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] write $UNIT_DST with WorkingDirectory=$SCRIPT_DIR"
+        else
+            mkdir -p "$UNIT_DIR"
+            printf '%s\n' "$rendered" > "$UNIT_DST"
+        fi
+    fi
+
+    if ! user_systemd_ok; then
+        warn "no user systemd manager reachable — unit written but not enabled"
+        warn "enable it from a login session with:"
+        warn "  systemctl --user enable --now $UNIT_NAME"
+        return
+    fi
+
+    [[ $changed -eq 1 ]] && run systemctl --user daemon-reload
+    run systemctl --user enable "$UNIT_NAME"
+    # `enable --now` starts a stopped service but will not restart a running
+    # one, so a re-run after an edit would leave the old code live.
+    if [[ $changed -eq 1 ]] && systemctl --user is-active --quiet "$UNIT_NAME"; then
+        run systemctl --user restart "$UNIT_NAME"
+    else
+        run systemctl --user start "$UNIT_NAME"
+    fi
+    ok "service enabled and started — logs: journalctl --user -u $UNIT_NAME -f"
+}
+
+uninstall_service() {
+    [[ -f "$UNIT_DST" ]] || return 0
+    info "removing $UNIT_DST"
+    if user_systemd_ok; then
+        run systemctl --user disable --now "$UNIT_NAME" || true
+    fi
+    run rm -f "$UNIT_DST"
+    user_systemd_ok && run systemctl --user daemon-reload
+    removed=1
 }
 
 install_claude_scripts() {
@@ -117,6 +188,10 @@ if [[ $UNINSTALL -eq 1 ]]; then
     # Userspace first, deliberately. The udev step needs sudo, and under
     # `set -e` a declined or timed-out password would abort the whole script
     # and leave the rest of the uninstall silently undone.
+    #
+    # The service goes first of all, so the daemon is stopped before the files
+    # it reads start disappearing underneath it.
+    uninstall_service
     for script in "${CLAUDE_SCRIPTS[@]}"; do
         # Only remove regular files this script installed. A symlink is
         # somebody's dotfiles and is not ours to delete.
@@ -156,6 +231,7 @@ fi
 [[ $WITH_CLAUDE -eq 1 ]] && install_claude_scripts
 
 if [[ $DRY_RUN -eq 1 ]]; then
+    [[ $WITH_SERVICE -eq 1 ]] && install_service
     [[ $WITH_CLAUDE -eq 1 && -d "$CLAUDE_DST" ]] && print_claude_settings
     exit 0
 fi
@@ -192,6 +268,10 @@ elif [[ $denied -gt 0 ]]; then
 else
     ok "all $found module(s) accessible — try: tools/smoke.py probe"
 fi
+
+# Last, so the daemon starts with the rule installed and the ACL applied
+# rather than spending its first seconds retrying an EACCES it need not hit.
+[[ $WITH_SERVICE -eq 1 ]] && install_service
 
 [[ $WITH_CLAUDE -eq 1 && -d "$CLAUDE_DST" ]] && print_claude_settings
 

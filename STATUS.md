@@ -6,10 +6,11 @@ Last touched 2026-08-08. Read this first, then [DECISIONS.md](DECISIONS.md) for
 Everything below is committed and pushed. 162 tests pass (`python3 -m unittest
 discover -s tests -t .`).
 
-**The daemon runs.** `python3 -m matrixd` drives both panels from live state.
-What is missing is only the service unit, so it does not start on login yet.
-Measured over a 24s run: 0% CPU, 6MB RSS, and SIGTERM to both-panels-asleep in
-22ms.
+**The daemon runs, and it starts on login.** `systemctl --user status matrixd`
+is the whole answer to "is it up". Measured: 0% CPU, 6MB RSS, SIGTERM to
+both-panels-asleep in 21ms, and recovery from `SIGKILL` in ~6s.
+
+What it has not had is a long uninterrupted run.
 
 ## Built
 
@@ -24,7 +25,8 @@ Measured over a 24s run: 0% CPU, 6MB RSS, and SIGTERM to both-panels-asleep in
 | `matrixd/sources/audio.py` | volume + mute, supervised `pactl subscribe` | live: real changes seen, beeps ignored |
 | `matrixd/sources/claude_session.py` | context %, session liveness | live: read a real running session |
 | `matrixd/daemon.py` | the event loop — one epoll, all inputs, both panels | live: every takeover path driven end to end |
-| `install.sh` | udev rule + Claude scripts | installed and working |
+| `systemd/matrixd.service` | user unit; runs the daemon from this checkout | enabled; restart, kill-recovery and stop timing all measured |
+| `install.sh` | udev rule + service + Claude scripts | installed, re-run, and uninstalled again |
 
 The disconnect/reconnect path **has now been run** — `tools/test-reconnect.py`
 passed end to end: udev reported the removal, the write backstop raised
@@ -52,17 +54,16 @@ Context percentage is available *only* from the status line payload — no file 
 disk holds it and no API reports it, because it is a property of a live
 conversation rather than of an account.
 
-## Next, in dependency order
+## Next
 
-1. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
-   Deliberately *not* tied to `graphical-session.target`: this daemon needs no
-   Wayland environment, so it avoids the usual Hyprland unit plumbing entirely.
-   `install.sh` should install and enable it. This is the only thing standing
-   between "runs when you start it" and "just works".
-2. **Then leave it running for a day** — see below.
+**Leave it running for a day** — see below. That is the only remaining item;
+everything else is a matter of looking at it and deciding whether it is right,
+which is what a day of running is for.
 
 Both open design questions below are about how the panels *look*, so they are
-best answered while it is running rather than before.
+best answered while it is running rather than before. One has already been
+answered that way — the charging pulse was too aggressive at low screen
+brightness, which no amount of reading the code would have revealed.
 
 ## Known gaps and risks
 
@@ -101,13 +102,13 @@ recorded as 1/255, measured by ramping a *solid fill* and then applied to sparse
 content. It is 3. Calibrate against representative frames, never a fill — a full
 panel reads as a glow at currents where a few thin bands are invisible.
 
-## Things that will bite you
 **And the sequel to it:** the charging pulse then straddled the base level, so
 at low screen brightness — where the base *is* the floor — it ran 1 → 6 → 1 and
 the panel visibly blinked rather than breathed. The floor is a property of every
 frame, including the frames of an animation. Fixed by brightening upward from
 the base instead of straddling it.
 
+## Things that will bite you
 
 Written down because each one cost real time to find:
 
@@ -140,3 +141,13 @@ Written down because each one cost real time to find:
 - A respawned child process usually gets the dead one's fd number back, and
   closing an fd silently drops it from the epoll set. An unchanged fd number
   therefore does **not** mean it is still registered.
+- `systemctl --user enable --now` starts a *stopped* service but will not
+  restart a running one, so an installer that only ever calls it reports
+  success while the old code keeps running. `install.sh` restarts explicitly
+  when the unit content changed.
+- `ExecStart=/usr/bin/env python3 …` makes the journal label every line
+  `env[1234]`. `SyslogIdentifier=` gets the name back.
+- A defensive clamp that can never fire is not free: it looks like the thing
+  enforcing an invariant while contributing nothing, and no test can tell the
+  difference. Two of them appeared in the pulse fix and mutation testing found
+  both. Prefer one clamp that is provably load-bearing.

@@ -8,21 +8,10 @@ and weekly rate limits, context usage). Values that you change rather than
 watch — volume, screen brightness — get no permanent space; they take over a
 panel for ~2s at the moment you change them, then it returns to ambient.
 
-> **Status: in progress.** The daemon runs — every layer is built and verified
-> against real hardware — but there is no service unit yet, so it does not start
-> on login. Run it by hand with `python3 -m matrixd`. See
-> [STATUS.md](STATUS.md) for exactly where things stand and what is next, and
+> **Status: it works and it starts on login.** Every layer is built and verified
+> against real hardware. What it has not had yet is a long uninterrupted run.
+> See [STATUS.md](STATUS.md) for exactly where things stand and
 > [DECISIONS.md](DECISIONS.md) for why anything is the way it is.
-
-## Run it
-
-```sh
-python3 -m matrixd        # left panel: clock + battery; right: Claude usage
-python3 -m matrixd -v     # log takeovers and panel connect/disconnect
-```
-
-Ctrl-C or `SIGTERM` puts both panels to sleep on the way out. Idle cost is one
-wakeup a second and no measurable CPU.
 
 ## Install
 
@@ -31,13 +20,41 @@ git clone https://github.com/jschraub/fw16-ledmatrix ~/code/matrix
 cd ~/code/matrix && ./install.sh
 ```
 
-`install.sh` installs a udev rule (needs `sudo`) granting the active-seat user
-access to the modules, and drops two Claude Code integration scripts into
-`~/.claude`. Nothing else requires root, and there are no Python dependencies —
-the transport is raw `termios`, no `pyserial`.
+That installs three things: a udev rule granting the active-seat user access to
+the modules (the only step needing `sudo`), a systemd **user** service that runs
+the daemon on login, and two Claude Code integration scripts in `~/.claude`.
+There are no Python dependencies — the transport is raw `termios`, no
+`pyserial`.
 
-Pass `--no-claude` to skip the Claude Code half, `--dry-run` to see what it
+Pass `--no-service` or `--no-claude` to skip a part, `--dry-run` to see what it
 would do, or `--uninstall` to remove it all again.
+
+The service runs the code from the directory you installed from and nothing is
+copied, so updating is just:
+
+```sh
+cd ~/code/matrix && git pull && ./install.sh
+```
+
+## Run it
+
+```sh
+systemctl --user status matrixd          # is it up
+journalctl --user -u matrixd -f          # what is it doing
+systemctl --user restart matrixd
+```
+
+Or by hand, which is the better way to watch it:
+
+```sh
+python3 -m matrixd        # left panel: clock + battery; right: Claude usage
+python3 -m matrixd -v     # log takeovers and panel connect/disconnect
+```
+
+Stop the service first — two instances will both write to the same panels.
+
+Ctrl-C or `SIGTERM` puts both panels to sleep on the way out, measured at 21ms.
+Idle cost is one wakeup a second and no measurable CPU.
 
 ## Claude Code integration
 
@@ -178,6 +195,12 @@ never a solid fill.** A full panel lights all 306 LEDs and reads as a glow at
 currents where a few thin bands are completely invisible. A floor derived from a
 fill will be far too low for a real frame.
 
+A second corollary, which cost this project a bug: **the floor applies to every
+frame of an animation, not just to static ones.** A brightness pulse that dips
+below it does not look dim, it looks like the panel switching off — and since
+the floor is where the panel sits at low screen brightness, that is exactly
+where a pulse centred on the current level will land.
+
 **Command timings** (measured, warmed):
 
 | path | per frame | rate |
@@ -195,12 +218,6 @@ greyscale values rather than overriding them.
 
 **Writes do not block, so those timings are not what your caller experiences.**
 The tty buffers them: a write returns in ~0.1ms while the data drains in the
-A second corollary, which cost this project a bug: **the floor applies to every
-frame of an animation, not just to static ones.** A brightness pulse that dips
-below it does not look dim, it looks like the panel switching off — and since
-the floor is where the panel sits at low screen brightness, that is exactly
-where a pulse centred on the current level will land.
-
 background at the rates above. A frame is therefore *not* on screen when the
 write returns, and anything written behind a queued greyscale frame is delayed
 by up to 165ms — so a takeover issued mid-frame appears late even though its own

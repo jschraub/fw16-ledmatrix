@@ -195,6 +195,12 @@ greyscale values rather than overriding them.
 
 **Writes do not block, so those timings are not what your caller experiences.**
 The tty buffers them: a write returns in ~0.1ms while the data drains in the
+A second corollary, which cost this project a bug: **the floor applies to every
+frame of an animation, not just to static ones.** A brightness pulse that dips
+below it does not look dim, it looks like the panel switching off — and since
+the floor is where the panel sits at low screen brightness, that is exactly
+where a pulse centred on the current level will land.
+
 background at the rates above. A frame is therefore *not* on screen when the
 write returns, and anything written behind a queued greyscale frame is delayed
 by up to 165ms — so a takeover issued mid-frame appears late even though its own

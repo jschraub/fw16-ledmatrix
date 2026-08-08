@@ -3,7 +3,7 @@
 Last touched 2026-08-08. Read this first, then [DECISIONS.md](DECISIONS.md) for
 *why* anything is the way it is.
 
-Everything below is committed and pushed. 159 tests pass (`python3 -m unittest
+Everything below is committed and pushed. 162 tests pass (`python3 -m unittest
 discover -s tests -t .`).
 
 **The daemon runs.** `python3 -m matrixd` drives both panels from live state.
@@ -102,6 +102,12 @@ content. It is 3. Calibrate against representative frames, never a fill — a fu
 panel reads as a glow at currents where a few thin bands are invisible.
 
 ## Things that will bite you
+**And the sequel to it:** the charging pulse then straddled the base level, so
+at low screen brightness — where the base *is* the floor — it ran 1 → 6 → 1 and
+the panel visibly blinked rather than breathed. The floor is a property of every
+frame, including the frames of an animation. Fixed by brightening upward from
+the base instead of straddling it.
+
 
 Written down because each one cost real time to find:
 

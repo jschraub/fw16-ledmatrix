@@ -60,24 +60,41 @@ TAKEOVER_SECONDS = 2.0
 # step — about 14% duty, leaving the link overwhelmingly idle for takeovers.
 PULSE_PERIOD = 3.0
 PULSE_STEP = 0.1
-PULSE_FRACTION = 0.35  # amplitude as a share of base brightness
-PULSE_MIN_AMPLITUDE = 3  # so a base of 1 still visibly breathes: 1 -> 4 -> 1
+PULSE_FRACTION = 0.25  # amplitude as a share of base brightness
 
 
 def pulse_brightness(base: int, phase: float) -> int:
     """Global brightness for a charging panel at `phase` (0..1) of the breathe.
 
-    Amplitude is proportional to the base level so the pulse stays perceptually
-    similar across the range, but floored so that it survives the bottom of it:
-    at base 1 there is no room to modulate downward without switching the panel
-    off, so the breathe runs 1 -> 4 -> 1 and is biased upward by clamping.
+    The window **brightens from** the base rather than straddling it, and never
+    descends past `AMBIENT_FLOOR`. That is not a stylistic choice: visibility is
+    a product of global brightness and greyscale, so below the floor the content
+    is not dim, it is *unlit*. A pulse that straddles a base already sitting on
+    the floor therefore spends part of every cycle switching the panel off —
+    which is exactly how it looked, and nothing about the code said so.
+
+    Anchoring upward would flatten the pulse at the ceiling, so the window
+    slides down there instead of shrinking.
+
+    Amplitude is a share of the base and nothing else — no minimum. What the
+    eye reads is the *ratio* between the ends of the breathe, not their
+    difference, so one proportion serves the whole range and a floor for the
+    bottom of it would only make the bottom the harshest part. There is no
+    guard against a zero amplitude because the base cannot fall below
+    `AMBIENT_FLOOR`; if that floor or this fraction ever drop far enough to
+    round to nothing, the test asserting a visible ratio at the floor is the
+    thing that should fail, not a clamp that quietly hides it.
 
     Pure, so the shape can be asserted rather than watched.
     """
-    base = max(0, min(255, int(base)))
-    amplitude = max(PULSE_MIN_AMPLITUDE, int(round(base * PULSE_FRACTION)))
-    low = max(1, base - amplitude)
-    high = min(255, base + amplitude)
+    # Clamped up to the floor first. Below it the panel is not dim, it is
+    # unlit — so that is not a brightness the pulse may pass through, let alone
+    # begin at. This one clamp carries the invariant: because the window then
+    # only reaches upward, `low` cannot fall below the floor by construction.
+    base = max(render.AMBIENT_FLOOR, min(render.AMBIENT_CEILING, int(base)))
+    amplitude = int(round(base * PULSE_FRACTION))
+    high = min(render.AMBIENT_CEILING, base + amplitude)
+    low = high - amplitude
     # Raised cosine: starts at `low`, peaks at mid-phase, returns. Smooth at the
     # wrap point, which a triangle or sawtooth would not be.
     t = (1.0 - math.cos(2.0 * math.pi * phase)) / 2.0

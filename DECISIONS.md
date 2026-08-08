@@ -358,9 +358,32 @@ The cost is that the clock breathes too. That is acceptable: it reads as *the
 machine panel* indicating a machine state, and whole-panel breathing has exactly
 one meaning assigned to it.
 
-Pulse amplitude is proportional to the base level, and **biased upward at low
-base** — at base 1 there is no room to modulate downward without switching off,
-so the breathe runs 1 → ~4 → 1.
+### The pulse must not cross the visibility floor [corrected on hardware]
+
+The first version straddled the base: `base ± 35%`, floored at an amplitude of
+3 so that a low base still moved. At the bottom of the screen-brightness range
+that base *is* `AMBIENT_FLOOR` (3), so the breathe ran **1 → 6 → 1** — and
+global 1 and 2 are below the level at which ambient content is lit at all.
+
+It did not read as a dim pulse. It read as the panel switching on and off,
+which is a different message entirely and the wrong one.
+
+The mistake was applying "visibility is a product, not a level" to static
+frames and forgetting it applies to every instant of an animation. The rule
+restated: **no frame of a pulse may sit below the floor, because below the
+floor there is no frame.**
+
+So the window now **brightens from the base** instead of straddling it, and
+slides down rather than shrinking when it would exceed 255. The floor is then
+carried by a single clamp on `base`, not by a second clamp on the low end —
+which turned out to be unreachable code that no test could distinguish.
+
+Amplitude is a share of the base and nothing else. No minimum: what the eye
+reads is the **ratio** between the ends of the breathe rather than their
+difference, so one proportion serves the whole range, and a minimum amplitude
+would only make the bottom of the range the harshest part of it. At 25% the
+ratio is 1.20–1.34 everywhere from base 3 to base 255 — roughly a third of the
+0.7×-of-base swing it replaced.
 
 ## Supervision
 

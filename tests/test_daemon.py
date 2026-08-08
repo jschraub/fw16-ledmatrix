@@ -86,18 +86,50 @@ def make_daemon(**state):
 
 
 class TestPulse(unittest.TestCase):
-    def test_breathes_between_one_and_four_at_the_floor(self):
-        """The documented shape. At base 1 there is no room to modulate
-        downward without switching the panel off, so the pulse is biased up."""
-        values = [daemon.pulse_brightness(1, p / 30) for p in range(31)]
-        self.assertEqual(min(values), 1)
-        self.assertEqual(max(values), 4)
-
-    def test_never_goes_dark(self):
-        """A pulse that reached 0 would read as the panel dying, not charging."""
+    def test_never_dips_below_the_visibility_floor(self):
+        """The regression this replaced. Visibility is a *product* of global
+        brightness and greyscale, so below AMBIENT_FLOOR the content is not dim,
+        it is unlit. The old pulse straddled the base, and at the bottom of the
+        screen-brightness range that base is already the floor — so it ran
+        1 -> 6 -> 1 and the panel blinked rather than breathed."""
         for base in range(0, 256):
             for step in range(20):
-                self.assertGreaterEqual(daemon.pulse_brightness(base, step / 20), 1)
+                self.assertGreaterEqual(
+                    daemon.pulse_brightness(base, step / 20), render.AMBIENT_FLOOR
+                )
+
+    def test_breathes_upward_at_the_floor(self):
+        """3 -> 4 -> 3: the whole cycle stays lit, because there is no room
+        below the floor to modulate into."""
+        values = [daemon.pulse_brightness(render.AMBIENT_FLOOR, p / 30) for p in range(31)]
+        self.assertEqual(min(values), 3)
+        self.assertEqual(max(values), 4)
+
+    def test_still_pulses_at_the_ceiling(self):
+        """Anchoring the window upward would flatten it at 255, so it slides
+        down there rather than shrinking to nothing."""
+        values = [daemon.pulse_brightness(255, p / 30) for p in range(31)]
+        self.assertEqual(max(values), 255)
+        self.assertLessEqual(min(values), 200)
+
+    def test_the_swing_is_visible_but_gentle(self):
+        """Apparent brightness tracks the global level, so what the eye reads is
+        the *ratio* between the ends of the breathe rather than their
+        difference — which is why one proportion serves the whole range.
+
+        Bounded on both sides on purpose. Under ~1.15 it stops registering as
+        movement at all; over ~1.4 it pulls the eye off the screen, which is
+        what the 0.7x-of-base swing this replaced did.
+
+        The floor is included rather than exempted. It is the case actually on
+        screen at low screen brightness, it is where the old pulse was worst,
+        and it is the only place a shrinking amplitude could round away to
+        nothing without any other test noticing."""
+        for base in (render.AMBIENT_FLOOR, 4, 6, 10, 20, 50, 128, 200, 255):
+            values = [daemon.pulse_brightness(base, s / 30) for s in range(30)]
+            ratio = max(values) / min(values)
+            self.assertGreater(ratio, 1.15, f"base {base}: {ratio:.2f} is imperceptible")
+            self.assertLess(ratio, 1.4, f"base {base}: {ratio:.2f} is distracting")
 
     def test_never_exceeds_the_hardware_range(self):
         for base in (0, 1, 128, 250, 255, 300):
@@ -121,6 +153,16 @@ class TestPulse(unittest.TestCase):
         )
         near_end = daemon.pulse_brightness(100, 0.99)
         self.assertLess(abs(near_end - daemon.pulse_brightness(100, 0.0)), 5)
+
+    def test_a_breath_lasts_about_as_long_as_a_breath(self):
+        """A bound on intent rather than an invariant, because the constant has
+        no arithmetic to check: PULSE_STEP and PULSE_PERIOD only ever appear as
+        a ratio, so every other test here stays true however fast it runs.
+
+        Under two seconds it reads as a blinking alert rather than a state, and
+        past six it is slow enough that you cannot tell it is moving at all."""
+        self.assertGreaterEqual(daemon.PULSE_PERIOD, 2.0)
+        self.assertLessEqual(daemon.PULSE_PERIOD, 6.0)
 
     def test_peaks_mid_phase(self):
         self.assertEqual(

@@ -54,16 +54,47 @@ be user-scope and session-bound. A system unit would have no ACL.
 
 ## Panel assignment
 
-- **LEFT = machine.** Time (rows 0–10, two stacked 2-digit rows) and battery
-  (22 rows ≈ 4.5% granularity).
-- **RIGHT = Claude.** 5h (rows 0–12), 7d (14–19), context% (21–33). Asymmetric
-  on purpose: the 7d limit is rarely near its ceiling, so it gets 6 levels
-  while the two that matter get 13 each.
+- **LEFT = machine.** Time (rows 1–11, two stacked 2-digit rows) and battery
+  (rows 13–33, 3 columns wide, ≈4.8% granularity).
+- **RIGHT = Claude.** Context% as a **number** (rows 1–5), then the 5h and 7d
+  limits as two bars **side by side** (rows 7–33, columns 1–2 and 6–7).
 
-Zones are **fixed**, never reflowed. The context band goes dark when no session
-is running rather than the others resizing — spatial constancy is the whole
-value of an ambient surface, and a layout that moves converts a glance into a
-lookup.
+Zones are **fixed**, never reflowed. The context number goes dark when no
+session is running rather than the bars resizing — spatial constancy is the
+whole value of an ambient surface, and a layout that moves converts a glance
+into a lookup.
+
+**One dark row of padding** separates each digit block from what is below it.
+That replaced explicit separator rules, which are gone from both panels: a
+blank row and a dim line do the same job, and the blank row does it at every
+brightness (see *Rules retired*, below).
+
+### Context is a number, the limits are bars
+
+Context is the one value on either panel worth reading *exactly* rather than
+gauging — the difference between 78% and 91% is the difference between carrying
+on and wrapping up, and two rows of a bar do not say that. It also gets the top
+of the panel, being the value that moves fastest and gets consulted most.
+
+At ≥100 it renders `XX` rather than a number. Three digits need 11 of the 9
+available columns, so something has to give; `XX` gives up the value while a
+clamped `99` (the earlier behaviour) gives up the *honesty*, since 99 is a
+plausible reading and so still looks like data. The clock cannot reach that
+branch. Values are **truncated, not rounded**, so `XX` means genuinely at or
+past 100.
+
+The two limit bars are 2 columns each with a 3-column gap and a 1-column margin
+either side — the only arrangement of those that fits 9. **Side by side rather
+than stacked so both get all 27 rows.** That retires an earlier decision to give
+7d fewer rows on the grounds that it "rarely nears its ceiling", which had it
+backwards: at 6 rows anything under 16.7% was a single dim partial row, so the
+band was coarsest exactly across the range it actually occupies. One row is now
+3.7%.
+
+The battery bar is likewise **3 columns rather than the full width**. It is a
+magnitude, not a picture; narrower leaves the panel reading as a clock with a
+gauge beside it rather than a clock sitting on a slab. Its 21 rows are
+unchanged, so no resolution is lost.
 
 Orientation is **upright**: the 34px axis runs front-to-back, so text gets only
 9px of width — two 3×5 digits, no more. `100%` has no honest text rendering.
@@ -85,10 +116,20 @@ covers.
 Ambient by default; a **takeover** fills one panel for ~2s then returns.
 
 Takeovers are for **confirmations only** — volume, brightness, AC plug. Alerts
-(battery low, 5h at 90%, context at 80%) instead pulse the relevant zone in
-place. An unbidden takeover arrives with no action available to you and
-destroys the ability to read a takeover as "here is the thing you just
-changed". The right panel never takes over.
+(battery low, 5h at 90%) instead express themselves in place. An unbidden
+takeover arrives with no action available to you and destroys the ability to
+read a takeover as "here is the thing you just changed". The right panel never
+takes over.
+
+**A context-full pulse was designed and then rejected.** Breathing the right
+panel above 80% context works mechanically — `pulse_brightness` already composes
+with screen brightness and is floor-safe — but it would have put a *third*
+independent variable on the panel's brightness channel, alongside severity on
+the bars and working/idle on the number. Three signals sharing one perceptual
+channel means a panel at maximum with nothing to say which of the three caused
+it. Whole-panel breathing keeps exactly one meaning per panel: on the left, it
+means charging. The number itself, and `XX` at the top of its range, are enough
+for context.
 
 ## Data sources
 
@@ -203,23 +244,39 @@ Calibration:
 **[open]** whether the curve should match the `-e4` exponential of the existing
 brightness keybinds.
 
-### Rules vanish at the floor — deliberately
+### Rules retired — everything is now legible at every brightness
 
-At the floor, a rule would need greyscale ≈ 173 to clear the threshold, so close
-to `DATA` (200) that it would stop reading as a separator and start competing
-with the data. **You cannot have a rule that is both visible and subordinate at
-the floor**; that is hardware, not tuning.
+Both panels used to carry separator rules at greyscale 60. Those vanished below
+global 9 (~5% screen), and that was defended as correct: at the floor a rule
+would need greyscale ≈ 173 to clear the threshold, so close to `DATA` that it
+would compete with the data it separated. **You cannot have a rule that is both
+visible and subordinate at the floor** — hardware, not tuning — so decoration
+was what got dropped.
 
-Decoration is what gets dropped. Band positions are fixed and learned, so losing
-the dividers costs nothing in legibility. The activity indicator keeps working
-throughout — its lit state is `EMPHASIS` (product 765 at the floor) and only its
-dim state disappears, making "not working" read as off rather than dim.
+The rules are gone entirely now, replaced by dark padding rows. A blank row
+separates zones just as well, costs the same one row, and does it identically at
+every brightness. `draw_rule` and the `RULE` constant are deleted.
 
-The display gets richer as the room does: bare data at the darkest setting, full
-structure in daylight. Rules begin appearing around global 9, roughly 5% screen.
+The property inverts as a result: **nothing on either panel is allowed to
+vanish.** `DATA` and `EMPHASIS` both clear the threshold at `AMBIENT_FLOOR`, so
+the panels show the same content at every screen brightness, only dimmer. The
+single exception is a bar's partial tip, which is sub-row precision rather than
+a value. Pinned by `test_every_meaningful_intensity_survives_the_floor` and, on
+the mapping side, `test_the_mapping_keeps_every_element_visible`.
 
-This is surprising enough to be mistaken for a bug, so it is stated in a comment
-block in `render.py` and pinned by `test_rules_vanish_at_the_floor`.
+### `DATA` is 180, and it sits on a measurement
+
+`DATA` moved from 200 to 180 to widen the swing up to `EMPHASIS`. The swing is
+what you read, and the eye judges it as a **ratio**: 200 → 255 is 1.28×,
+180 → 255 is 1.42×. That matters more than it used to, because the context
+number's brightness is now a signal in its own right rather than decoration.
+
+It cannot go lower. Visibility is a product, so at `AMBIENT_FLOOR` (global 3)
+greyscale 180 lands on 540 — the dimmest product actually *measured* legible.
+174 is the arithmetic minimum against the 520 threshold (522 ✓), but 520 is
+interpolated between the two measurements in the table above and 540 is one of
+them. Sitting on the evidence rather than just past a guess costs 0.05× of
+swing. Pinned by `test_data_sits_on_a_measured_product`.
 
 ### Takeovers will read brighter than ambient
 
@@ -257,10 +314,10 @@ persistent state rather than a flash, which is what Q6 wanted from alerts.
 
 **Ambient frames render as greyscale.** They change rarely — clock once a
 minute, battery glacially, limits on a 60s poll — so 169ms is imperceptible
-when it happens, and greyscale buys per-zone severity emphasis, dim separator
-rules that don't compete with data, and **sub-level bar resolution** (a partial
--intensity top row roughly doubles effective granularity, so the 13-row 5h bar
-reads more like 26 levels).
+when it happens, and greyscale buys per-zone severity emphasis, the context
+number's idle/working distinction, and **sub-level bar resolution** (a partial
+-intensity top row roughly doubles effective granularity, so the 27-row limit
+bars read more like 54 levels).
 
 **Takeovers render as 1-bit `DrawBW`** — 25ms, where latency is the whole
 point. **Transitions use global brightness steps** — 14ms each, smooth.
@@ -311,32 +368,47 @@ part that ports mechanically and the part worth unit-testing.
 
 ## Claude activity indicator
 
-The **separator rule above the context band** doubles as an activity light:
-lit while Claude is working, dim otherwise. Choosing greyscale for ambient made
-rules dim by design, so "fully lit rule" is a state that cannot be confused with
-data — a rule and a bar are different shapes in different places. Costs zero
-data rows.
+**The context number's brightness** is the activity light: `EMPHASIS` while
+Claude is working, `DATA` otherwise. It costs zero rows. This replaced a
+dedicated separator rule that did the same job, which went away with the rules.
+
+That is a deliberate **overload of one element by two variables** — the number's
+shape says how full the context window is, its intensity says whether a turn is
+in flight. It works because the two are read differently (you resolve a shape,
+you notice a change), and because the 1.42× swing is well above the ~1.15 ratio
+below which a brightness change stops registering at all.
+
+The cost, accepted knowingly: **the indicator now depends on the context
+percentage existing.** The two arrive from *different files* — the status-line
+tap writes the percentage, the session hook writes the working state — and
+`parse()` is explicitly built to tolerate a payload shape that changes with
+Claude Code releases. A renamed `context_window` key would therefore take out
+the activity light as collateral damage even though the hook feeding it is still
+correct. That failure is visible as a dark space where a number belongs, which
+is a symptom you can act on, and the snapshot files under
+`$XDG_RUNTIME_DIR/matrixd/sessions/` make it diagnosable in seconds.
 
 Hook edges **[measured]** — all exist and are sufficient:
 
 | event | use |
 |---|---|
-| `SessionStart` / `SessionEnd` | session liveness; gates the context band |
-| `UserPromptSubmit` | turn starts — rule on |
-| `Stop` / `StopFailure` | turn ends — rule off |
+| `SessionStart` / `SessionEnd` | session liveness; gates the context number |
+| `UserPromptSubmit` | turn starts — number bright |
+| `Stop` / `StopFailure` | turn ends — number normal |
 | `PermissionRequest` / `Notification` | **blocked** — available, deliberately unused for now |
 
 **Two states only, not three.** `PermissionRequest` would distinguish *blocked*
 from *finished*, which is arguably the highest-value signal here — but a third
-state needs three intensity levels on a 1px × 9px line in peripheral vision,
-asking for absolute-intensity discrimination rather than change detection. That
-reads well in a mockup and badly on hardware. The daemon consumes these hooks
-either way, so the upgrade path costs nothing to preserve; revisit after living
-with lit/unlit.
+state needs three intensity levels discriminated in absolute terms rather than
+as a change. That reads well in a mockup and badly on hardware, and the
+available range makes it worse than it sounds: between the floor-legible 180 and
+the maximum 255 there is 1.42× total, so three levels would be ~1.13× apart —
+under the threshold where a difference registers. The daemon consumes these
+hooks either way, so the upgrade path costs nothing to preserve.
 
-The rule tracks **the same session the context band shows** (the newest, per the
+The indicator tracks **the same session the number shows** (the newest, per the
 data-sources section) — otherwise the panel contradicts itself, showing one
-session's context under another session's activity light.
+session's context at another session's brightness.
 
 ## Left panel details
 
@@ -471,24 +543,26 @@ mechanically. `tools/preview.py` is the only place render meets hardware.
 Coordinate conventions **[measured]** — see README for the table. All four were
 found by lighting patterns and looking; none are documented upstream.
 
-Relative intensity ladder within a frame: `RULE 60`, `DATA 200`,
-`EMPHASIS 255`. `DATA` sits below full scale so severity has somewhere to go,
-since there is no headroom above 255.
-
-**[measured]** The ladder survives at the bottom of the range: at global
-brightness 1, digits, bars, *and* the dim rules were all still legible. The
-concern that a rule at 60/255 of a minimal drive current would vanish — taking
-the separators and the activity indicator with it — did not materialise. (Noted
-under a 19/100 screen rather than the 2/100 of the original floor calibration,
-so worth re-checking in a genuinely dark room.)
+Relative intensity ladder within a frame: `DATA 180`, `EMPHASIS 255`. Two
+levels, both meaningful — there is no decoration tier any more. `DATA` sits
+below full scale so emphasis has somewhere to go, and as low as the visibility
+floor permits so it has as much room as possible.
 
 Bars carry a **partial-intensity top row** proportional to the remainder,
-roughly doubling effective resolution — a 13-row bar reads closer to 26 levels.
-Bars are inset 1px; rules span the full width. That shape difference is what
-keeps a lit rule from being mistaken for data.
+roughly doubling effective resolution — a 27-row bar reads closer to 54 levels.
+Each bar takes an **explicit inclusive column range** rather than a symmetric
+inset, because the Claude panel places two bars side by side and no inset can
+express that.
 
-Two-digit values are **clamped, not truncated**: 123 renders as `99`, because a
-confidently wrong reading is worse than a visibly pinned one.
+The tip has **no floor**. It used to be `max(1, int(value * tip))`, justified as
+"so a barely-started bar still shows something" — which it could not do:
+greyscale 1 needs a global brightness of 520 to clear the threshold and the
+hardware maximum is 255, so the floor guaranteed a pixel invisible on every
+setting the panel has. Another instance of the pattern below.
+
+Two-digit values render `XX` when they do not fit, rather than the earlier clamp
+to `99`. Both avoid the confidently-wrong `23` for 123; only `XX` also avoids
+looking like a reading.
 
 ## Open questions
 

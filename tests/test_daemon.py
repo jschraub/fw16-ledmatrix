@@ -85,6 +85,14 @@ def make_daemon(**state):
     return d
 
 
+def _five_hour_bar(frame):
+    """Just the 5h bar's own columns. The two limit bars share their rows, so a
+    row slice would pick up the 7d bar as well."""
+    x0, x1 = render.FIVE_HOUR_X
+    y0, y1 = render.BARS_Y
+    return [row[x0 : x1 + 1] for row in frame[y0 : y1 + 1]]
+
+
 class TestPulse(unittest.TestCase):
     def test_never_dips_below_the_visibility_floor(self):
         """The regression this replaced. Visibility is a *product* of global
@@ -514,27 +522,27 @@ class TestAmbientContent(unittest.TestCase):
         )
         d = make_daemon(usage=self._usage(90.0, 90.0), session=session)
         endpoint_only = make_daemon(usage=self._usage(90.0, 90.0), session=None)
-        left_zone = slice(*render.FIVE_HOUR_Y)
         self.assertEqual(
-            d.ambient_frames()["right"][left_zone],
-            endpoint_only.ambient_frames()["right"][left_zone],
+            _five_hour_bar(d.ambient_frames()["right"]),
+            _five_hour_bar(endpoint_only.ambient_frames()["right"]),
         )
 
-    def test_no_session_leaves_the_context_zone_dark(self):
-        """Rather than the other zones reflowing to fill it — a layout that
+    def test_no_session_leaves_the_context_number_dark(self):
+        """Rather than the bars reflowing to fill the space — a layout that
         moves turns a glance into a lookup."""
         frame = make_daemon(session=None).ambient_frames()["right"]
-        y0, y1 = render.CONTEXT_Y
-        for row in frame[y0 : y1 + 1]:
+        for row in frame[render.CONTEXT_Y : render.CONTEXT_Y + render.DIGIT_H]:
             self.assertEqual(set(row), {render.OFF})
 
-    def test_working_lights_the_activity_rule(self):
+    def test_working_brightens_the_context_number(self):
+        """The number's shape is the percentage; its brightness is whether a
+        turn is in flight."""
         idle = claude_session.Session("s", 10.0, False, 0.0)
         busy = claude_session.Session("s", 10.0, True, 0.0)
-        y = render.RIGHT_RULE_2_Y
+        y = render.CONTEXT_Y
         self.assertLess(
-            make_daemon(session=idle).ambient_frames()["right"][y][0],
-            make_daemon(session=busy).ambient_frames()["right"][y][0],
+            max(make_daemon(session=idle).ambient_frames()["right"][y]),
+            max(make_daemon(session=busy).ambient_frames()["right"][y]),
         )
 
 

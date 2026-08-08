@@ -3,7 +3,7 @@
 Last touched 2026-08-08. Read this first, then [DECISIONS.md](DECISIONS.md) for
 *why* anything is the way it is.
 
-Everything below is committed and pushed. 162 tests pass (`python3 -m unittest
+Everything below is committed and pushed. 169 tests pass (`python3 -m unittest
 discover -s tests -t .`).
 
 **The daemon runs, and it starts on login.** `systemctl --user status matrixd`
@@ -97,6 +97,13 @@ remove/add pair:
   something meant to grab attention — but it is a consequence of coverage, not a
   decision, and may be startling at night.
 
+**The panel layouts were redesigned on 2026-08-08** and are the version
+described in DECISIONS.md, not the one in any earlier note: context is a number
+rather than a bar, the two rate limits sit side by side, separator rules are
+gone in favour of padding rows, and `DATA` dropped from 200 to 180. The one
+thing that has *not* happened is looking at it on hardware for more than a
+minute — see below.
+
 **A correction worth not re-making:** the brightness floor was originally
 recorded as 1/255, measured by ramping a *solid fill* and then applied to sparse
 content. It is 3. Calibrate against representative frames, never a fill — a full
@@ -123,8 +130,10 @@ Written down because each one cost real time to find:
 - `bcdDevice` is BCD: `0x00 0x20` is firmware 0.20, not 0.32.
 - The usage endpoint puts severity in `limits[]`, which names the windows
   `session` and `weekly_all` — matching neither top-level key.
-- Rules are invisible at the brightness floor. **This is intentional**; see the
-  comment block in `render.py` before "fixing" it.
+- Separator rules used to be invisible at the brightness floor, deliberately.
+  They are gone now — padding rows do the job at every brightness — so the
+  invariant is the opposite: **nothing on either panel may vanish at the
+  floor.** Two tests pin it.
 - A PulseAudio sink event does **not** mean the volume changed — playing any
   sound emits two of them. Re-read and compare, or every notification pops a
   volume takeover.
@@ -151,3 +160,9 @@ Written down because each one cost real time to find:
   enforcing an invariant while contributing nothing, and no test can tell the
   difference. Two of them appeared in the pulse fix and mutation testing found
   both. Prefer one clamp that is provably load-bearing.
+- The same pattern again, and worse, in `draw_bar`: `max(1, int(value * tip))`,
+  there "so a barely-started bar still shows something". Greyscale 1 needs a
+  global brightness of 520 to be seen and the maximum is 255, so it guaranteed a
+  pixel invisible on **every** setting the hardware has. A clamp can be
+  reachable and still be a lie — check that its output does something, not just
+  that the branch runs.

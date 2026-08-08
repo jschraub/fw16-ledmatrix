@@ -3,10 +3,14 @@
 Status daemon for the Framework Laptop 16 LED Matrix input modules — drives the
 two 9×34 panels flanking the keyboard as ambient displays.
 
-**Left panel = machine** (time, battery). **Right panel = Claude Code** (5-hour
-and weekly rate limits, context usage). Values that you change rather than
-watch — volume, screen brightness — get no permanent space; they take over a
-panel for ~2s at the moment you change them, then it returns to ambient.
+**Left panel = machine**: the time as two stacked 2-digit rows, then a battery
+bar. **Right panel = Claude Code**: the context percentage as a number, then the
+5-hour and weekly rate limits as two bars side by side. The number brightens
+while Claude is working, and reads `XX` at 100%.
+
+Values that you change rather than watch — volume, screen brightness — get no
+permanent space; they take over a panel for ~2s at the moment you change them,
+then it returns to ambient.
 
 > **Status: it works and it starts on login.** Every layer is built and verified
 > against real hardware. What it has not had yet is a long uninterrupted run.
@@ -47,7 +51,7 @@ systemctl --user restart matrixd
 Or by hand, which is the better way to watch it:
 
 ```sh
-python3 -m matrixd        # left panel: clock + battery; right: Claude usage
+python3 -m matrixd        # left: clock + battery; right: context% + rate limits
 python3 -m matrixd -v     # log takeovers and panel connect/disconnect
 ```
 
@@ -187,8 +191,13 @@ while looking perfectly plausible in code, so they are worth five minutes with
 
 **Visibility is a product, not a level.** An LED reads as lit when
 `global_brightness × greyscale ≳ 520`. Neither number matters on its own —
-digits at greyscale 200 are legible at global 3 but not 2 (600 vs 400), and
-rules at greyscale 60 are legible at global 9 but not 8 (540 vs 480).
+digits at greyscale 200 are legible at global 3 but not 2 (600 vs 400), and a
+1px rule at greyscale 60 is legible at global 9 but not 8 (540 vs 480).
+
+Note that 520 is *interpolated* between those two observations, not measured.
+The dimmest product actually seen to be legible is 540, which is why this
+project's `DATA` level is 180 (540 at the brightness floor) rather than the 174
+the arithmetic would allow.
 
 A corollary that costs people time: **calibrate against representative content,
 never a solid fill.** A full panel lights all 306 LEDs and reads as a glow at

@@ -125,11 +125,18 @@ class TestBrightnessMapping(unittest.TestCase):
             self.assertGreaterEqual(value, prev)
             prev = value
 
-    def test_rules_become_visible_in_the_expected_range(self):
-        """Documented behaviour: rules appear around 5% screen. If the mapping
-        or the floor changes, this is where it shows up."""
-        self.assertFalse(r.is_visible(screen.panel_brightness(0.02), r.RULE))
-        self.assertTrue(r.is_visible(screen.panel_brightness(0.10), r.RULE))
+    def test_the_mapping_keeps_every_element_visible(self):
+        """This used to assert that separator rules appeared around 5% screen
+        brightness and were invisible below it. The layout has no rules any
+        more — padding rows separate the zones — so the property inverts: there
+        is nothing left that is allowed to vanish, and DATA must clear the
+        threshold at every level the mapping can produce. If the mapping, the
+        floor, or DATA changes, this is where it shows up."""
+        for pct in (None, 0.0, 0.01, 0.02, 0.05, 0.5, 1.0):
+            self.assertTrue(
+                r.is_visible(screen.panel_brightness(pct), r.DATA),
+                f"DATA is invisible at screen brightness {pct}",
+            )
 
 
 class TestPower(unittest.TestCase):

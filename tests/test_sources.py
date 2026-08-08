@@ -5,12 +5,16 @@ HTTPS call — is exercised against the live machine by tools/, not mocked into
 something that proves nothing.
 """
 
+import json
+import os
 import select
+import tempfile
 import time
 import unittest
+import unittest.mock
 
 from matrixd import render as r
-from matrixd.sources import audio, power, screen, usage
+from matrixd.sources import audio, claude_session, power, screen, usage
 
 # Shape of a real response, trimmed. Note the top-level five_hour/seven_day
 # objects carry no severity — that lives in limits[] under DIFFERENT names.
@@ -363,6 +367,171 @@ class TestSubscriberChangeDetection(unittest.TestCase):
         before = len(reads)
         self.assertFalse(self._wait(sub))
         self.assertEqual(len(reads), before, "re-read on a client event")
+
+
+class TestClaudeSessionParsing(unittest.TestCase):
+    # Captured from a live status line payload, trimmed to the parts read here.
+    LIVE_PAYLOAD = {
+        "session_id": "17c4504f-de07-4d00-8bcb-1ebe58fd6093",
+        "model": {"id": "claude-opus-5[1m]", "display_name": "Opus 5 (1M context)"},
+        "context_window": {
+            "total_input_tokens": 105420,
+            "context_window_size": 1000000,
+            "used_percentage": 11,
+            "remaining_percentage": 89,
+        },
+        "rate_limits": {
+            "five_hour": {"used_percentage": 5, "resets_at": 1786180200},
+            "seven_day": {"used_percentage": 5, "resets_at": 1786460400},
+        },
+    }
+
+    def test_extracts_all_three_percentages(self):
+        self.assertEqual(claude_session.parse(self.LIVE_PAYLOAD), (11.0, 5.0, 5.0))
+
+    def test_reads_used_not_remaining(self):
+        """The payload carries both, and they are complements. Reading the wrong
+        one shows a bar that empties as the context fills."""
+        context, _, _ = claude_session.parse(self.LIVE_PAYLOAD)
+        self.assertEqual(context, 11.0)
+        self.assertNotEqual(context, 89.0)
+
+    def test_missing_sections_yield_none_not_zero(self):
+        """Zero would render an empty bar, which reads as 'plenty of context
+        left' — the opposite of 'no idea'. Absence must stay absent."""
+        self.assertEqual(claude_session.parse({}), (None, None, None))
+        self.assertEqual(claude_session.parse({"context_window": {}}), (None, None, None))
+
+    def test_hostile_shapes_never_raise(self):
+        """This is an undocumented internal format that moves with releases, and
+        it feeds a daemon also driving the battery indicator."""
+        for payload in (
+            None, [], "", 0,
+            {"context_window": None},
+            {"context_window": "11%"},
+            {"context_window": {"used_percentage": "eleven"}},
+            {"context_window": {"used_percentage": None}},
+            {"rate_limits": [1, 2, 3]},
+            {"rate_limits": {"five_hour": "nope"}},
+        ):
+            self.assertEqual(len(claude_session.parse(payload)), 3, payload)
+
+    def test_booleans_are_not_percentages(self):
+        """True is an int in Python and would silently render as 1%."""
+        self.assertIsNone(claude_session.parse({"context_window": {"used_percentage": True}})[0])
+
+    def test_nonsense_numbers_are_rejected_or_clamped(self):
+        nan = float("nan")
+        self.assertIsNone(claude_session.parse({"context_window": {"used_percentage": nan}})[0])
+        inf = float("inf")
+        self.assertIsNone(claude_session.parse({"context_window": {"used_percentage": inf}})[0])
+        self.assertEqual(claude_session.parse({"context_window": {"used_percentage": 140}})[0], 100.0)
+        self.assertEqual(claude_session.parse({"context_window": {"used_percentage": -5}})[0], 0.0)
+
+
+class TestClaudeSessionReading(unittest.TestCase):
+    """The daemon and the status line shim meet at a directory layout, so the
+    layout is what gets tested — not a mock of one half talking to the other."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        patcher = unittest.mock.patch.dict(
+            os.environ, {"XDG_RUNTIME_DIR": self.tmp.name}
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.dir = os.path.join(self.tmp.name, claude_session.RUNTIME_SUBDIR)
+        os.makedirs(self.dir, exist_ok=True)
+
+    def _write(self, session_id, context_pct, *, age=0.0, state=None):
+        path = os.path.join(self.dir, f"{session_id}.json")
+        with open(path, "w") as f:
+            json.dump({"context_window": {"used_percentage": context_pct}}, f)
+        if state is not None:
+            with open(os.path.join(self.dir, f"{session_id}.state"), "w") as f:
+                f.write(state)
+        if age:
+            when = time.time() - age
+            os.utime(path, (when, when))
+        return path
+
+    def test_no_sessions_means_no_session(self):
+        self.assertIsNone(claude_session.read())
+
+    def test_reads_a_single_session(self):
+        self._write("aaa", 42)
+        session = claude_session.read()
+        self.assertEqual(session.session_id, "aaa")
+        self.assertEqual(session.context_pct, 42.0)
+
+    def test_picks_the_most_recently_active_of_several(self):
+        """With several sessions open, the one whose status line rendered last
+        is the one being looked at — start order is irrelevant."""
+        self._write("old", 10, age=600)
+        self._write("newest", 77)
+        self._write("middle", 30, age=60)
+        self.assertEqual(claude_session.read().session_id, "newest")
+
+    def test_a_stale_snapshot_is_not_a_running_session(self):
+        """A session killed hard enough to skip SessionEnd must not hold a
+        frozen percentage on the panel forever."""
+        self._write("dead", 90, age=claude_session.STALE_AFTER + 60)
+        self.assertIsNone(claude_session.read())
+
+    def test_an_idle_session_is_still_a_session(self):
+        """Left open over lunch is not the same as gone, and its context
+        percentage is still true.
+
+        Deliberately an absolute duration rather than a fraction of
+        STALE_AFTER: a test written relative to the constant passes for every
+        value of it, including one hopelessly too small, and so tests nothing
+        about the threshold it exists to pin.
+        """
+        self._write("lunch", 55, age=45 * 60)
+        self.assertIsNotNone(claude_session.read(), "45 minutes idle is not dead")
+
+    def test_a_session_untouched_all_day_is_gone(self):
+        """The other side of the same threshold, also pinned absolutely."""
+        self._write("yesterday", 55, age=24 * 3600)
+        self.assertIsNone(claude_session.read())
+
+    def test_working_comes_from_the_state_file(self):
+        self._write("aaa", 42, state="working")
+        self.assertTrue(claude_session.read().working)
+
+    def test_idle_and_absent_state_both_read_as_not_working(self):
+        """A stuck-on working indicator never resolves, so absence must default
+        to off rather than to last-known."""
+        self._write("aaa", 42, state="idle")
+        self.assertFalse(claude_session.read().working)
+        os.remove(os.path.join(self.dir, "aaa.state"))
+        self.assertFalse(claude_session.read().working)
+
+    def test_a_half_written_snapshot_is_ignored_not_fatal(self):
+        """The shim writes to a temp name and renames, so this should not happen
+        — but the reader is not the right place to find out it did."""
+        with open(os.path.join(self.dir, "torn.json"), "w") as f:
+            f.write('{"context_window": {"used_per')
+        self.assertIsNone(claude_session.read())
+
+    def test_missing_runtime_dir_is_not_an_error(self):
+        """A daemon started outside a user session has no XDG_RUNTIME_DIR."""
+        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+            self.assertIsNone(claude_session.snapshot_dir())
+            self.assertIsNone(claude_session.read())
+            self.assertEqual(claude_session.prune(), 0)
+
+    def test_prune_removes_dead_sessions_and_their_state(self):
+        self._write("dead", 90, age=claude_session.STALE_AFTER + 60, state="working")
+        self._write("alive", 20, state="idle")
+        self.assertEqual(claude_session.prune(), 1)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "dead.json")))
+        self.assertFalse(
+            os.path.exists(os.path.join(self.dir, "dead.state")),
+            "orphaned state file left behind",
+        )
+        self.assertTrue(os.path.exists(os.path.join(self.dir, "alive.json")))
 
 
 if __name__ == "__main__":

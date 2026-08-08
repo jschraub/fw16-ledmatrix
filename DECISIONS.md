@@ -95,7 +95,7 @@ changed". The right panel never takes over.
 | Signal | Source | Latency |
 |---|---|---|
 | 5h / 7d limits | `GET https://api.anthropic.com/api/oauth/usage`, OAuth bearer from `~/.claude/.credentials.json` **[measured]** | 60s poll |
-| Context % | statusline shim writing a snapshot; per-session, no endpoint exists | on render |
+| Context % | statusline shim writing a per-session snapshot; no endpoint exists **[measured]** | on render |
 | Volume | `pactl subscribe`, filtered to sink/server events, then re-read **[measured]** | event |
 | Brightness | **keybind hook** in `common.lua`, not udev | event |
 | Battery / AC | udev `power_supply` + lazy timer | event |
@@ -114,6 +114,19 @@ Brightness uses a keybind hook rather than udev **because udev cannot tell your
 thumb from a timer** — `hypridle` writes brightness on idle, and a udev-driven
 takeover would fire a full-panel brightness popup at the exact moment you
 walked away from the machine.
+
+The Claude session feed is **split across two repos, meeting at a directory
+layout rather than at code**. dotfiles produces (`statusline.sh` writes the
+payload, `matrix-session-hook.sh` writes liveness, `settings.json` wires the
+hooks); this repo consumes. Either half works with the other absent — no
+install-order dependency, and no error noise in someone's Claude Code session
+when the daemon is not installed.
+
+Values and liveness come from **different sources on purpose**: the status line
+renders on a timer, so it can report the context percentage but cannot say
+whether a turn is in flight. That edge comes from hooks. Files live under
+`XDG_RUNTIME_DIR` because it is tmpfs and clears on logout, so a session killed
+without firing `SessionEnd` cannot strand a frozen percentage on the panel.
 
 Volume events are **not trusted, only re-read from**. A PulseAudio sink event
 does not mean the volume moved: measured, playing a half-second beep emits two

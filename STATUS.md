@@ -19,6 +19,7 @@ against real hardware.
 | `matrixd/sources/screen.py` | screen brightness → panel brightness | live |
 | `matrixd/sources/udev.py` | netlink watcher: `tty` + `power_supply` | parses real captured messages |
 | `matrixd/sources/audio.py` | volume + mute, supervised `pactl subscribe` | live: real changes seen, beeps ignored |
+| `matrixd/sources/claude_session.py` | context %, session liveness | live: read a real running session |
 | `install.sh` | udev `uaccess` rule | installed and working |
 
 The disconnect/reconnect path **has now been run** — `tools/test-reconnect.py`
@@ -30,19 +31,27 @@ Host integration is done: the udev rule is installed, and dotfiles has an
 `install-matrix.sh` plus registry item `matrix` that clones or fast-forwards
 `~/code/matrix` and runs this repo's installer.
 
+**The Claude session feed is split across two repos on purpose.** The producing
+half lives in dotfiles (`claude/.claude/statusline.sh` writes the payload,
+`matrix-session-hook.sh` writes liveness, `settings.json` wires five hooks); the
+consuming half is `sources/claude_session.py` here. They meet at a directory
+layout, not at code, so neither repo needs the other installed:
+
+    $XDG_RUNTIME_DIR/matrixd/sessions/<session-id>.json     values
+    $XDG_RUNTIME_DIR/matrixd/sessions/<session-id>.state    "working" | "idle"
+
+Context percentage is available *only* from the status line payload — no file on
+disk holds it and no API reports it, because it is a property of a live
+conversation rather than of an account.
+
 ## Next, in dependency order
 
-1. **`sources/claude_session.py`** — context % and session liveness. The only
-   piece that writes outside this repo: it needs a shim appended to
-   `~/.claude/statusline.sh` (dump the stdin JSON to a snapshot file) and hook
-   entries in `~/.claude/settings.json` for `SessionStart`, `SessionEnd`,
-   `UserPromptSubmit`, `Stop`, `StopFailure`.
-2. **The event loop** — one epoll over the udev fd, the `pactl` child, the
+1. **The event loop** — one epoll over the udev fd, the `pactl` child, the
    brightness keybind socket, and timers for the clock, the 60s usage poll, and
    the 30s keepalive. Note the audio fd is not stable: it changes across a
    respawn and is -1 while there is no child, so it must be re-registered rather
    than registered once (`Subscriber`'s docstring has the loop shape).
-3. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
+2. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
    Deliberately *not* tied to `graphical-session.target`: this daemon needs no
    Wayland environment, so it avoids the usual Hyprland unit plumbing entirely.
 
@@ -95,3 +104,6 @@ Written down because each one cost real time to find:
 - A PulseAudio sink event does **not** mean the volume changed — playing any
   sound emits two of them. Re-read and compare, or every notification pops a
   volume takeover.
+- A session id from the status line payload becomes a path component, and
+  `SessionEnd` feeds it to `rm -f`. Both producing scripts validate it: an id of
+  `../../escape` was confirmed to write outside the directory without the guard.

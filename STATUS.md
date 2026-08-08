@@ -1,6 +1,6 @@
 # Where this is up to
 
-Last touched 2026-08-07. Read this first, then [DECISIONS.md](DECISIONS.md) for
+Last touched 2026-08-08. Read this first, then [DECISIONS.md](DECISIONS.md) for
 *why* anything is the way it is.
 
 Everything below is committed and pushed. 159 tests pass (`python3 -m unittest
@@ -19,8 +19,8 @@ Measured over a 24s run: 0% CPU, 6MB RSS, and SIGTERM to both-panels-asleep in
 | `matrixd/transport.py` | protocol, connection lifecycle, keepalive, reconnect | live round-trip on both panels |
 | `matrixd/sources/usage.py` | Claude 5h/7d from the OAuth endpoint | live: returned real percentages |
 | `matrixd/sources/power.py` | battery %, charging, AC | live |
-| `matrixd/sources/screen.py` | screen brightness → panel brightness | live |
-| `matrixd/sources/udev.py` | netlink watcher: `tty` + `power_supply` | parses real captured messages |
+| `matrixd/sources/screen.py` | brightness → panel level, DPMS off, auto-change marker | live |
+| `matrixd/sources/udev.py` | netlink watcher: `tty`, `power_supply`, `backlight` | parses real captured messages |
 | `matrixd/sources/audio.py` | volume + mute, supervised `pactl subscribe` | live: real changes seen, beeps ignored |
 | `matrixd/sources/claude_session.py` | context %, session liveness | live: read a real running session |
 | `matrixd/daemon.py` | the event loop — one epoll, all inputs, both panels | live: every takeover path driven end to end |
@@ -57,17 +57,27 @@ conversation rather than of an account.
 1. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
    Deliberately *not* tied to `graphical-session.target`: this daemon needs no
    Wayland environment, so it avoids the usual Hyprland unit plumbing entirely.
-   `install.sh` should install and enable it.
-2. **Watch it for a day.** Everything has been exercised in bursts of seconds.
-   The failure modes that need real uptime are still untested: a suspend/resume
-   cycle, an OAuth token expiring, PipeWire restarting under the subscriber.
+   `install.sh` should install and enable it. This is the only thing standing
+   between "runs when you start it" and "just works".
+2. **Then leave it running for a day** — see below.
+
+Both open design questions below are about how the panels *look*, so they are
+best answered while it is running rather than before.
 
 ## Known gaps and risks
 
-**Nothing has run for hours yet.** Every component has been exercised, but only
-in short bursts. The failure modes that need real uptime — firmware idle sleep
-across a whole day, a suspend/resume cycle, an OAuth token expiring — are
-untested by construction until the daemon exists.
+**Nothing has run for longer than a minute.** Every path has been exercised, but
+in bursts of seconds, and the remaining failure modes are the ones that need
+real uptime and cannot be tested any faster than they happen:
+
+- a suspend/resume cycle, which drops and re-enumerates both panels at once
+- an OAuth access token expiring (~12h), after which usage should go stale
+  rather than wrong, and recover when Claude Code renews it
+- PipeWire restarting under the volume subscriber
+- the firmware idle timer across a whole day of mostly-static frames
+
+None of these are suspected broken; they are simply unobserved. Watching
+`python3 -m matrixd -v` across a normal day is the test.
 
 Re-run the reconnect check after any change to `transport.py` or `sources/udev.py`;
 it needs root because it deauthorises the USB device to produce a genuine

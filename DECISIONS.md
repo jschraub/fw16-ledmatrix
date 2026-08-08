@@ -96,7 +96,7 @@ changed". The right panel never takes over.
 |---|---|---|
 | 5h / 7d limits | `GET https://api.anthropic.com/api/oauth/usage`, OAuth bearer from `~/.claude/.credentials.json` **[measured]** | 60s poll |
 | Context % | statusline shim writing a snapshot; per-session, no endpoint exists | on render |
-| Volume | `pactl subscribe`, filtered to the default sink | event |
+| Volume | `pactl subscribe`, filtered to sink/server events, then re-read **[measured]** | event |
 | Brightness | **keybind hook** in `common.lua`, not udev | event |
 | Battery / AC | udev `power_supply` + lazy timer | event |
 | Clock | timer | 1 min |
@@ -114,6 +114,15 @@ Brightness uses a keybind hook rather than udev **because udev cannot tell your
 thumb from a timer** — `hypridle` writes brightness on idle, and a udev-driven
 takeover would fire a full-panel brightness popup at the exact moment you
 walked away from the machine.
+
+Volume events are **not trusted, only re-read from**. A PulseAudio sink event
+does not mean the volume moved: measured, playing a half-second beep emits two
+`change on sink` events with the volume untouched, so an event-as-truth design
+would pop a full-panel gauge on every notification sound. The event triggers a
+re-read and a takeover fires only if the value actually differs — the same
+event-says-look, state-says-what rule as device events. The `pactl` re-read is
+safe to run from inside the handler because it emits `client` events, never
+`sink` ones, so it cannot retrigger itself.
 
 ## Brightness
 

@@ -3,7 +3,7 @@
 Last touched 2026-08-07. Read this first, then [DECISIONS.md](DECISIONS.md) for
 *why* anything is the way it is.
 
-Everything below is committed and pushed. 74 tests pass (`python3 -m unittest
+Everything below is committed and pushed. 95 tests pass (`python3 -m unittest
 discover -s tests -t .`). The daemon does not exist yet — there is no event loop
 and nothing runs unattended; what exists is every layer beneath it, each verified
 against real hardware.
@@ -18,7 +18,13 @@ against real hardware.
 | `matrixd/sources/power.py` | battery %, charging, AC | live |
 | `matrixd/sources/screen.py` | screen brightness → panel brightness | live |
 | `matrixd/sources/udev.py` | netlink watcher: `tty` + `power_supply` | parses real captured messages |
+| `matrixd/sources/audio.py` | volume + mute, supervised `pactl subscribe` | live: real changes seen, beeps ignored |
 | `install.sh` | udev `uaccess` rule | installed and working |
+
+The disconnect/reconnect path **has now been run** — `tools/test-reconnect.py`
+passed end to end: udev reported the removal, the write backstop raised
+`PanelGone`, and the panel reconnected and repainted. That was the largest
+unverified assumption in the project.
 
 Host integration is done: the udev rule is installed, and dotfiles has an
 `install-matrix.sh` plus registry item `matrix` that clones or fast-forwards
@@ -26,33 +32,32 @@ Host integration is done: the udev rule is installed, and dotfiles has an
 
 ## Next, in dependency order
 
-1. **`sources/audio.py`** — volume via a long-lived `pactl subscribe` child.
-   Needs supervised respawn: it dies whenever PipeWire restarts, and if it stays
-   dead volume takeovers silently stop working.
-2. **`sources/claude_session.py`** — context % and session liveness. The only
+1. **`sources/claude_session.py`** — context % and session liveness. The only
    piece that writes outside this repo: it needs a shim appended to
    `~/.claude/statusline.sh` (dump the stdin JSON to a snapshot file) and hook
    entries in `~/.claude/settings.json` for `SessionStart`, `SessionEnd`,
    `UserPromptSubmit`, `Stop`, `StopFailure`.
-3. **The event loop** — one epoll over the udev fd, the `pactl` child, the
+2. **The event loop** — one epoll over the udev fd, the `pactl` child, the
    brightness keybind socket, and timers for the clock, the 60s usage poll, and
-   the 30s keepalive.
-4. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
+   the 30s keepalive. Note the audio fd is not stable: it changes across a
+   respawn and is -1 while there is no child, so it must be re-registered rather
+   than registered once (`Subscriber`'s docstring has the loop shape).
+3. **systemd user unit** — `WantedBy=default.target`, `Restart=on-failure`.
    Deliberately *not* tied to `graphical-session.target`: this daemon needs no
    Wayland environment, so it avoids the usual Hyprland unit plumbing entirely.
 
 ## Known gaps and risks
 
-**The panel disconnect/reconnect path has never actually run.** It is the most
-likely place for a latent bug. Unit tests cover the parse and filter halves
-only — the modules are internal so they cannot be unplugged, and pty allocation
-emits no `tty` uevents. `tools/test-reconnect.py` closes this by deauthorising
-the USB device, producing the same remove/add pair a suspend cycle does:
+**Nothing has run for hours yet.** Every component has been exercised, but only
+in short bursts. The failure modes that need real uptime — firmware idle sleep
+across a whole day, a suspend/resume cycle, an OAuth token expiring — are
+untested by construction until the daemon exists.
+
+Re-run the reconnect check after any change to `transport.py` or `sources/udev.py`;
+it needs root because it deauthorises the USB device to produce a genuine
+remove/add pair:
 
     sudo python3 tools/test-reconnect.py
-
-It has been written and its USB-node resolution verified, but **it has not been
-run**. Do this first when picking back up.
 
 **Two open design questions**, neither blocking:
 
@@ -87,3 +92,6 @@ Written down because each one cost real time to find:
   `session` and `weekly_all` — matching neither top-level key.
 - Rules are invisible at the brightness floor. **This is intentional**; see the
   comment block in `render.py` before "fixing" it.
+- A PulseAudio sink event does **not** mean the volume changed — playing any
+  sound emits two of them. Re-read and compare, or every notification pops a
+  volume takeover.

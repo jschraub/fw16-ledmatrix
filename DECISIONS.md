@@ -115,12 +115,24 @@ thumb from a timer** — `hypridle` writes brightness on idle, and a udev-driven
 takeover would fire a full-panel brightness popup at the exact moment you
 walked away from the machine.
 
-The Claude session feed is **split across two repos, meeting at a directory
-layout rather than at code**. dotfiles produces (`statusline.sh` writes the
-payload, `matrix-session-hook.sh` writes liveness, `settings.json` wires the
-hooks); this repo consumes. Either half works with the other absent — no
-install-order dependency, and no error noise in someone's Claude Code session
-when the daemon is not installed.
+The Claude session feed's producing half **ships in this repo**
+(`integration/claude/`), installed into `~/.claude` by `install.sh`. It lived in
+the author's dotfiles first, which was a mistake worth recording: it made the
+public repo's Claude panel silently inert for everyone else, and put the
+snapshot logic in two places at once.
+
+The status line tap **wraps an existing status line rather than replacing it**,
+because Claude Code allows only one `statusLine` command and everyone's is
+different. It reads the payload, snapshots it, and passes it through on stdin
+untouched — verified byte-identical.
+
+`install.sh` deliberately **does not edit `settings.json`**, only prints what to
+add. It is the user's file, it may contain anything, and a bad merge would cost
+far more than the paste it saved.
+
+Producer and consumer meet at a directory layout rather than at code, so either
+half works with the other absent — no install-order dependency, and no error
+noise in someone's Claude Code session when the daemon is not installed.
 
 Values and liveness come from **different sources on purpose**: the status line
 renders on a timer, so it can report the context percentage but cannot say

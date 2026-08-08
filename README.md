@@ -22,8 +22,67 @@ cd ~/code/matrix && ./install.sh
 ```
 
 `install.sh` installs a udev rule (needs `sudo`) granting the active-seat user
-access to the modules. Nothing else requires root, and there are no Python
-dependencies — the transport is raw `termios`, no `pyserial`.
+access to the modules, and drops two Claude Code integration scripts into
+`~/.claude`. Nothing else requires root, and there are no Python dependencies —
+the transport is raw `termios`, no `pyserial`.
+
+Pass `--no-claude` to skip the Claude Code half, `--dry-run` to see what it
+would do, or `--uninstall` to remove it all again.
+
+## Claude Code integration
+
+The right panel shows Claude Code's rate limits and context usage. Rate limits
+work out of the box, but **context percentage needs two scripts wired into your
+Claude Code config** — it is piped to the status line and exposed nowhere else,
+because it is a property of a live conversation rather than of your account.
+There is no file on disk to read and no API to ask.
+
+`install.sh` copies both into `~/.claude` and prints the exact JSON to add. They
+do nothing until `settings.json` refers to them:
+
+| script | supplies |
+|---|---|
+| `matrix-statusline-tap.sh` | context %, rate limits — the values |
+| `matrix-session-hook.sh` | whether a turn is in flight — the edges |
+
+Two scripts because the status line renders on a timer, so it can report a
+percentage but cannot say when Claude starts and stops working.
+
+**The tap wraps your status line, it does not replace it.** Claude Code allows
+only one `statusLine` command, so the tap takes the payload, snapshots it, and
+hands it to your command on stdin unchanged:
+
+```json
+"statusLine": {
+  "type": "command",
+  "command": "~/.claude/matrix-statusline-tap.sh ~/.claude/your-statusline.sh"
+}
+```
+
+Drop the trailing argument if you do not have a status line. If you would rather
+your status line never depend on this being installed, guard it:
+
+```json
+"command": "[ -x ~/.claude/matrix-statusline-tap.sh ] && exec ~/.claude/matrix-statusline-tap.sh ~/.claude/your-statusline.sh || exec ~/.claude/your-statusline.sh"
+```
+
+`install.sh` does **not** edit `settings.json` itself. It is your file, it can
+contain anything, and mangling it would be a poor trade for saving you a paste.
+
+The two halves meet at a directory rather than at code, so a missing piece
+degrades instead of breaking:
+
+```
+$XDG_RUNTIME_DIR/matrixd/sessions/<session-id>.json     values
+$XDG_RUNTIME_DIR/matrixd/sessions/<session-id>.state    "working" | "idle"
+```
+
+One file per session because several Claude Code sessions can be open at once;
+the daemon shows whichever rendered most recently. `XDG_RUNTIME_DIR` is tmpfs
+and clears on logout, so a session killed hard enough to skip `SessionEnd`
+cannot strand a frozen percentage on the panel.
+
+Skip all of this and everything except the Claude panel still works.
 
 ## Try it
 

@@ -31,11 +31,15 @@ Host integration is done: the udev rule is installed, and dotfiles has an
 `install-matrix.sh` plus registry item `matrix` that clones or fast-forwards
 `~/code/matrix` and runs this repo's installer.
 
-**The Claude session feed is split across two repos on purpose.** The producing
-half lives in dotfiles (`claude/.claude/statusline.sh` writes the payload,
-`matrix-session-hook.sh` writes liveness, `settings.json` wires five hooks); the
-consuming half is `sources/claude_session.py` here. They meet at a directory
-layout, not at code, so neither repo needs the other installed:
+**The Claude session feed has a producing half that ships in this repo**, under
+`integration/claude/` — a status line tap and a hook script, installed into
+`~/.claude` by `install.sh`. They were briefly kept in dotfiles instead, which
+was wrong: anyone cloning this repo would have got a Claude panel that silently
+did nothing, and the snapshot logic would have existed in two places. dotfiles
+now just points `settings.json` at the installed copies.
+
+The consuming half is `sources/claude_session.py`. The two meet at a directory
+layout, not at code, so a missing piece degrades rather than breaking:
 
     $XDG_RUNTIME_DIR/matrixd/sessions/<session-id>.json     values
     $XDG_RUNTIME_DIR/matrixd/sessions/<session-id>.state    "working" | "idle"

@@ -55,9 +55,10 @@ class Usage:
     five_hour: Window | None
     seven_day: Window | None
     fetched_at: float  # time.monotonic() when this was read
+    stale_after: float = STALE_AFTER
 
     def is_stale(self, now: float) -> bool:
-        return now - self.fetched_at > STALE_AFTER
+        return now - self.fetched_at > self.stale_after
 
 
 def read_token(path: str = CREDENTIALS_PATH) -> str | None:

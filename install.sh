@@ -22,6 +22,9 @@
 #   ./install.sh --uninstall   remove everything this installed
 #   ./install.sh --no-claude   skip the Claude Code integration
 #   ./install.sh --no-service  skip the systemd user service
+#   ./install.sh --provider opencode-openai  select OpenAI via OpenCode; install its plugin
+#   ./install.sh --provider claude           select Claude (the default)
+#   ./install.sh --no-opencode skip the OpenCode plugin, even when selected
 
 set -euo pipefail
 
@@ -32,6 +35,9 @@ RULE_DST="/etc/udev/rules.d/60-framework-ledmatrix.rules"
 CLAUDE_SRC="$SCRIPT_DIR/integration/claude"
 CLAUDE_DST="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 CLAUDE_SCRIPTS=(matrix-statusline-tap.sh matrix-session-hook.sh)
+
+OPENCODE_SRC="$SCRIPT_DIR/integration/opencode/matrix-session.js"
+OPENCODE_DST="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins/matrix-session.js"
 
 UNIT_NAME="matrixd.service"
 UNIT_SRC="$SCRIPT_DIR/systemd/$UNIT_NAME"
@@ -47,18 +53,32 @@ DRY_RUN=0
 UNINSTALL=0
 WITH_CLAUDE=1
 WITH_SERVICE=1
-for arg in "$@"; do
+WITH_OPENCODE=1
+PROVIDER=claude
+while [[ $# -gt 0 ]]; do
+    arg=$1
     case "$arg" in
         --dry-run)    DRY_RUN=1 ;;
         --uninstall)  UNINSTALL=1 ;;
         --no-claude)  WITH_CLAUDE=0 ;;
         --no-service) WITH_SERVICE=0 ;;
+        --no-opencode) WITH_OPENCODE=0 ;;
+        --provider)
+            [[ $# -ge 2 ]] || error "--provider requires claude or opencode-openai"
+            PROVIDER=$2
+            shift ;;
+        --provider=*) PROVIDER=${arg#*=} ;;
         # Print the header block rather than a hardcoded line range, which
         # goes stale the first time anyone edits the comment above.
         -h|--help)    awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"; exit 0 ;;
         *)            error "unknown argument: $arg" ;;
     esac
+    shift
 done
+case "$PROVIDER" in
+    claude|opencode-openai) ;;
+    *) error "unknown provider: $PROVIDER (choose claude or opencode-openai)" ;;
+esac
 
 run() {
     if [[ $DRY_RUN -eq 1 ]]; then
@@ -89,7 +109,7 @@ install_service() {
     # The unit runs the daemon out of this checkout rather than copying code
     # anywhere, so `git pull` is the whole update procedure.
     local rendered
-    rendered=$(sed "s|@INSTALL_DIR@|$SCRIPT_DIR|g" "$UNIT_SRC")
+    rendered=$(sed -e "s|@INSTALL_DIR@|$SCRIPT_DIR|g" -e "s|@PROVIDER@|$PROVIDER|g" "$UNIT_SRC")
 
     local changed=1
     if [[ -f "$UNIT_DST" ]] && [[ "$rendered" == "$(cat "$UNIT_DST")" ]]; then
@@ -98,7 +118,7 @@ install_service() {
     else
         info "installing $UNIT_DST"
         if [[ $DRY_RUN -eq 1 ]]; then
-            info "[dry-run] write $UNIT_DST with WorkingDirectory=$SCRIPT_DIR"
+            info "[dry-run] write $UNIT_DST with WorkingDirectory=$SCRIPT_DIR and --provider $PROVIDER"
         else
             mkdir -p "$UNIT_DIR"
             printf '%s\n' "$rendered" > "$UNIT_DST"
@@ -148,6 +168,15 @@ install_claude_scripts() {
         run install -m 0755 "$CLAUDE_SRC/$script" "$CLAUDE_DST/$script"
     done
     ok "Claude Code scripts installed -> $CLAUDE_DST"
+}
+
+install_opencode_plugin() {
+    [[ -f "$OPENCODE_SRC" ]] || error "missing $OPENCODE_SRC"
+    # As with the Claude scripts, replace a symlink rather than writing through it.
+    [[ -L "$OPENCODE_DST" ]] && run rm -f "$OPENCODE_DST"
+    run install -D -m 0644 "$OPENCODE_SRC" "$OPENCODE_DST"
+    ok "OpenCode plugin installed -> $OPENCODE_DST"
+    info "Quit and restart OpenCode to load the plugin; no config JSON changes needed."
 }
 
 print_claude_settings() {
@@ -201,6 +230,12 @@ if [[ $UNINSTALL -eq 1 ]]; then
             removed=1
         fi
     done
+    if [[ -f "$OPENCODE_DST" && ! -L "$OPENCODE_DST" ]]; then
+        info "removing $OPENCODE_DST"
+        run rm -f "$OPENCODE_DST"
+        info "Quit and restart OpenCode to unload the plugin."
+        removed=1
+    fi
     if [[ -e "$RULE_DST" ]]; then
         info "removing $RULE_DST (needs sudo)"
         run sudo rm -f "$RULE_DST"
@@ -229,6 +264,7 @@ else
 fi
 
 [[ $WITH_CLAUDE -eq 1 ]] && install_claude_scripts
+[[ $WITH_OPENCODE -eq 1 && "$PROVIDER" == opencode-openai ]] && install_opencode_plugin
 
 if [[ $DRY_RUN -eq 1 ]]; then
     [[ $WITH_SERVICE -eq 1 ]] && install_service

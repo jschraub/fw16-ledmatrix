@@ -133,6 +133,34 @@ for context.
 
 ## Data sources
 
+### Provider selection [revised 2026-09-10]
+
+The right panel can also use `--provider opencode-openai`; `claude` remains the
+default. The name deliberately identifies **OpenCode's authentication**, rather
+than implying a native OpenAI/Codex login. Selection happens at daemon startup;
+the installer accepts the same flag to generate the login service's command.
+
+OpenAI quotas are polled directly from `chatgpt.com/backend-api/wham/usage`,
+using OpenCode's OAuth access token and optional account ID, read-only. Windows
+are matched by 18,000/604,800-second durations rather than primary/secondary
+positions. Missing windows stay blank. Cached readings expire after five
+minutes and are bound to the credential account; the Claude 12-hour policy is
+unchanged. The endpoint is internal, so this has the same schema-change risk as
+the Claude endpoint. A live request succeeded with OpenCode credentials on
+2026-09-10, returning a usable weekly window and no usable five-hour window.
+
+OpenCode session telemetry comes from an optional local plugin exporting only
+metadata into a separate runtime directory. It uses the client's latest-response
+context calculation, not cumulative session tokens. The newest active main
+OpenAI conversation wins, excluding subagents. Heartbeat freshness and activity
+ordering are separate: a 15-second heartbeat keeps an idle conversation visible,
+but cannot make it win selection. A feed expires after 60 seconds without a
+heartbeat. Producer files belong to individual OpenCode instances, so shutdown
+of one cannot remove another's feed. This represents instance/server liveness,
+not the focus or attachment of a particular terminal.
+
+### Original Claude and machine sources
+
 | Signal | Source | Latency |
 |---|---|---|
 | 5h / 7d limits | `GET https://api.anthropic.com/api/oauth/usage`, OAuth bearer from `~/.claude/.credentials.json` **[measured]** | 60s poll |

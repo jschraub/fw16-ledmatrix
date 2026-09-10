@@ -192,7 +192,7 @@ class TestDeadlines(unittest.TestCase):
 
     def settle(self, d, rounds=3):
         """Run the due work, asserting the loop would sleep afterwards."""
-        with unittest.mock.patch.object(daemon.usage, "fetch", return_value=None), \
+        with unittest.mock.patch.object(d, "_start_usage_fetch"), \
              unittest.mock.patch.object(daemon.transport, "discover", return_value={}):
             for _ in range(rounds):
                 d._run_due()
@@ -340,7 +340,8 @@ class TestTakeovers(unittest.TestCase):
     def test_expired_takeovers_are_cleared(self):
         d = make_daemon()
         d.takeovers["left"] = daemon.Takeover(render.blank(), time.monotonic() - 1)
-        d._run_due()
+        with unittest.mock.patch.object(d, "_start_usage_fetch"):
+            d._run_due()
         self.assertNotIn("left", d.takeovers)
 
 

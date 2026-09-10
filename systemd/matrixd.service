@@ -1,13 +1,15 @@
 # matrixd — LED matrix status daemon for the Framework Laptop 16.
 #
 # A *user* unit, not a system one. Everything the daemon reads is per-user:
-# the Claude OAuth token in ~/.claude, the session snapshots under
+# the selected client's OAuth token in ~/.claude or OpenCode's data directory,
+# the session snapshots under
 # $XDG_RUNTIME_DIR, and device access granted by the uaccess ACL to whoever
 # holds the active seat. A system unit would have to be handed all of that
 # explicitly, and would then be running as root to read one user's files.
 #
 # Installed by install.sh, which substitutes @INSTALL_DIR@ for the checkout it
-# was run from. Edit it there, not in ~/.config/systemd/user.
+# was run from, and @PROVIDER@ for the selected right-panel source.
+# Edit it there, not in ~/.config/systemd/user.
 
 [Unit]
 Description=Framework 16 LED matrix status daemon
@@ -21,7 +23,7 @@ Documentation=https://github.com/jschraub/fw16-ledmatrix
 [Service]
 Type=exec
 WorkingDirectory=@INSTALL_DIR@
-ExecStart=/usr/bin/env python3 -m matrixd
+ExecStart=/usr/bin/env python3 -m matrixd --provider @PROVIDER@
 
 # Without this the journal labels every line `env[1234]`, because that is what
 # ExecStart literally runs. `env` is here so the unit does not hardcode a
@@ -41,7 +43,7 @@ TimeoutStopSec=10s
 # the uaccess ACL is not applied yet, so the first open of each panel is
 # EACCES and the daemon retries on its own every few seconds.
 
-# Modest hardening only. The daemon reads ~/.claude, /sys, and two tty
+# Modest hardening only. The daemon reads client credentials, /sys, and two tty
 # devices, and forks pactl; a ProtectHome or DeviceAllow policy tight enough
 # to be worth having would break one of those on the next machine.
 NoNewPrivileges=yes

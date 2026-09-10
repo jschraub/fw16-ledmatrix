@@ -42,7 +42,7 @@ import time
 from dataclasses import dataclass, field
 
 from . import render, transport
-from .sources import audio, claude_session, power, screen, udev, usage
+from .sources import audio, claude_session, opencode_openai, opencode_session, power, screen, udev, usage
 
 log = logging.getLogger("matrixd")
 
@@ -52,7 +52,7 @@ TICK = 1.0  # ambient re-evaluation; the clock only needs a minute, but
 # context % and session liveness want to look responsive
 USAGE_INTERVAL = usage.POLL_INTERVAL
 PANEL_RETRY = 5.0  # a panel that will not open; udev is the fast path
-PRUNE_INTERVAL = 600.0  # sweep dead Claude session snapshots
+PRUNE_INTERVAL = 600.0  # sweep dead session snapshots for the selected provider
 
 TAKEOVER_SECONDS = 2.0
 
@@ -128,7 +128,12 @@ class State:
 
 
 class Daemon:
-    def __init__(self) -> None:
+    def __init__(self, provider: str = "claude") -> None:
+        if provider not in ("claude", "opencode-openai"):
+            raise ValueError(f"unknown provider: {provider}")
+        self.provider = provider
+        self.session_source = claude_session if provider == "claude" else opencode_session
+        self.usage_source = usage if provider == "claude" else opencode_openai.Source()
         self.state = State()
         self.panels: dict[str, transport.Panel] = {}
         self.takeovers: dict[str, Takeover] = {}
@@ -336,7 +341,7 @@ class Daemon:
 
         if now >= self._due["tick"]:
             self._due["tick"] = now + TICK
-            self.state.session = claude_session.read()
+            self.state.session = self.session_source.read()
             self.state.screen_off = screen.is_screen_off()
 
         if now >= self._due["usage"]:
@@ -345,7 +350,7 @@ class Daemon:
 
         if now >= self._due["prune"]:
             self._due["prune"] = now + PRUNE_INTERVAL
-            claude_session.prune()
+            self.session_source.prune()
 
         for side in [s for s, t in self.takeovers.items() if now >= t.expires_at]:
             del self.takeovers[side]
@@ -435,7 +440,7 @@ class Daemon:
         self.state.power = power.read()
         self.state.screen_fraction = screen.read_fraction()
         self.state.screen_off = screen.is_screen_off()
-        self.state.session = claude_session.read()
+        self.state.session = self.session_source.read()
         self._start_usage_fetch()
 
     def _start_usage_fetch(self) -> None:
@@ -458,8 +463,8 @@ class Daemon:
             # The source takes its clock as an argument so staleness stays
             # testable; monotonic is the right one, since is_stale() compares
             # against it and a wall-clock jump must not age the data.
-            fetched = usage.fetch(time.monotonic())
-            if fetched is not None:
+            fetched = self.usage_source.fetch(time.monotonic())
+            if fetched is not None or self.provider == "opencode-openai":
                 # Rebinding one attribute; no read-modify-write, so no lock.
                 self.state.usage = fetched
 
@@ -628,10 +633,13 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(prog="matrixd", description=__doc__.splitlines()[0])
     parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("--provider", choices=("claude", "opencode-openai"), default="claude",
+                        help="right-panel source (default: claude); opencode-openai uses OpenCode OAuth")
     args = parser.parse_args(argv)
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)s %(message)s",
     )
-    return Daemon().run()
+    log.info("right-panel provider: %s", args.provider)
+    return Daemon(provider=args.provider).run()

@@ -1,10 +1,19 @@
 # Where this is up to
 
-Last touched 2026-08-08. Read this first, then [DECISIONS.md](DECISIONS.md) for
+Last touched 2026-09-10. Read this first, then [DECISIONS.md](DECISIONS.md) for
 *why* anything is the way it is.
 
-Everything below is committed and pushed. 169 tests pass (`python3 -m unittest
-discover -s tests -t .`).
+194 Python tests pass (`python3 -m unittest discover -s tests -t .`), plus nine
+OpenCode plugin tests (`node --test tests/test_opencode_plugin.mjs`).
+
+**New: `--provider opencode-openai`.** Direct OpenAI quota polling with OpenCode
+OAuth credentials succeeded on 2026-09-10: a usable weekly window was present;
+no usable five-hour window was returned. The optional OpenCode plugin exports
+context/activity metadata, with heartbeat expiry and main-session selection.
+Provider switching, installer behavior, and the JavaScript-to-Python feed are
+tested. Installation into a live OpenCode instance and visual verification of
+the new provider on the LED hardware are still pending. See the README for
+activation; Claude remains the default.
 
 **The daemon runs, and it starts on login.** `systemctl --user status matrixd`
 is the whole answer to "is it up". Measured: 0% CPU, 6MB RSS, SIGTERM to
@@ -19,6 +28,8 @@ What it has not had is a long uninterrupted run.
 | `matrixd/render.py` | pure `state → frame`; layouts, 3×5 font, bars, both encoders | on hardware via `tools/preview.py` |
 | `matrixd/transport.py` | protocol, connection lifecycle, keepalive, reconnect | live round-trip on both panels |
 | `matrixd/sources/usage.py` | Claude 5h/7d from the OAuth endpoint | live: returned real percentages |
+| `matrixd/sources/opencode_openai.py` | OpenAI quotas with read-only OpenCode OAuth; five-minute account-bound cache | live quota request + tests |
+| `matrixd/sources/opencode_session.py`, `integration/opencode/matrix-session.js` | context/activity, latest main conversation, heartbeat health | plugin-to-reader integration tests |
 | `matrixd/sources/power.py` | battery %, charging, AC | live |
 | `matrixd/sources/screen.py` | brightness → panel level, DPMS off, auto-change marker | live |
 | `matrixd/sources/udev.py` | netlink watcher: `tty`, `power_supply`, `backlight` | parses real captured messages |
@@ -56,7 +67,8 @@ conversation rather than of an account.
 
 ## Next
 
-**Leave it running for a day** — see below. That is the only remaining item;
+**Activate and visually check the OpenCode/OpenAI provider, then leave it running
+for a day** — see below. Beyond that,
 everything else is a matter of looking at it and deciding whether it is right,
 which is what a day of running is for.
 

@@ -4,9 +4,9 @@ Status daemon for the Framework Laptop 16 LED Matrix input modules — drives th
 two 9×34 panels flanking the keyboard as ambient displays.
 
 **Left panel = machine**: the time as two stacked 2-digit rows, then a battery
-bar. **Right panel = Claude Code**: the context percentage as a number, then the
+bar. **Right panel = Claude Code or OpenCode/OpenAI**: the context percentage as a number, then the
 5-hour and weekly rate limits as two bars side by side. The number brightens
-while Claude is working, and reads `XX` at 100%.
+while the selected session is working, and reads `XX` at 100%.
 
 Values that you change rather than watch — volume, screen brightness — get no
 permanent space; they take over a panel for ~2s at the moment you change them,
@@ -33,6 +33,18 @@ There are no Python dependencies — the transport is raw `termios`, no
 Pass `--no-service` or `--no-claude` to skip a part, `--dry-run` to see what it
 would do, or `--uninstall` to remove it all again.
 
+For an OpenAI subscription authenticated through OpenCode:
+
+```sh
+./install.sh --provider opencode-openai
+```
+
+This also installs the optional OpenCode session plugin and configures the user
+service to use `opencode-openai`. **Quit and restart OpenCode** to load the
+plugin. Pass `--no-opencode` to skip plugin installation (quota bars still work).
+The provider defaults to `claude`; repeat `--provider opencode-openai` when
+re-running the installer to keep that service selection.
+
 The service runs the code from the directory you installed from and nothing is
 copied, so updating is just:
 
@@ -53,12 +65,86 @@ Or by hand, which is the better way to watch it:
 ```sh
 python3 -m matrixd        # left: clock + battery; right: context% + rate limits
 python3 -m matrixd -v     # log takeovers and panel connect/disconnect
+python3 -m matrixd --provider opencode-openai  # OpenCode session + OpenAI quotas
+python3 -m matrixd --provider claude          # Claude (also the default)
 ```
 
 Stop the service first — two instances will both write to the same panels.
 
 Ctrl-C or `SIGTERM` puts both panels to sleep on the way out, measured at 21ms.
 Idle cost is one wakeup a second and no measurable CPU.
+
+To switch the login service, re-run `./install.sh --provider opencode-openai`
+or `./install.sh --provider claude`. The installer updates the startup flag and
+restarts the service when its unit changes. Selection is per daemon process,
+not a live control command.
+
+## OpenCode / OpenAI integration
+
+Sign in to **OpenAI with your ChatGPT subscription in OpenCode** first. The
+`opencode-openai` name identifies both the client supplying credentials and the
+subscription provider; it does not use Codex CLI's login.
+
+**Quota bars come directly from OpenAI**, polled every 60 seconds using
+`GET https://chatgpt.com/backend-api/wham/usage`. The daemon reads the `openai`
+OAuth entry in `$XDG_DATA_HOME/opencode/auth.json` (normally
+`~/.local/share/opencode/auth.json`) on each poll. It sends the access token and
+the account ID when present. It never writes credentials or refreshes tokens;
+OpenCode owns that. API-key logins do not supply subscription quotas.
+
+`OPENCODE_AUTH_CONTENT` takes precedence if set in the daemon's environment.
+If you use custom XDG paths or environment-provided auth, the daemon/service
+must receive the same environment as OpenCode. A shell's environment is not
+automatically inherited by an already-running systemd user service.
+
+The bars show **percentage used**, five hours on the left and seven days on the
+right. Windows are matched by their actual duration, not by the endpoint's
+primary/secondary ordering. Missing windows stay blank; model-specific buckets,
+credit balances, and other ChatGPT feature limits are not mapped onto these
+bars. This is an internal endpoint and its format can change. Failed requests
+retain the last reading for up to five minutes after its successful poll; then
+the bars go blank. Changing/logging out of the account clears cached readings
+on the next poll.
+
+**Context and activity come from the OpenCode plugin** at
+`integration/opencode/matrix-session.js`. The installer copies it into
+`$XDG_CONFIG_HOME/opencode/plugins/` (normally `~/.config/opencode/plugins/`).
+OpenCode auto-loads it on startup; no config JSON edits or npm dependencies are
+needed. Manual installation:
+
+```sh
+install -D -m 0644 integration/opencode/matrix-session.js \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins/matrix-session.js"
+```
+
+Quit and restart OpenCode after installing or updating the plugin, then send a
+prompt. Sessions become visible when they produce events in that running
+instance; historical conversations are not loaded from the database. Context
+becomes available after an assistant response reports token usage. It uses the
+same latest-response token calculation and rounding as OpenCode's context
+sidebar, including cached and reasoning tokens and the model's context limit.
+
+The panel follows the main OpenAI conversation with the latest user-message or
+assistant activity across local OpenCode instances. Child/subagent sessions are
+excluded. This follows activity, not terminal focus. Busy/retrying brightens the
+number; idle/error returns it to normal brightness.
+
+The plugin writes only session IDs, provider ID, context percentage, activity
+state, and activity timestamps. No conversation text or credentials are copied:
+
+```text
+$XDG_RUNTIME_DIR/matrixd/opencode/<instance-id>.json
+```
+
+Snapshots are written atomically with mode `0600`. A 15-second heartbeat keeps
+idle-but-open sessions visible without changing their activity ordering. After
+one minute without a heartbeat the context/activity zone goes blank. Instance
+disposal removes its snapshot; crashes are handled by heartbeat expiry. With a
+persistent OpenCode server, health means that server instance is alive, not that
+a particular attached terminal is still open.
+
+Without the plugin or `XDG_RUNTIME_DIR`, the quota bars still work independently.
+The Claude feed uses a separate directory and retains its existing behavior.
 
 ## Claude Code integration
 
@@ -116,6 +202,16 @@ cannot strand a frozen percentage on the panel.
 Skip all of this and everything except the Claude panel still works.
 
 ## Try it
+
+Tests without LED hardware:
+
+```sh
+python3 -m unittest discover -s tests -t .
+node --test tests/test_opencode_plugin.mjs
+```
+
+The plugin tests use Node's built-in test runner; OpenCode runs the installed
+plugin using its own JavaScript runtime.
 
 ```sh
 tools/smoke.py probe              # firmware version on each panel; changes nothing

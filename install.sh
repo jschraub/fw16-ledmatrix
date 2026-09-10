@@ -7,7 +7,8 @@
 # serial device on the machine, permanently, to reach these two.
 #
 # Also installs a systemd *user* service that runs the daemon from this
-# checkout, and the two Claude Code integration scripts into ~/.claude. The
+# checkout, and integration files for the selected provider. For Claude, the
+# two integration scripts go into ~/.claude. The
 # scripts are inert until settings.json refers to them, and the exact JSON to
 # add is printed at the end. Editing settings.json is left to you on purpose:
 # it is your file, it may carry anything, and a merge that mangled it would be
@@ -76,7 +77,8 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 case "$PROVIDER" in
-    claude|opencode-openai) ;;
+    claude) ;;
+    opencode-openai) WITH_CLAUDE=0 ;;
     *) error "unknown provider: $PROVIDER (choose claude or opencode-openai)" ;;
 esac
 

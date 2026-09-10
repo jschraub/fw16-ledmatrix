@@ -40,7 +40,8 @@ For an OpenAI subscription authenticated through OpenCode:
 ```
 
 This also installs the optional OpenCode session plugin and configures the user
-service to use `opencode-openai`. **Quit and restart OpenCode** to load the
+service to use `opencode-openai`. Only the selected provider's integration is
+installed and its setup instructions printed. **Quit and restart OpenCode** to load the
 plugin. Pass `--no-opencode` to skip plugin installation (quota bars still work).
 The provider defaults to `claude`; repeat `--provider opencode-openai` when
 re-running the installer to keep that service selection.

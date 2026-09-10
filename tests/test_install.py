@@ -33,8 +33,13 @@ class TestInstall(unittest.TestCase):
                               env=self.env, capture_output=True, text=True, timeout=10)
 
     def test_default_explicit_selection_switch_back_and_uninstall(self):
+        claude = self.home / "claude"
+        claude.mkdir()
+        hook = claude / "matrix-session-hook.sh"
         for args, provider in (([], "claude"), (["--provider", "opencode-openai"], "opencode-openai"),
                                (["--provider=claude"], "claude")):
+            if provider == "opencode-openai":
+                hook.write_text("existing Claude integration\n")
             result = self.run_install(*args)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             unit = self.unit.read_text()
@@ -43,6 +48,12 @@ class TestInstall(unittest.TestCase):
             self.assertIn(f"WorkingDirectory={ROOT}", unit)
             if provider == "opencode-openai":
                 self.assertEqual(self.plugin.read_bytes(), (ROOT / "integration/opencode/matrix-session.js").read_bytes())
+                self.assertNotIn("Claude", result.stdout)
+                self.assertNotIn("settings.json", result.stdout)
+                self.assertEqual(hook.read_text(), "existing Claude integration\n")
+            else:
+                self.assertIn("settings.json", result.stdout)
+                self.assertEqual(hook.read_bytes(), (ROOT / "integration/claude/matrix-session-hook.sh").read_bytes())
         self.assertTrue(self.plugin.exists(), "switching provider does not uninstall integration")
         result = self.run_install("--uninstall")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -50,16 +61,20 @@ class TestInstall(unittest.TestCase):
         self.assertFalse(self.plugin.exists())
 
     def test_optional_plugin_and_dry_run(self):
+        (self.home / "claude").mkdir()
         result = self.run_install("--provider", "opencode-openai", "--dry-run")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("--provider opencode-openai", result.stdout)
         self.assertIn(str(self.plugin), result.stdout)
+        self.assertNotIn("Claude", result.stdout)
+        self.assertNotIn("settings.json", result.stdout)
         self.assertFalse(self.unit.exists())
         self.assertFalse(self.plugin.exists())
         result = self.run_install("--provider", "opencode-openai", "--no-opencode")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse(self.plugin.exists())
         self.assertIn("--provider opencode-openai", self.unit.read_text())
+        self.assertEqual(list((self.home / "claude").iterdir()), [])
 
     def test_invalid_and_missing_provider_fail_before_installation(self):
         for args in (("--provider",), ("--provider", "openai"), ("--provider=unknown",)):

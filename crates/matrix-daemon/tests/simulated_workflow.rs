@@ -6,6 +6,11 @@ use std::time::Duration;
 async fn independent_clients_reopen_to_latest_rust_rendered_frame() {
     let directory = tempfile::tempdir().unwrap();
     #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    #[cfg(unix)]
     let endpoint = directory
         .path()
         .join("panel.sock")
@@ -17,7 +22,7 @@ async fn independent_clients_reopen_to_latest_rust_rendered_frame() {
         std::process::id(),
         directory.path().file_name().unwrap().to_string_lossy()
     );
-    let listener = local::Listener::bind(&endpoint).unwrap();
+    let listener = local::Listener::bind(&endpoint).await.unwrap();
     let (tx, rx) = tokio::sync::watch::channel(snapshot(0, 12, 34));
     let task = tokio::spawn(serve(listener, rx));
 

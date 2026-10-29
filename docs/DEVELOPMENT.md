@@ -43,9 +43,23 @@ by Rust; it has no font or time-rendering logic.
 
 Close the window and reopen it with the same command. The daemon must remain
 running and the new window must receive its latest frame, not replay history.
-Stop the daemon with Ctrl-C. An open UI should clear its stale panel, show the
-connection failure, and offer Retry. Restart the daemon and retry explicitly.
-Automatic reconnection/startup management is deferred to #10 and later slices.
+Stop the daemon with Ctrl-C. An open UI should clear its stale panel, retain
+caller-owned UI state, show a structured connection failure, and offer Retry.
+Restart the daemon and retry explicitly. A stalled frame stream is also closed
+after ten seconds rather than showing an indefinitely frozen live clock.
+
+Alternatively, run `cargo build --locked -p matrix-daemon` first. When the desktop
+reports that no daemon is listening, **Start daemon** launches the executable
+beside the desktop binary and waits for readiness. It does not search PATH, use
+a shell, install a service, or terminate a running process. The daemon keeps
+running after the window closes. Incompatible, inaccessible, malformed, or
+unresponsive endpoints block startup; they are not permission to replace a
+process. Missing sibling binaries produce an actionable startup error. Automatic
+restart, login startup, and packaging are still deferred.
+
+This slice has no configuration editor yet (#13). Connection state is isolated
+from future caller-owned drafts; a UI harness tests unsaved draft retention
+across disconnect, failed retry, and reconnection without adding fake settings.
 
 `npm run dev` alone runs only Vite: a browser cannot access the native Tauri
 bridge and will report a connection error. Use `npm run tauri -- dev` for the
@@ -54,18 +68,41 @@ complete application.
 ## Local endpoint
 
 - Linux: `fw16-matrix/daemon.sock` beneath the user runtime directory, falling
-  back to the user cache directory. Newly created parent directories are private
-  and the socket is mode 0600.
-- Windows: a local named pipe `fw16-matrix-<USERNAME>`; remote clients are rejected.
-  Explicit Windows ACL/peer hardening and stronger identity are part of #10.
+  back to the user cache directory. The parent must be a real directory owned by
+  the current user with no group/other access; new directories use mode 0700.
+  The socket uses mode 0600 and both sides check peer credentials. Symlinks and
+  insecure existing directories/files are rejected, not silently repaired.
+- Windows: a local named pipe `fw16-matrix-<current-user-SID>`. A protected DACL
+  allows only that user's SID; remote clients/network pipe paths are rejected.
+  The client also verifies the server process's user SID. Restricted-token access
+  checks are included in Windows-only automated tests, without requiring another
+  account or administrator privileges.
 - Set `MATRIX_ENDPOINT` to the **same** socket path/full named-pipe name in both
   terminals for an isolated development instance. There is no TCP listener.
 
-An occupied endpoint is never automatically unlinked/replaced. On Linux a hard
-kill may leave a stale socket: verify no daemon is using it before removing that
-specific socket yourself. Ctrl-C performs normal socket cleanup. Production
-single-instance recovery and user-access hardening remain #10 work; this is a
-local development skeleton, not a hardened release.
+The default endpoint permits one daemon for the current user. Explicit endpoint
+overrides intentionally permit isolated parallel development instances. On Linux
+an OS-held exclusive lock protects the endpoint; after a crash, an owner-matching
+stale socket can be recovered only while holding that lock and only after a
+connection is refused. A live/unresponsive endpoint is never unlinked, including
+an older daemon that does not implement the lock. Windows uses exclusive first
+pipe-instance creation. No code kills or replaces an existing daemon. Ctrl-C
+performs normal socket cleanup; lock files intentionally remain for future use.
+
+The control protocol is now version 2. Update/restart both binaries together;
+an incompatible running daemon must be stopped explicitly by the user. This is
+still a development application, not a security-audited packaged release.
+
+Messages are bounded to 64 KiB, initial handshakes to five seconds, concurrent
+sessions to 32, and stalled writes to five seconds. The daemon retains only the
+latest frame. The Tauri bridge allows one unacknowledged frame per subscription
+and closes it after five seconds without a matching acknowledgement; stale
+subscription/sequence acknowledgements cannot release a new frame. Thus a stuck
+WebView cannot accumulate an unbounded frame-event queue.
+
+Connection diagnostics use fixed error codes/actionable text, not raw OS errors,
+endpoint paths, usernames, provider credentials, or malformed payloads. Raw server
+error text is not trusted or forwarded. There is no network listener.
 
 ## Tests and builds
 
@@ -99,7 +136,10 @@ The no-bundle build produces a native executable in the workspace target folder;
 installers/signing are deferred. CI builds the release executable on Linux and
 Windows. Tests include deterministic POC-compatible clock frames, bounded framing,
 latest-frame subscriptions, two-client isolation, simulated UI feedback/retry,
-and a real daemon subprocess surviving client close/reopen. Tests use isolated
+and real daemon subprocesses surviving client close/reopen, rejecting duplicate
+instances, explicitly starting, and recovering from hard crashes. Additional
+tests cover malformed/oversized messages, version mismatch, redaction, admission
+limits, silent/slow clients, filesystem permissions, and stale-path safety. Tests use isolated
 socket/pipe endpoints and require no hardware, credentials, or elevated access.
 
 ## Manual qualification still required

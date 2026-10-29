@@ -1,0 +1,42 @@
+{
+  "access_denied": {
+    "code": "access_denied",
+    "message": "Access to the local daemon was denied. Check endpoint ownership and user permissions; do not run the app as administrator."
+  },
+  "already_running": {
+    "code": "already_running",
+    "message": "A daemon or another process already owns this endpoint. Retry connecting; no running process was replaced."
+  },
+  "bridge_unavailable": {
+    "code": "bridge_unavailable",
+    "message": "The native desktop bridge is unavailable. Open the Tauri application rather than the Vite page in a browser."
+  },
+  "disconnected": {
+    "code": "disconnected",
+    "message": "The daemon connection closed. Your local UI state is retained; retry after restarting the daemon."
+  },
+  "incompatible": {
+    "code": "incompatible",
+    "message": "The running daemon uses an incompatible protocol or lacks required capabilities. Update matching binaries; it will not be replaced automatically."
+  },
+  "invalid_message": {
+    "code": "invalid_message",
+    "message": "The daemon sent an invalid control message. Check that desktop and daemon versions match."
+  },
+  "slow_consumer": {
+    "code": "slow_consumer",
+    "message": "The desktop stopped acknowledging frames. The bounded subscription was closed; retry to receive the latest state."
+  },
+  "start_failed": {
+    "code": "start_failed",
+    "message": "The daemon could not start. Build or install matrix-daemon alongside the desktop executable, then retry."
+  },
+  "timed_out": {
+    "code": "timed_out",
+    "message": "The daemon did not respond in time. Check its health, then retry."
+  },
+  "unavailable": {
+    "code": "unavailable",
+    "message": "No daemon is listening. Start the daemon or retry the connection."
+  }
+}

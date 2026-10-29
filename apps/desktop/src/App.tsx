@@ -1,45 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { Hello } from "./bindings/Hello";
-import type { Snapshot } from "./bindings/Snapshot";
-import { subscribe } from "./connection";
+import { useDaemon } from "./useDaemon";
 
 export function App() {
-  const [hello, setHello] = useState<Hello | null>(null);
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [connecting, setConnecting] = useState(true);
-  const generation = useRef(0);
-
-  const connect = useCallback(() => {
-    const current = ++generation.current;
-    setConnecting(true);
-    setError(null);
-    setHello(null);
-    setSnapshot(null);
-    void subscribe((event) => {
-      if (current !== generation.current) return;
-      if (event.type === "hello") {
-        setHello(event.hello);
-        setConnecting(false);
-      } else if (event.type === "frame") {
-        setSnapshot(event.snapshot);
-      } else {
-        setError(event.message);
-        setConnecting(false);
-        setHello(null);
-        setSnapshot(null);
-      }
-    }).catch((reason: unknown) => {
-      if (current !== generation.current) return;
-      setError(String(reason));
-      setConnecting(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    connect();
-    return () => { generation.current++; };
-  }, [connect]);
+  const { hello, snapshot, error, connecting, starting, connect, start } = useDaemon();
 
   const time = snapshot
     ? `${String(snapshot.hour).padStart(2, "0")}:${String(snapshot.minute).padStart(2, "0")}`
@@ -55,9 +17,18 @@ export function App() {
       <section className="status" aria-label="Daemon connection">
         <span className={`dot ${hello ? "online" : ""}`} aria-hidden="true" />
         <span role="status">{connecting ? "Connecting…" : hello ? "Connected to daemon" : "Daemon disconnected"}</span>
-        {!connecting && !hello && <button onClick={connect}>Retry connection</button>}
+        {!connecting && !hello && <button onClick={connect} disabled={starting}>Retry connection</button>}
+        {!hello && !connecting && (error?.code === "unavailable" || error?.code === "start_failed") && (
+          <button onClick={() => void start()} disabled={starting}>{starting ? "Starting…" : "Start daemon"}</button>
+        )}
       </section>
-      {error && <div role="alert" className="error">{error}<p>Start <code>cargo run -p matrix-daemon</code> in a separate terminal, then retry.</p></div>}
+      {error && <div role="alert" className="error">{error.message}
+        <details><summary>Connection diagnostics</summary>
+          <p>Code: <code>{error.code}</code>. Transport: user-local socket/pipe. No network listener.</p>
+          <p>Build <code>cargo build -p matrix-daemon</code> before using Start daemon in development, or run <code>cargo run -p matrix-daemon</code> separately.</p>
+          <p>Diagnostics exclude endpoint paths, usernames, credentials, and message payloads. No running process will be stopped or replaced.</p>
+        </details>
+      </div>}
       <section className="preview" aria-labelledby="preview-heading">
         <div>
           <span className="badge">SIMULATED PANEL · NO HARDWARE</span>

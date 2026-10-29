@@ -1,13 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { Event } from "./bindings/Event";
-import { subscribe } from "./connection";
+import { subscribe, startDaemon } from "./connection";
 import { App } from "./App";
 
-vi.mock("./connection", () => ({ subscribe: vi.fn() }));
+vi.mock("./connection", async (original) => ({ ...await original<typeof import("./connection")>(), subscribe: vi.fn(), startDaemon: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
-const hello: Event = { type: "hello", hello: { protocol_version: 1, daemon_version: "0.1.0", simulated: true, capabilities: ["simulated_panel", "clock_frames"] } };
+const hello: Event = { type: "hello", hello: { protocol_version: 2, daemon_version: "0.1.0", simulated: true, capabilities: ["simulated_panel", "clock_frames"] } };
 const pixels = Array<number>(306).fill(0);
 pixels[10] = 180;
 const frame: Event = { type: "frame", snapshot: { sequence: 42, hour: 12, minute: 34, frame: { width: 9, height: 34, pixels } } };
@@ -24,7 +24,7 @@ test("shows daemon pixels and handshake without inventing a clock in React", asy
 });
 
 test("reports a missing daemon and retries without starting or stopping it", async () => {
-  vi.mocked(subscribe).mockRejectedValueOnce("No daemon at local endpoint");
+  vi.mocked(subscribe).mockRejectedValueOnce({ code: "unavailable", message: "No daemon is listening" });
   render(<App />);
   expect(await screen.findByRole("alert")).toHaveTextContent("No daemon");
   vi.mocked(subscribe).mockImplementation(async (receive) => { receive(hello); receive(frame); });
@@ -35,9 +35,36 @@ test("reports a missing daemon and retries without starting or stopping it", asy
 
 test("disconnected output is cleared instead of showing a frozen live clock", async () => {
   vi.mocked(subscribe).mockImplementation(async (receive) => {
-    receive(hello); receive(frame); receive({ type: "error", message: "Daemon connection closed" });
+    receive(hello); receive(frame); receive({ type: "error", code: "disconnected", message: "Daemon connection closed" });
   });
   render(<App />);
-  expect(await screen.findByRole("alert")).toHaveTextContent("Daemon connection closed");
+  expect(await screen.findByRole("alert")).toHaveTextContent("daemon connection closed");
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
+});
+
+test("starts explicitly only when unavailable and connects when ready", async () => {
+  vi.mocked(subscribe).mockRejectedValueOnce({ code: "unavailable", message: "No daemon is listening" });
+  vi.mocked(startDaemon).mockResolvedValueOnce();
+  render(<App />);
+  const start = await screen.findByRole("button", { name: "Start daemon" });
+  expect(startDaemon).not.toHaveBeenCalled();
+  vi.mocked(subscribe).mockImplementation(async (receive) => { receive(hello); receive(frame); });
+  fireEvent.click(start);
+  expect(await screen.findByRole("img")).toBeInTheDocument();
+  expect(startDaemon).toHaveBeenCalledTimes(1);
+});
+
+test("never offers to replace an incompatible daemon", async () => {
+  vi.mocked(subscribe).mockRejectedValueOnce({ code: "incompatible", message: "Incompatible daemon; update matching binaries" });
+  render(<App />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("incompatible protocol");
+  expect(screen.queryByRole("button", { name: "Start daemon" })).not.toBeInTheDocument();
+  expect(startDaemon).not.toHaveBeenCalled();
+});
+
+test("does not echo arbitrary native exceptions into diagnostics", async () => {
+  vi.mocked(subscribe).mockRejectedValueOnce("private/path token=secret");
+  render(<App />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("native desktop bridge is unavailable");
+  expect(screen.queryByText(/token=secret/)).not.toBeInTheDocument();
 });

@@ -1,5 +1,9 @@
 //! Shared local-control contract and client. No TCP transport is offered.
+mod failure;
+pub mod flow;
 pub mod local;
+pub mod startup;
+pub use failure::{ErrorCode, Failure};
 
 use matrix_core::Frame;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
@@ -7,14 +11,17 @@ use std::{io, time::Duration};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use ts_rs::TS;
 
-pub const PROTOCOL_VERSION: u16 = 1;
+pub const PROTOCOL_VERSION: u16 = 2;
 pub const MAX_MESSAGE: usize = 64 * 1024;
+pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+pub const FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[serde(deny_unknown_fields)]
 pub enum Request {
     Hello { protocol_version: u16 },
-    Subscribe,
+    Subscribe {},
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -39,7 +46,7 @@ pub struct Snapshot {
 pub enum Event {
     Hello { hello: Hello },
     Frame { snapshot: Snapshot },
-    Error { message: String },
+    Error { code: ErrorCode, message: String },
 }
 
 fn invalid(message: impl Into<String>) -> io::Error {
@@ -68,7 +75,7 @@ pub async fn read_message<R: AsyncRead + Unpin + ?Sized, T: DeserializeOwned>(
     }
     let mut bytes = vec![0; size];
     reader.read_exact(&mut bytes).await?;
-    serde_json::from_slice(&bytes).map_err(|e| invalid(e.to_string()))
+    serde_json::from_slice(&bytes).map_err(|_| invalid("malformed control message"))
 }
 
 pub struct Client {
@@ -77,41 +84,55 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn connect(endpoint: &str) -> io::Result<Self> {
-        tokio::time::timeout(Duration::from_secs(5), async {
-            let mut stream = local::connect(endpoint).await?;
+    pub async fn connect(endpoint: &str) -> Result<Self, Failure> {
+        tokio::time::timeout(HANDSHAKE_TIMEOUT, async {
+            let mut stream = local::connect(endpoint)
+                .await
+                .map_err(|e| Failure::connecting(&e))?;
             write_message(
                 &mut stream,
                 &Request::Hello {
                     protocol_version: PROTOCOL_VERSION,
                 },
             )
-            .await?;
-            let hello = match read_message(&mut stream).await? {
+            .await
+            .map_err(|e| Failure::streaming(&e))?;
+            let hello = match read_message(&mut stream)
+                .await
+                .map_err(|e| Failure::streaming(&e))?
+            {
                 Event::Hello { hello }
-                    if hello.protocol_version == PROTOCOL_VERSION && hello.simulated =>
+                    if hello.protocol_version == PROTOCOL_VERSION
+                        && hello.simulated
+                        && hello.capabilities.iter().any(|c| c == "clock_frames") =>
                 {
                     hello
                 }
-                Event::Error { message } => return Err(invalid(message)),
-                _ => return Err(invalid("incompatible daemon handshake")),
+                Event::Error { code, .. } => return Err(Failure::new(code)),
+                _ => return Err(Failure::new(ErrorCode::Incompatible)),
             };
-            write_message(&mut stream, &Request::Subscribe).await?;
+            write_message(&mut stream, &Request::Subscribe {})
+                .await
+                .map_err(|e| Failure::streaming(&e))?;
             Ok(Self { stream, hello })
         })
         .await
-        .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "daemon handshake timed out"))?
+        .map_err(|_| Failure::new(ErrorCode::TimedOut))?
     }
 
-    pub async fn next_frame(&mut self) -> io::Result<Snapshot> {
-        match read_message(&mut self.stream).await? {
+    pub async fn next_frame(&mut self) -> Result<Snapshot, Failure> {
+        let event = tokio::time::timeout(FRAME_TIMEOUT, read_message(&mut self.stream))
+            .await
+            .map_err(|_| Failure::new(ErrorCode::TimedOut))?
+            .map_err(|e| Failure::streaming(&e))?;
+        match event {
             Event::Frame { snapshot }
                 if snapshot.frame.is_valid() && snapshot.hour < 24 && snapshot.minute < 60 =>
             {
                 Ok(snapshot)
             }
-            Event::Error { message } => Err(invalid(message)),
-            _ => Err(invalid("invalid daemon frame")),
+            Event::Error { code, .. } => Err(Failure::new(code)),
+            _ => Err(Failure::new(ErrorCode::InvalidMessage)),
         }
     }
 }
@@ -123,12 +144,53 @@ mod tests {
     #[tokio::test]
     async fn framed_protocol_round_trips_and_bounds_allocations() {
         let (mut a, mut b) = tokio::io::duplex(128);
-        write_message(&mut a, &Request::Subscribe).await.unwrap();
+        write_message(&mut a, &Request::Subscribe {}).await.unwrap();
         assert!(matches!(
             read_message(&mut b).await.unwrap(),
-            Request::Subscribe
+            Request::Subscribe {}
         ));
         a.write_u32((MAX_MESSAGE + 1) as u32).await.unwrap();
         assert!(read_message::<_, Request>(&mut b).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn rejects_malformed_empty_truncated_and_unknown_messages_without_echoing_payloads() {
+        for payload in [
+            b"secret-not-json".as_slice(),
+            br#"{"type":"not_real"}"#,
+            br#"{"type":"subscribe","token":"secret"}"#,
+        ] {
+            let (mut writer, mut reader) = tokio::io::duplex(256);
+            writer.write_u32(payload.len() as u32).await.unwrap();
+            writer.write_all(payload).await.unwrap();
+            let error = read_message::<_, Request>(&mut reader).await.unwrap_err();
+            assert_eq!(error.kind(), io::ErrorKind::InvalidData);
+            assert!(!error.to_string().contains("secret"));
+        }
+        let (mut writer, mut reader) = tokio::io::duplex(128);
+        writer.write_u32(0).await.unwrap();
+        assert!(read_message::<_, Request>(&mut reader).await.is_err());
+        writer.write_u32(20).await.unwrap();
+        writer.write_all(b"{").await.unwrap();
+        drop(writer);
+        assert_eq!(
+            read_message::<_, Request>(&mut reader)
+                .await
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::UnexpectedEof
+        );
+    }
+
+    #[test]
+    fn diagnostics_do_not_echo_os_paths_or_payloads() {
+        let error = io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "/private/user/token=secret",
+        );
+        let failure = Failure::connecting(&error);
+        assert_eq!(failure.code, ErrorCode::AccessDenied);
+        assert!(!failure.message.contains("secret"));
+        assert!(!failure.message.contains("/private"));
     }
 }

@@ -1760,11 +1760,14 @@ name = "matrix-client"
 version = "0.1.0"
 dependencies = [
  "dirs 6.0.0",
+ "libc",
  "matrix-core",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "ts-rs",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1780,10 +1783,12 @@ name = "matrix-daemon"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "libc",
  "matrix-client",
  "matrix-core",
  "tempfile",
  "tokio",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

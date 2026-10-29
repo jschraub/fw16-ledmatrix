@@ -2,6 +2,7 @@
 pub mod config;
 pub mod layout;
 pub mod power;
+pub mod protocol;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

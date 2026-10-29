@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::{io, time::Duration};
 use tokio::sync::{Semaphore, watch};
 pub mod config;
+pub mod devices;
 pub mod power;
 pub mod probe;
 pub type Configuration = Arc<std::sync::Mutex<config::Store>>;
@@ -115,6 +116,45 @@ async fn configured_session(
             },
         )
         .await;
+    }
+    if matches!(request, Request::Devices {}) {
+        return write_message(
+            &mut stream,
+            &Event::Devices {
+                reply: devices::manager().list(),
+            },
+        )
+        .await;
+    }
+    if let Request::CancelIdentify { ref port } = request {
+        devices::manager().cancel(port);
+        return write_message(
+            &mut stream,
+            &Event::Devices {
+                reply: devices::manager().list(),
+            },
+        )
+        .await;
+    }
+    if let Request::Identify { ref port } = request {
+        let Some(active) = devices::manager().begin(port) else {
+            let mut reply = devices::manager().list();
+            reply.message =
+                "Device is missing, unsupported or already identifying. Refresh and retry.".into();
+            return write_message(&mut stream, &Event::Devices { reply }).await;
+        };
+        let _cancel = devices::CancelOnDrop(active.clone());
+        let port = port.clone();
+        let frames = frames.clone();
+        let mut job =
+            tokio::task::spawn_blocking(move || devices::manager().identify(&port, frames, active));
+        let result = tokio::select! {
+            result = &mut job => result,
+            _ = read_message::<_, Request>(&mut stream) => return Ok(()),
+        };
+        let mut reply = devices::manager().list();
+        reply.message = if matches!(result, Ok(Ok(()))) { "Identification ended; latest normal clock frame restored." } else { "Identification failed. Check exclusive access, firmware and connection, then reconnect the panel before retrying." }.into();
+        return write_message(&mut stream, &Event::Devices { reply }).await;
     }
     let reply = {
         let mut store = config

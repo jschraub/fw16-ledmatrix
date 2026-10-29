@@ -1,5 +1,6 @@
 //! Shared local-control contract and client. No TCP transport is offered.
 pub mod capabilities;
+pub mod devices;
 mod failure;
 pub mod flow;
 pub mod local;
@@ -21,6 +22,13 @@ pub const FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Request {
+    Devices {},
+    Identify {
+        port: String,
+    },
+    CancelIdentify {
+        port: String,
+    },
     Hello {
         protocol_version: u16,
     },
@@ -62,6 +70,9 @@ pub struct Snapshot {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    Devices {
+        reply: devices::DeviceReply,
+    },
     Rendered {
         frames: Vec<Frame>,
         sample: bool,

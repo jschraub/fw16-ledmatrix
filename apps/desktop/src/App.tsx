@@ -1,6 +1,7 @@
 import { useDaemon } from "./useDaemon";
 import { Capabilities } from "./Capabilities";
 import { ConfigEditor } from "./ConfigEditor";
+import { Devices } from "./Devices";
 
 export function App() {
   const { hello, snapshot, error, connecting, starting, connect, start } = useDaemon();
@@ -58,6 +59,7 @@ export function App() {
       </section>
       <footer>Closing this window leaves the daemon running. Reopen to see its latest frame.</footer>
       <Capabilities />
+      <Devices />
       <ConfigEditor />
     </main>
   );

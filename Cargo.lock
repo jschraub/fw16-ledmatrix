@@ -1775,6 +1775,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "matrix-claude"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "matrix-client",
+ "matrix-core",
+ "matrix-daemon",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "matrix-client"
 version = "0.1.0"
 dependencies = [

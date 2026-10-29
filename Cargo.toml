@@ -1,6 +1,6 @@
 [workspace]
-members = ["crates/matrix-core", "crates/matrix-client", "crates/matrix-daemon", "apps/desktop/src-tauri"]
-default-members = ["crates/matrix-core", "crates/matrix-client", "crates/matrix-daemon"]
+members = ["crates/matrix-core", "crates/matrix-client", "crates/matrix-daemon", "crates/matrix-claude", "apps/desktop/src-tauri"]
+default-members = ["crates/matrix-core", "crates/matrix-client", "crates/matrix-daemon", "crates/matrix-claude"]
 resolver = "2"
 
 [workspace.package]

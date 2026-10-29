@@ -1,0 +1,19 @@
+[package]
+name = "matrix-claude"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+matrix-core.workspace = true
+matrix-client.workspace = true
+serde_json.workspace = true
+tempfile = "3"
+tokio = { workspace = true, features = ["io-std"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+matrix-daemon = { path = "../matrix-daemon" }

@@ -1,8 +1,8 @@
 # Assistant metadata feeds
 
 The daemon consumes versioned **metadata only** from per-user atomic JSON
-snapshots. Producers for actual clients are separate follow-on slices; a missing
-producer leaves its slots blank. No credentials or conversation text belong in
+snapshots. Optional Claude and OpenCode producers are installed explicitly below;
+a missing producer leaves its slots blank. No credentials or conversation text belong in
 these files. Unknown JSON fields are rejected, not displayed or logged.
 
 The root is `MATRIX_FEEDS`, otherwise `fw16-matrix/feeds` below the user runtime
@@ -32,6 +32,84 @@ The Integrations screen shows source health, eligible IDs, context/activity and
 separate heartbeat/activity timestamps. Selection follows activity, not terminal
 focus or a persistent server's attached UI. Source failures never stop the clock.
 Quota retrieval is a separate adapter and must not be inferred from session feeds.
+
+## Claude Code Rust helper
+
+Build/install explicitly with `cargo install --path crates/matrix-claude --locked`.
+Ensure `matrix-claude` (`matrix-claude.exe` on Windows) is on Claude's PATH.
+The helper does not edit settings or replace your status-line renderer.
+Back up your settings and merge these entries, preserving unrelated fields,
+existing hooks and `statusLine` options such as padding:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "matrix-claude statusline -- bash /home/you/.claude/statusline.sh",
+    "refreshInterval": 15
+  },
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "matrix-claude", "args": ["hook"], "timeout": 2 }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "matrix-claude", "args": ["hook"], "timeout": 2 }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "matrix-claude", "args": ["hook"], "timeout": 2 }] }],
+    "StopFailure": [{ "hooks": [{ "type": "command", "command": "matrix-claude", "args": ["hook"], "timeout": 2 }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "matrix-claude", "args": ["hook"], "timeout": 2 }] }]
+  }
+}
+```
+
+Replace the command **after `--`** with your existing executable and arguments.
+If the original command uses shell syntax, invoke its shell explicitly, e.g.
+`matrix-claude statusline -- sh -c 'your existing command'`. Nothing after `--`
+is evaluated by the helper. Without a downstream executable it prints nothing.
+
+On Windows, prefer a bare helper name on PATH to avoid differing PowerShell and
+Git Bash rules for quoted executable paths. Use forward slashes and quote path
+arguments with spaces. For an existing PowerShell renderer, the JSON command is:
+
+```json
+"command": "matrix-claude statusline -- powershell.exe -NoProfile -File \"C:/Users/Ada Example/.claude/statusline.ps1\""
+```
+
+The hook `command` can instead be an absolute `.exe` path, including spaces,
+because its `args` array enables Claude's exec form (no shell quoting). The
+downstream executable must also be real: `.bat`/`.cmd` scripts need an explicit
+shell. Actual Claude/Git Bash/PowerShell activation still needs platform checks;
+automated subprocess tests establish argv and byte preservation, not settings
+interpretation by every installed Claude version.
+
+Claude reloads status-line settings automatically. Review hooks with `/hooks`
+and start a new session to exercise `SessionStart`. The status-line command
+forwards stdin byte-for-byte, including trailing newlines and non-UTF8 bytes,
+and inherits the downstream stdout/stderr and normal exit code. Invalid JSON or
+metadata errors add no terminal output and never prevent forwarding. The helper
+caps its metadata capture at 64 KiB while still forwarding larger input; it never
+stores the original payload, prompts, transcript paths or text. Input forwarding
+and downstream execution each have a two-second deadline; a stuck downstream is
+terminated best-effort rather than holding the caller indefinitely. Descendant
+processes started by a downstream shell are not independently supervised.
+Metadata filesystem work has a 150 ms wait budget plus bounded runtime shutdown.
+
+Hooks record start/working/idle/end using `hook_event_name`, ignoring child-agent
+events. `SessionEnd` publishes an empty tombstone, so a late status callback
+cannot resurrect it until the next `SessionStart`. Each session owns one atomic
+snapshot and a small kernel-lock file; concurrent helpers never overwrite another
+session. Lock contention retries for at most 50 ms, then skips optional metadata. Missed hook
+edges cannot be reconstructed from status-line input; check `/hooks` if busy state
+is wrong. Lock files and ended tombstones can remain on disk; readers expire them,
+and they contain no conversation content.
+
+`context_window.used_percentage` is the authoritative Claude percentage (rounded,
+unknown stays null); unlike the OpenCode adapter, it follows Claude's input-only
+definition. Set `refreshInterval: 15` to renew liveness during idle periods.
+Status-line refresh changes heartbeat/context **only**, never activity order or
+busy state. Without the refresh timer, quiet sessions intentionally expire after
+60 seconds. Removing the wrapper/hooks restores your original setup; crashes or
+missed SessionEnd also expire, rather than keeping a dead session forever. Feed
+paths and Windows ACL caveats are the same as the OpenCode producer below.
+
+Sources: [Claude status-line contract](https://code.claude.com/docs/en/statusline),
+[hook events/exec form](https://code.claude.com/docs/en/hooks).
 
 ## OpenCode V2 producer
 

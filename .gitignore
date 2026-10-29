@@ -1,3 +1,11 @@
 __pycache__/
 *.py[cod]
 .venv/
+/target/
+node_modules/
+/apps/desktop/dist/
+/apps/desktop/src-tauri/gen/
+/apps/desktop/src-tauri/icons/*
+!/apps/desktop/src-tauri/icons/source.svg
+!/apps/desktop/src-tauri/icons/icon.png
+!/apps/desktop/src-tauri/icons/icon.ico

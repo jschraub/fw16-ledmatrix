@@ -5,6 +5,7 @@ use matrix_client::{
 use std::sync::Arc;
 use std::{io, time::Duration};
 use tokio::sync::{Semaphore, watch};
+pub mod probe;
 
 pub const MAX_CLIENTS: usize = 32;
 
@@ -46,7 +47,7 @@ async fn session(
     mut stream: local::Stream,
     mut frames: watch::Receiver<Snapshot>,
 ) -> io::Result<()> {
-    tokio::time::timeout(HANDSHAKE_TIMEOUT, async {
+    let request = tokio::time::timeout(HANDSHAKE_TIMEOUT, async {
         let request = read_message(&mut stream).await?;
         if !matches!(
             request,
@@ -76,13 +77,22 @@ async fn session(
             },
         )
         .await?;
-        if !matches!(read_message(&mut stream).await?, Request::Subscribe {}) {
-            return Err(io::Error::other("expected subscription"));
-        }
-        Ok::<_, io::Error>(())
+        read_message::<_, Request>(&mut stream).await
     })
     .await
     .map_err(|_| io::Error::new(io::ErrorKind::TimedOut, "handshake timed out"))??;
+    if matches!(request, Request::Probe {}) {
+        return write_message(
+            &mut stream,
+            &Event::Report {
+                report: probe::report().await,
+            },
+        )
+        .await;
+    }
+    if !matches!(request, Request::Subscribe {}) {
+        return Err(io::Error::other("expected command or subscription"));
+    }
     loop {
         let snapshot = frames.borrow_and_update().clone();
         tokio::time::timeout(

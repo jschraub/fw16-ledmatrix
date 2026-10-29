@@ -29,6 +29,10 @@ async fn independent_clients_reopen_to_latest_rust_rendered_frame() {
     tokio::time::timeout(Duration::from_secs(5), async {
         let mut first = Client::connect(&endpoint).await.unwrap();
         assert!(first.hello.simulated);
+        let report = Client::request(&endpoint, matrix_client::Request::Probe {})
+            .await
+            .unwrap();
+        assert!(matches!(report, matrix_client::Event::Report { .. }));
         assert!(first.hello.capabilities.contains(&"clock_frames".into()));
         assert_eq!(first.next_frame().await.unwrap(), snapshot(0, 12, 34));
         drop(first); // Same disconnect used by closing the desktop; no daemon ownership.

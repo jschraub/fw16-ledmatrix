@@ -8,6 +8,8 @@ license.workspace = true
 [dependencies]
 matrix-core.workspace = true
 matrix-client.workspace = true
+serde_json.workspace = true
+serialport = { version = "4", default-features = false }
 tokio.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 

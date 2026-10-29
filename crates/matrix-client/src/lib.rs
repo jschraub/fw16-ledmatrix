@@ -1,4 +1,5 @@
 //! Shared local-control contract and client. No TCP transport is offered.
+pub mod capabilities;
 mod failure;
 pub mod flow;
 pub mod local;
@@ -22,6 +23,7 @@ pub const FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 pub enum Request {
     Hello { protocol_version: u16 },
     Subscribe {},
+    Probe {},
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -44,9 +46,19 @@ pub struct Snapshot {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
-    Hello { hello: Hello },
-    Frame { snapshot: Snapshot },
-    Error { code: ErrorCode, message: String },
+    Hello {
+        hello: Hello,
+    },
+    Frame {
+        snapshot: Snapshot,
+    },
+    Error {
+        code: ErrorCode,
+        message: String,
+    },
+    Report {
+        report: capabilities::CapabilityReport,
+    },
 }
 
 fn invalid(message: impl Into<String>) -> io::Error {
@@ -85,6 +97,32 @@ pub struct Client {
 
 impl Client {
     pub async fn connect(endpoint: &str) -> Result<Self, Failure> {
+        let mut client = Self::handshake(endpoint).await?;
+        write_message(&mut client.stream, &Request::Subscribe {})
+            .await
+            .map_err(|e| Failure::streaming(&e))?;
+        Ok(client)
+    }
+
+    pub async fn request(endpoint: &str, request: Request) -> Result<Event, Failure> {
+        let mut client = Self::handshake(endpoint).await?;
+        tokio::time::timeout(Duration::from_secs(20), async {
+            write_message(&mut client.stream, &request)
+                .await
+                .map_err(|e| Failure::streaming(&e))?;
+            let event = read_message(&mut client.stream)
+                .await
+                .map_err(|e| Failure::streaming(&e))?;
+            if let Event::Error { code, .. } = event {
+                return Err(Failure::new(code));
+            }
+            Ok(event)
+        })
+        .await
+        .map_err(|_| Failure::new(ErrorCode::TimedOut))?
+    }
+
+    async fn handshake(endpoint: &str) -> Result<Self, Failure> {
         tokio::time::timeout(HANDSHAKE_TIMEOUT, async {
             let mut stream = local::connect(endpoint)
                 .await
@@ -111,9 +149,6 @@ impl Client {
                 Event::Error { code, .. } => return Err(Failure::new(code)),
                 _ => return Err(Failure::new(ErrorCode::Incompatible)),
             };
-            write_message(&mut stream, &Request::Subscribe {})
-                .await
-                .map_err(|e| Failure::streaming(&e))?;
             Ok(Self { stream, hello })
         })
         .await

@@ -11,6 +11,13 @@ async fn main() {
 }
 
 async fn run() -> std::io::Result<()> {
+    if std::env::args().nth(1).as_deref() == Some("--probe") {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&matrix_daemon::probe::report().await)?
+        );
+        return Ok(());
+    }
     let endpoint = local::endpoint()?;
     let listener = local::Listener::bind(&endpoint).await?;
     let now = chrono::Local::now();

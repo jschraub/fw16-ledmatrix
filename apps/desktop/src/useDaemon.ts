@@ -23,7 +23,7 @@ export function useDaemon() {
       if (current !== generation.current) return;
       if (event.type === "hello") { setHello(event.hello); setConnecting(false); }
       else if (event.type === "frame") { setSnapshot(event.snapshot); }
-      else { setError(safeFailure(event)); setConnecting(false); clearConnection(); }
+      else if (event.type === "error") { setError(safeFailure(event)); setConnecting(false); clearConnection(); }
     }).catch((reason: unknown) => {
       if (current !== generation.current) return;
       setError(safeFailure(reason));

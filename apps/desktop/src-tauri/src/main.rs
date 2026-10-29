@@ -7,6 +7,15 @@ use std::{
 };
 use tauri::{State, ipc::Channel};
 
+#[tauri::command]
+async fn probe() -> Result<matrix_client::capabilities::CapabilityReport, Failure> {
+    let endpoint = local::endpoint().map_err(|e| Failure::connecting(&e))?;
+    match Client::request(&endpoint, matrix_client::Request::Probe {}).await? {
+        Event::Report { report } => Ok(report),
+        _ => Err(Failure::new(ErrorCode::InvalidMessage)),
+    }
+}
+
 #[derive(Default)]
 struct Subscription {
     task: Option<tauri::async_runtime::JoinHandle<()>>,
@@ -104,7 +113,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             subscribe,
             acknowledge,
-            start_daemon
+            start_daemon,
+            probe
         ])
         .run(tauri::generate_context!())
         .expect("failed to run matrix desktop");

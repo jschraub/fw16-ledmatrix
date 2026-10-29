@@ -1,4 +1,5 @@
 import { useDaemon } from "./useDaemon";
+import { Capabilities } from "./Capabilities";
 
 export function App() {
   const { hello, snapshot, error, connecting, starting, connect, start } = useDaemon();
@@ -50,6 +51,7 @@ export function App() {
         ) : <div className="placeholder">{hello ? "Waiting for first frame…" : "Connect to view the panel"}</div>}
       </section>
       <footer>Closing this window leaves the daemon running. Reopen to see its latest frame.</footer>
+      <Capabilities />
     </main>
   );
 }

@@ -134,6 +134,29 @@ mod tests {
     use super::*;
     use matrix_core::assistant::FeedSession;
     #[test]
+    fn reads_real_javascript_producer_snapshot_and_expires_after_crash() {
+        let root = tempfile::tempdir().unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(root.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../integrations/opencode/test/emit-fixture.mjs");
+        let output = std::process::Command::new("node")
+            .arg(fixture)
+            .arg(root.path())
+            .output()
+            .expect("Node is a pinned development prerequisite");
+        assert!(output.status.success(), "JS producer fixture failed");
+        let state = scan(root.path(), 100_000);
+        assert_eq!(state.sessions.len(), 1);
+        assert_eq!(state.sessions[0].provider, Provider::OpencodeOpenai);
+        assert_eq!(state.sessions[0].context_percent, Some(41));
+        assert_eq!(state.sessions[0].last_activity_ms, 90_000);
+        assert!(scan(root.path(), 160_000).sessions.is_empty());
+    }
+    #[test]
     fn producer_reader_contract_is_bounded_private_and_independent_per_provider() {
         let root = tempfile::tempdir().unwrap();
         let directory = root.path().join("claude");

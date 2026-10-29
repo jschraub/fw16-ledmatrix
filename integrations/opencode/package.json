@@ -1,0 +1,10 @@
+{
+  "name": "fw16-matrix-opencode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.js",
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "@opencode/plugin": "2.2.1" },
+  "engines": { "node": ">=24.15.0" }
+}

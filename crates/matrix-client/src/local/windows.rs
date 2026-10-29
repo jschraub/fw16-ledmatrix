@@ -260,8 +260,7 @@ mod tests {
             assert_ne!(reverted, 0);
             assert_eq!(
                 denied
-                    .err()
-                    .expect("restricted token must be denied")
+                    .expect_err("restricted token must be denied")
                     .kind(),
                 io::ErrorKind::PermissionDenied
             );

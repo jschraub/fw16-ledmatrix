@@ -9,7 +9,7 @@ services. The panel is simulated; the local wall clock is real.
 - Rust via rustup: the root toolchain file pins 1.94.0 with rustfmt and Clippy.
   System-managed Rust also works if it satisfies the workspace minimum, but does
   not automatically honor rustup's toolchain selection.
-- Node: the root `.node-version` pins 24.14.0; npm 11.16.0 is the package manager.
+- Node: the root `.node-version` pins 24.15.0; npm 11.16.0 is the package manager.
 - Linux: GTK 3, WebKitGTK 4.1, and the normal Tauri build dependencies. On Ubuntu:
 
   ```sh

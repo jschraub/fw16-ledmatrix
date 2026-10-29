@@ -1,6 +1,7 @@
 //! Deterministic Framework-sized rendering. No clock, OS, or device I/O.
 pub mod config;
 pub mod layout;
+pub mod power;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

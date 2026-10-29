@@ -60,6 +60,9 @@ impl Config {
                 if let Some(widget) = widget
                     && (panel.template.presentations().get(s) != Some(&widget.presentation)
                         || widget.intensity == Some(0)
+                        || widget
+                            .warning_threshold
+                            .is_some_and(|threshold| threshold > 100)
                         || (widget.source == Source::Clock)
                             != (widget.presentation == Presentation::Clock))
                 {

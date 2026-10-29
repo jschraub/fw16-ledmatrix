@@ -10,7 +10,7 @@ import type { Widget } from "./bindings/Widget";
 
 const templates: Record<Template, Presentation[]> = { clock_gauge: ["clock", "gauge"], number_two_gauges: ["number", "gauge", "gauge"], full_gauge: ["gauge"] };
 const sources: Source[] = ["battery", "context", "activity", "five_hour", "weekly"];
-function widget(presentation: Presentation): Widget { return { source: presentation === "clock" ? "clock" : "battery", presentation, intensity: null, reversed: false, hide_leading_hour_zero: false }; }
+function widget(presentation: Presentation): Widget { return { source: presentation === "clock" ? "clock" : "battery", presentation, intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null }; }
 
 export function Layouts({ config, change }: { config: Config; change: (config: Config) => void }) {
   const panels = config.panels ?? [];
@@ -30,6 +30,9 @@ export function Layouts({ config, change }: { config: Config; change: (config: C
         {value && <><label>Intensity for {panel.name} slot {s + 1} <input type="number" min={1} max={255} placeholder="inherit" value={value.intensity ?? ""}
           onChange={(e) => slot(p, s, { ...value, intensity: e.target.value === "" ? null : Number(e.target.value) })} /></label>
           {value.presentation === "gauge" && <label><input type="checkbox" checked={value.reversed} onChange={(e) => slot(p, s, { ...value, reversed: e.target.checked })} /> Fill downward</label>}
+          {value.source !== "clock" && <label>Warning threshold for {panel.name} slot {s + 1} ({value.source === "battery" ? "at or below" : "at or above"})
+            <input type="number" min={0} max={100} value={value.warning_threshold ?? ""} placeholder="disabled"
+              onChange={(e) => slot(p, s, { ...value, warning_threshold: e.target.value === "" ? null : Number(e.target.value) })} /></label>}
           {value.presentation === "clock" && <><p>24-hour local clock. AM/PM formats are deferred until a legible 9-pixel design is agreed.</p>
             <label><input type="checkbox" checked={value.hide_leading_hour_zero ?? false} onChange={(e) => slot(p, s, { ...value, hide_leading_hour_zero: e.target.checked })} /> Hide leading hour zero</label></>}
         </>}

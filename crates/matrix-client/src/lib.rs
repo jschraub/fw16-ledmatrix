@@ -50,6 +50,8 @@ pub struct Hello {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct Snapshot {
+    #[serde(default)]
+    pub power: Option<matrix_core::power::PowerReading>,
     // A bounded u32 is represented exactly as a JavaScript number.
     pub sequence: u32,
     pub hour: u8,

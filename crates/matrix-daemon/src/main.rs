@@ -22,6 +22,10 @@ async fn run() -> std::io::Result<()> {
     let listener = local::Listener::bind(&endpoint).await?;
     let config = std::sync::Arc::new(std::sync::Mutex::new(Store::load(Store::default_path()?)?));
     let render_config = config.clone();
+    let (power_tx, power_rx) = tokio::sync::watch::channel(matrix_daemon::power::unavailable(
+        matrix_core::power::PowerStatus::Unavailable,
+    ));
+    tokio::spawn(matrix_daemon::power::poll(power_tx));
     let now = chrono::Local::now();
     let (tx, rx) = tokio::sync::watch::channel(snapshot(0, now.hour() as u8, now.minute() as u8));
     eprintln!("matrix-daemon: simulated 9x34 panel; local clock; local-only control");
@@ -34,6 +38,8 @@ async fn run() -> std::io::Result<()> {
             let now = chrono::Local::now();
             sequence = sequence.wrapping_add(1);
             let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
+            let power = power_rx.borrow().clone();
+            frame.power = Some(power.clone());
             let config = render_config
                 .lock()
                 .expect("configuration lock")
@@ -43,6 +49,7 @@ async fn run() -> std::io::Result<()> {
                 hour: now.hour() as u8,
                 minute: now.minute() as u8,
                 default_clock_intensity: config.clock_intensity,
+                battery: power.percent.map(f64::from),
                 ..Default::default()
             };
             frame.frame = matrix_core::layout::render(&config.panels[0], &readings);

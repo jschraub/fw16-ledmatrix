@@ -40,6 +40,11 @@ export function App() {
           <p className="muted">9 × 34 · 8-bit greyscale<br />Screen brightness is not calibrated to physical LEDs.</p>
           {hello && <p className="muted">Daemon {hello.daemon_version} · protocol {hello.protocol_version}<br />Capabilities: {hello.capabilities.join(", ")}</p>}
           {snapshot && <p className="muted">Update {snapshot.sequence}</p>}
+          {snapshot?.power && <p className="muted">Battery source: {snapshot.power.status}
+            {snapshot.power.percent !== null && <> · {snapshot.power.percent}%</>}
+            {snapshot.power.charging !== null && <> · {snapshot.power.charging ? "charging" : "not charging"}</>}
+            {snapshot.power.ac !== null && <> · AC {snapshot.power.ac ? "connected" : "disconnected"}</>}
+            <br />Observed: {snapshot.power.updated_at}. Unavailable/error data stays blank.</p>}
         </div>
         {snapshot ? (
           <div className="panel" role="img" aria-label={`Simulated LED panel showing ${time}`}>

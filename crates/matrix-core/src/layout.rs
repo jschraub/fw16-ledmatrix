@@ -35,6 +35,8 @@ pub struct Widget {
     pub reversed: bool,
     #[serde(default)]
     pub hide_leading_hour_zero: bool,
+    #[serde(default)]
+    pub warning_threshold: Option<u8>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -75,6 +77,7 @@ pub fn default_slots(template: Template) -> Vec<Option<Widget>> {
                 intensity: None,
                 reversed: false,
                 hide_leading_hour_zero: false,
+                warning_threshold: None,
             })
         })
         .collect()
@@ -194,6 +197,17 @@ pub fn render(panel: &PanelLayout, readings: &Readings) -> Frame {
         let Some(value) = readings.value(widget.source) else {
             continue;
         };
+        let intensity = if widget.warning_threshold.is_some_and(|threshold| {
+            if widget.source == Source::Battery {
+                value <= f64::from(threshold)
+            } else {
+                value >= f64::from(threshold)
+            }
+        }) {
+            255
+        } else {
+            intensity
+        };
         if widget.presentation == Presentation::Number {
             number(&mut frame, 1, value as i32, intensity);
             continue;
@@ -304,6 +318,37 @@ mod tests {
                 }
             ),
             render(&first, &Readings::default())
+        );
+    }
+    #[test]
+    fn battery_threshold_emphasizes_low_values_but_missing_is_not_zero() {
+        let mut panel = PanelLayout {
+            name: "battery".into(),
+            template: Template::FullGauge,
+            slots: default_slots(Template::FullGauge),
+        };
+        panel.slots[0].as_mut().unwrap().warning_threshold = Some(20);
+        let low = render(
+            &panel,
+            &Readings {
+                battery: Some(20.0),
+                ..Default::default()
+            },
+        );
+        assert_eq!(low.pixels[33 * WIDTH + 3], 255);
+        let normal = render(
+            &panel,
+            &Readings {
+                battery: Some(21.0),
+                ..Default::default()
+            },
+        );
+        assert_eq!(normal.pixels[33 * WIDTH + 3], DATA);
+        assert!(
+            render(&panel, &Readings::default())
+                .pixels
+                .iter()
+                .all(|p| *p == 0)
         );
     }
 }

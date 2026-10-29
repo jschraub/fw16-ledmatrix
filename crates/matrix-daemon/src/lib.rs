@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::{io, time::Duration};
 use tokio::sync::{Semaphore, watch};
 pub mod config;
+pub mod power;
 pub mod probe;
 pub type Configuration = Arc<std::sync::Mutex<config::Store>>;
 
@@ -13,6 +14,7 @@ pub const MAX_CLIENTS: usize = 32;
 
 pub fn snapshot(sequence: u32, hour: u8, minute: u8) -> Snapshot {
     Snapshot {
+        power: None,
         sequence,
         hour,
         minute,

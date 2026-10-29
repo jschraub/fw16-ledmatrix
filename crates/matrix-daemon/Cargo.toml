@@ -15,6 +15,9 @@ dirs = "6"
 tokio.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_System_Power"] }
+
 [target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"
 

@@ -18,12 +18,16 @@ struct Panel {
     firmware: Option<String>,
     frame: Option<Frame>,
     last_write: Instant,
+    retry_at: Instant,
+    error: Option<&'static str>,
+    needs_replug: bool,
 }
 #[derive(Default)]
 pub struct Manager {
     panels: Mutex<BTreeMap<String, Arc<Mutex<Panel>>>>,
     active: Mutex<BTreeMap<String, Arc<AtomicBool>>>,
     jobs: Mutex<BTreeSet<String>>,
+    stopping: AtomicBool,
 }
 static MANAGER: OnceLock<Manager> = OnceLock::new();
 pub fn manager() -> &'static Manager {
@@ -79,7 +83,7 @@ impl Manager {
                     device.status = if panel.port.is_some() {
                         "open; identification path ready"
                     } else {
-                        "disconnected/error; retry identification"
+                        panel.error.unwrap_or("disconnected; awaiting retry")
                     }
                     .into();
                 } else {
@@ -139,6 +143,9 @@ impl Manager {
                     firmware: None,
                     frame: None,
                     last_write: Instant::now(),
+                    retry_at: Instant::now(),
+                    error: None,
+                    needs_replug: false,
                 }))
             })
             .clone())
@@ -154,6 +161,12 @@ impl Manager {
         let mut panel = panel
             .try_lock()
             .map_err(|_| io::Error::other("device busy"))?;
+        if !panel.ready(Instant::now()) {
+            return Err(io::Error::new(
+                io::ErrorKind::WouldBlock,
+                "device awaiting retry or physical reconnect",
+            ));
+        }
         let result = (|| {
             if panel.port.is_some() {
                 panel
@@ -184,13 +197,18 @@ impl Manager {
         active.store(false, Ordering::Release);
         panel.frame = None;
         if result.is_err() {
-            panel.port = None;
-            panel.firmware = None;
+            panel.failed(Instant::now());
+        }
+        if self.stopping.load(Ordering::Acquire) {
+            panel.sleep();
         }
         result
     }
 
     fn route(&'static self, config: matrix_core::config::Config, snapshot: Snapshot) {
+        if self.stopping.load(Ordering::Acquire) {
+            return;
+        }
         let devices = enumerate().unwrap_or_default();
         let routes = resolve(&config, &devices);
         self.panels.lock().expect("panels").retain(|name, handle| {
@@ -198,6 +216,9 @@ impl Manager {
                 return true;
             }
             if let Ok(mut panel) = handle.try_lock() {
+                if panel.needs_replug && devices.iter().any(|device| &device.port == name) {
+                    return true;
+                }
                 if let Some(port) = panel.port.as_mut() {
                     let _ = port.write_all(&protocol::command(0x03, &[1]));
                 }
@@ -217,8 +238,16 @@ impl Manager {
                 if let Ok(handle) = self.panel(&name)
                     && let Ok(mut panel) = handle.try_lock()
                 {
+                    if !panel.ready(Instant::now()) || self.stopping.load(Ordering::Acquire) {
+                        self.jobs.lock().expect("jobs").remove(&name);
+                        return;
+                    }
                     let result = (|| {
                         panel.open(&name)?;
+                        if self.stopping.load(Ordering::Acquire) {
+                            panel.sleep();
+                            return Ok(());
+                        }
                         if panel.frame.as_ref() != Some(&frame) {
                             let port = panel.port.as_mut().expect("open port");
                             port.write_all(&protocol::command(0x00, &[32]))?;
@@ -238,9 +267,10 @@ impl Manager {
                         Ok::<_, io::Error>(())
                     })();
                     if result.is_err() {
-                        panel.port = None;
-                        panel.firmware = None;
-                        panel.frame = None;
+                        panel.failed(Instant::now());
+                    }
+                    if self.stopping.load(Ordering::Acquire) {
+                        panel.sleep();
                     }
                 }
                 self.jobs.lock().expect("jobs").remove(&name);
@@ -250,9 +280,42 @@ impl Manager {
 }
 
 impl Panel {
+    fn ready(&self, now: Instant) -> bool {
+        !self.needs_replug && now >= self.retry_at
+    }
+    fn failed(&mut self, now: Instant) {
+        self.needs_replug = self.port.is_some();
+        self.port = None;
+        self.firmware = None;
+        self.frame = None;
+        self.retry_at = now + Duration::from_secs(5);
+        self.error = Some(if self.needs_replug {
+            "device write failed: reconnect the module (leave disconnected at least two seconds); no commands will follow a potentially partial payload"
+        } else {
+            "reconnecting: check access/competing POC/device; retry no sooner than five seconds"
+        });
+    }
+    fn sleep(&mut self) {
+        if let Some(port) = self.port.as_mut() {
+            let _ = port.write_all(&protocol::command(0x03, &[1]));
+        }
+        self.port = None;
+        self.frame = None;
+    }
     fn open(&mut self, name: &str) -> io::Result<()> {
         if self.port.is_some() {
             return Ok(());
+        }
+        #[cfg(target_os = "linux")]
+        if another_owner(
+            std::path::Path::new(name),
+            std::path::Path::new("/proc"),
+            std::process::id(),
+        ) {
+            return Err(io::Error::new(
+                io::ErrorKind::AddrInUse,
+                "another process owns this serial device",
+            ));
         }
         let builder = serialport::new(name, 115200).timeout(Duration::from_millis(250));
         #[cfg(unix)]
@@ -272,8 +335,66 @@ impl Panel {
         self.firmware =
             Some(protocol::firmware(version).ok_or_else(|| io::Error::other("invalid firmware"))?);
         self.port = Some(port);
+        self.error = None;
         self.frame = None;
         Ok(())
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn another_owner(device: &std::path::Path, proc_root: &std::path::Path, own_pid: u32) -> bool {
+    let Ok(target) = std::fs::canonicalize(device) else {
+        return false;
+    };
+    let Ok(processes) = std::fs::read_dir(proc_root) else {
+        return false;
+    };
+    for process in processes.filter_map(Result::ok) {
+        let Some(pid) = process
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<u32>().ok())
+        else {
+            continue;
+        };
+        if pid == own_pid {
+            continue;
+        }
+        if let Ok(files) = std::fs::read_dir(process.path().join("fd")) {
+            for file in files.filter_map(Result::ok) {
+                if std::fs::read_link(file.path()).is_ok_and(|path| path == target) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+pub async fn shutdown() {
+    manager().stopping.store(true, Ordering::Release);
+    for flag in manager().active.lock().expect("active").values() {
+        flag.store(false, Ordering::Release);
+    }
+    let until = Instant::now() + Duration::from_secs(5);
+    loop {
+        let complete = tokio::task::spawn_blocking(|| {
+            let mut complete = true;
+            for panel in manager().panels.lock().expect("panels").values() {
+                if let Ok(mut panel) = panel.try_lock() {
+                    panel.sleep();
+                } else {
+                    complete = false;
+                }
+            }
+            complete && manager().jobs.lock().expect("jobs").is_empty()
+        })
+        .await
+        .unwrap_or(false);
+        if complete || Instant::now() >= until {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
     }
 }
 
@@ -438,5 +559,72 @@ mod tests {
             normal_frame("COM9", &config, &snapshot, &first).unwrap(),
             matrix_core::render_clock(12, 34).unwrap()
         );
+    }
+    #[test]
+    fn retry_deadlines_are_bounded_and_quarantine_requires_replug() {
+        let now = Instant::now();
+        let mut panel = Panel {
+            port: None,
+            firmware: None,
+            frame: None,
+            last_write: now,
+            retry_at: now,
+            error: None,
+            needs_replug: false,
+        };
+        assert!(panel.ready(now));
+        panel.failed(now);
+        assert!(!panel.ready(now + Duration::from_secs(4)));
+        assert!(panel.ready(now + Duration::from_secs(5)));
+        panel.needs_replug = true;
+        assert!(!panel.ready(now + Duration::from_secs(600)));
+    }
+    #[test]
+    fn partial_write_failure_never_appends_another_protocol_command() {
+        struct Broken {
+            bytes: Vec<u8>,
+            remaining: usize,
+        }
+        impl Write for Broken {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                if self.remaining == 0 {
+                    return Err(io::Error::new(io::ErrorKind::BrokenPipe, "fixture"));
+                }
+                let count = bytes.len().min(self.remaining);
+                self.bytes.extend_from_slice(&bytes[..count]);
+                self.remaining -= count;
+                Ok(count)
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let mut broken = Broken {
+            bytes: vec![],
+            remaining: 5,
+        };
+        assert!(
+            identify_on(
+                &mut broken,
+                &AtomicBool::new(true),
+                || matrix_core::render_clock(0, 0).unwrap(),
+                Duration::ZERO
+            )
+            .is_err()
+        );
+        assert_eq!(broken.bytes, vec![0x32, 0xac, 0, 32, 0x32]);
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn competing_owner_probe_uses_file_descriptors_not_process_names() {
+        use std::os::unix::fs::symlink;
+        let root = tempfile::tempdir().unwrap();
+        let target = root.path().join("device");
+        std::fs::write(&target, "fixture").unwrap();
+        let fd = root.path().join("123/fd");
+        std::fs::create_dir_all(&fd).unwrap();
+        symlink(&target, fd.join("0")).unwrap();
+        assert!(another_owner(&target, root.path(), 999));
+        assert!(!another_owner(&target, root.path(), 123));
     }
 }

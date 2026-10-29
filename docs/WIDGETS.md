@@ -15,6 +15,23 @@ matches only unique stable bindings, holds ports open, coalesces frames per pane
 and keeps static displays awake. Unassigned/disconnected modules are not silently
 given another panel's role. Unassigning sends sleep and releases the port.
 
+Open/access failures retry no sooner than five seconds. Each panel has at most
+one in-flight blocking job; later desired frames are coalesced, not queued. A
+write failure after opening quarantines that connection because a partial serial
+payload must not be followed by another command. Reconnect the module and leave
+it absent for at least one two-second discovery interval before retrying; rapid
+suspend/re-enumeration recovery still requires hardware qualification. Linux
+also checks readable process file descriptors for a competing owner; restricted
+proc visibility can limit this check, so stop the POC explicitly. Windows uses
+exclusive COM access. Serial errors on one panel do not stop the other.
+
+Ctrl-C/SIGTERM cancel identification, stop new routing jobs, wait for bounded
+in-flight work, and send sleep where possible. Runtime shutdown has a timeout for
+wedged blocking OS calls. A hard crash cannot guarantee hardware sleep. Device
+event coverage and all real suspend/write-failure behaviors remain hardware
+qualification work; the conservative quarantine is not a claim of automatic
+parser resynchronization.
+
 Layouts use fixed Framework 9×34 slot geometry. All pixels, including draft
 previews, are generated in Rust. Repeated widgets share source readings but keep
 their own presentation. Empty/missing sources do not cause a layout to reflow.

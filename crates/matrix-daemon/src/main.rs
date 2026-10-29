@@ -2,11 +2,25 @@ use chrono::Timelike;
 use matrix_client::{Failure, local};
 use matrix_daemon::{config::Store, serve_configured, snapshot};
 
-#[tokio::main]
-async fn main() {
-    if let Err(error) = run().await {
+fn main() {
+    let runtime = tokio::runtime::Runtime::new().expect("daemon runtime");
+    let result = runtime.block_on(run());
+    runtime.shutdown_timeout(std::time::Duration::from_secs(5));
+    if let Err(error) = result {
         eprintln!("matrix-daemon: {}", Failure::connecting(&error));
         std::process::exit(1);
+    }
+}
+
+async fn shutdown_signal() -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        tokio::select! { result = tokio::signal::ctrl_c() => result, _ = term.recv() => Ok(()) }
+    }
+    #[cfg(windows)]
+    {
+        tokio::signal::ctrl_c().await
     }
 }
 
@@ -72,7 +86,8 @@ async fn run() -> std::io::Result<()> {
     tokio::select! {
         result = serve_configured(listener, rx, config) => result?,
         _ = clock => {},
-        result = tokio::signal::ctrl_c() => result?,
+        result = shutdown_signal() => result?,
     }
+    matrix_daemon::devices::shutdown().await;
     Ok(())
 }

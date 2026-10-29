@@ -34,7 +34,7 @@ export function App() {
       </div>}
       <section className="preview" aria-labelledby="preview-heading">
         <div>
-          <span className="badge">SIMULATED PANEL · NO HARDWARE</span>
+          <span className="badge">{snapshot?.panels.some((p) => p.binding !== null) ? "PANEL PREVIEW · CHECK DEVICE STATUS" : "SIMULATED PANEL · NO HARDWARE"}</span>
           <h2 id="preview-heading">Clock</h2>
           <p className="time">{time}</p>
           <p>Live local time. Pixels rendered by Rust, not React.</p>
@@ -58,6 +58,11 @@ export function App() {
         ) : <div className="placeholder">{hello ? "Waiting for first frame…" : "Connect to view the panel"}</div>}
       </section>
       <footer>Closing this window leaves the daemon running. Reopen to see its latest frame.</footer>
+      {snapshot && snapshot.panels.length > 1 && <section aria-label="Other logical panels" className="draft-panels">
+        {snapshot.panels.slice(1).map((panel) => <figure key={panel.name}><figcaption>{panel.name} · {panel.binding ? "physical assignment configured (see Devices for health)" : "simulated"}</figcaption>
+          <div className="panel" role="img" aria-label={`Live logical panel ${panel.name}`}><div className="pixels" aria-hidden="true">{panel.frame.pixels.map((pixel, n) => <span key={n} className="pixel" style={{ opacity: pixel ? pixel / 255 : 0.06 }} />)}</div></div>
+        </figure>)}
+      </section>}
       <Capabilities />
       <Devices />
       <ConfigEditor />

@@ -15,6 +15,7 @@ pub const MAX_CLIENTS: usize = 32;
 
 pub fn snapshot(sequence: u32, hour: u8, minute: u8) -> Snapshot {
     Snapshot {
+        panels: vec![],
         power: None,
         sequence,
         hour,
@@ -146,14 +147,16 @@ async fn configured_session(
         let _cancel = devices::CancelOnDrop(active.clone());
         let port = port.clone();
         let frames = frames.clone();
-        let mut job =
-            tokio::task::spawn_blocking(move || devices::manager().identify(&port, frames, active));
+        let normal_config = config.clone();
+        let mut job = tokio::task::spawn_blocking(move || {
+            devices::manager().identify(&port, frames, active, normal_config)
+        });
         let result = tokio::select! {
             result = &mut job => result,
             _ = read_message::<_, Request>(&mut stream) => return Ok(()),
         };
         let mut reply = devices::manager().list();
-        reply.message = if matches!(result, Ok(Ok(()))) { "Identification ended; latest normal clock frame restored." } else { "Identification failed. Check exclusive access, firmware and connection, then reconnect the panel before retrying." }.into();
+        reply.message = if matches!(result, Ok(Ok(()))) { "Identification ended; latest applied frame restored (blank if unassigned)." } else { "Identification failed. Check exclusive access, firmware and connection, then reconnect the panel before retrying." }.into();
         return write_message(&mut stream, &Event::Devices { reply }).await;
     }
     let reply = {

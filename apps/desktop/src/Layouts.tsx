@@ -39,7 +39,7 @@ export function Layouts({ config, change }: { config: Config; change: (config: C
       </fieldset>)}
       {panels.length === 2 && <button type="button" onClick={() => change({ ...config, panels: panels.filter((_, i) => i !== p) })}>Remove {panel.name}</button>}
     </fieldset>)}
-    {panels.length === 1 && <button type="button" onClick={() => change({ ...config, panels: [...panels, { name: panels[0].name === "left" ? "right" : "left", template: "clock_gauge", slots: templates.clock_gauge.map(widget) }] })}>Add second panel</button>}
+    {panels.length === 1 && <button type="button" onClick={() => change({ ...config, panels: [...panels, { name: panels[0].name === "left" ? "right" : "left", binding: null, template: "clock_gauge", slots: templates.clock_gauge.map(widget) }] })}>Add second panel</button>}
   </fieldset>;
 }
 

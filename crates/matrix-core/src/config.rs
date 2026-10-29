@@ -43,7 +43,16 @@ impl Config {
             });
         }
         let mut names = std::collections::BTreeSet::new();
+        let mut bindings = std::collections::BTreeSet::new();
         for (p, panel) in self.panels.iter().enumerate() {
+            if let Some(binding) = &panel.binding
+                && (binding.is_empty() || binding.len() > 1024 || !bindings.insert(binding.clone()))
+            {
+                errors.push(FieldError {
+                    field: format!("panels.{p}.binding"),
+                    message: "Each physical location can belong to only one logical panel.".into(),
+                });
+            }
             if panel.name.is_empty() || panel.name.len() > 32 || !names.insert(panel.name.clone()) {
                 errors.push(FieldError {
                     field: format!("panels.{p}.name"),
@@ -106,6 +115,10 @@ mod tests {
         let mut config = Config::default();
         assert!(config.validate().is_empty());
         config.panels[1].name = config.panels[0].name.clone();
+        assert!(!config.validate().is_empty());
+        config = Config::default();
+        config.panels[0].binding = Some("same-location".into());
+        config.panels[1].binding = Some("same-location".into());
         assert!(!config.validate().is_empty());
         config = Config::default();
         config.panels[0].slots.push(None);

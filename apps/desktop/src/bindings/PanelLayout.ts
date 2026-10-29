@@ -2,4 +2,4 @@
 import type { Template } from "./Template";
 import type { Widget } from "./Widget";
 
-export type PanelLayout = { name: string, template: Template, slots: Array<Widget | null>, };
+export type PanelLayout = { name: string, template: Template, slots: Array<Widget | null>, binding: string | null, };

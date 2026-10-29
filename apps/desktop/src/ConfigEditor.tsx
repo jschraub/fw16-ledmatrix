@@ -5,6 +5,7 @@ import type { SavedConfig } from "./bindings/SavedConfig";
 import type { ConfigReply } from "./bindings/ConfigReply";
 import type { Request } from "./bindings/Request";
 import { Layouts, DraftPreview } from "./Layouts";
+import { Bindings } from "./Bindings";
 
 export function ConfigEditor() {
   const [saved, setSaved] = useState<SavedConfig | null>(null);
@@ -40,6 +41,7 @@ export function ConfigEditor() {
       <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
         onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>
       <Layouts config={draft} change={setDraft} />
+      <Bindings config={draft} change={setDraft} />
       {draft.panels && <DraftPreview config={draft} />}
       <button disabled={busy} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>
       <button disabled={busy || !Number.isInteger(draft.clock_intensity) || draft.clock_intensity < 1 || draft.clock_intensity > 255}

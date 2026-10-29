@@ -1,5 +1,20 @@
 # Widgets
 
+## Physical assignment
+
+In the configuration draft, refresh assignment candidates after identifying a
+panel visually. Bind each logical panel to its unique physical location, then
+Apply. Duplicate bindings are rejected; absent and ambiguous identities never
+fall back to USB serial numbers or tty/COM enumeration order. Saved bindings
+survive restart/disconnection. Unknown Windows locations remain unassignable
+until the native location adapter is qualified on real hardware.
+
+The renderer produces every logical panel in the subscription, including the
+second panel preview. A background router enumerates devices every two seconds,
+matches only unique stable bindings, holds ports open, coalesces frames per panel
+and keeps static displays awake. Unassigned/disconnected modules are not silently
+given another panel's role. Unassigning sends sleep and releases the port.
+
 Layouts use fixed Framework 9×34 slot geometry. All pixels, including draft
 previews, are generated in Rust. Repeated widgets share source readings but keep
 their own presentation. Empty/missing sources do not cause a layout to reflow.

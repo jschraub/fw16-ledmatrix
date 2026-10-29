@@ -28,6 +28,10 @@ async fn run() -> std::io::Result<()> {
     tokio::spawn(matrix_daemon::power::poll(power_tx));
     let now = chrono::Local::now();
     let (tx, rx) = tokio::sync::watch::channel(snapshot(0, now.hour() as u8, now.minute() as u8));
+    tokio::spawn(matrix_daemon::devices::route_loop(
+        rx.clone(),
+        config.clone(),
+    ));
     eprintln!("matrix-daemon: simulated 9x34 panel; local clock; local-only control");
     let clock = async move {
         let mut timer = tokio::time::interval(std::time::Duration::from_secs(1));
@@ -53,6 +57,15 @@ async fn run() -> std::io::Result<()> {
                 ..Default::default()
             };
             frame.frame = matrix_core::layout::render(&config.panels[0], &readings);
+            frame.panels = config
+                .panels
+                .iter()
+                .map(|panel| matrix_client::PanelFrame {
+                    name: panel.name.clone(),
+                    frame: matrix_core::layout::render(panel, &readings),
+                    binding: panel.binding.clone(),
+                })
+                .collect();
             tx.send_replace(frame);
         }
     };

@@ -44,6 +44,8 @@ pub struct PanelLayout {
     pub name: String,
     pub template: Template,
     pub slots: Vec<Option<Widget>>,
+    #[serde(default)]
+    pub binding: Option<String>,
 }
 
 impl Template {
@@ -92,6 +94,7 @@ pub fn defaults() -> Vec<PanelLayout> {
         name: name.into(),
         template,
         slots: default_slots(template),
+        binding: None,
     })
     .collect()
 }
@@ -265,6 +268,7 @@ mod tests {
             name: "test".into(),
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),
+            binding: None,
         };
         let readings = Readings {
             battery: Some(10.0),
@@ -326,6 +330,7 @@ mod tests {
             name: "battery".into(),
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),
+            binding: None,
         };
         panel.slots[0].as_mut().unwrap().warning_threshold = Some(20);
         let low = render(

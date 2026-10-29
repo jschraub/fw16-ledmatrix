@@ -59,12 +59,21 @@ pub struct Hello {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct Snapshot {
     #[serde(default)]
+    pub panels: Vec<PanelFrame>,
+    #[serde(default)]
     pub power: Option<matrix_core::power::PowerReading>,
     // A bounded u32 is represented exactly as a JavaScript number.
     pub sequence: u32,
     pub hour: u8,
     pub minute: u8,
     pub frame: Frame,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PanelFrame {
+    pub name: String,
+    pub frame: Frame,
+    pub binding: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -196,7 +205,13 @@ impl Client {
             .map_err(|e| Failure::streaming(&e))?;
         match event {
             Event::Frame { snapshot }
-                if snapshot.frame.is_valid() && snapshot.hour < 24 && snapshot.minute < 60 =>
+                if snapshot.frame.is_valid()
+                    && snapshot.hour < 24
+                    && snapshot.minute < 60
+                    && snapshot.panels.len() <= 2
+                    && snapshot.panels.iter().all(|panel| {
+                        panel.frame.is_valid() && !panel.name.is_empty() && panel.name.len() <= 32
+                    }) =>
             {
                 Ok(snapshot)
             }

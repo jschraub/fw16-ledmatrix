@@ -22,6 +22,14 @@ pub const FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Request {
+    BeginPreview {
+        owner: String,
+        config: matrix_core::config::Config,
+        seconds: u8,
+    },
+    CancelPreview {
+        owner: String,
+    },
     Devices {},
     Identify {
         port: String,
@@ -59,6 +67,8 @@ pub struct Hello {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct Snapshot {
     #[serde(default)]
+    pub preview: bool,
+    #[serde(default)]
     pub panels: Vec<PanelFrame>,
     #[serde(default)]
     pub power: Option<matrix_core::power::PowerReading>,
@@ -80,6 +90,9 @@ pub struct PanelFrame {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    Preview {
+        reply: matrix_core::preview::PreviewReply,
+    },
     Devices {
         reply: devices::DeviceReply,
     },

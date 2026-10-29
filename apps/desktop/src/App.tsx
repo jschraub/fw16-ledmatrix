@@ -33,6 +33,7 @@ export function App() {
         </details>
       </div>}
       <section className="preview" aria-labelledby="preview-heading">
+        {snapshot?.preview && <p role="status">TEMPORARY HARDWARE PREVIEW · not saved</p>}
         <div>
           <span className="badge">{snapshot?.panels.some((p) => p.binding !== null) ? "PANEL PREVIEW · CHECK DEVICE STATUS" : "SIMULATED PANEL · NO HARDWARE"}</span>
           <h2 id="preview-heading">Clock</h2>

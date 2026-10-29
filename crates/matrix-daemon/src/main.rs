@@ -58,11 +58,12 @@ async fn run() -> std::io::Result<()> {
             let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
             let power = power_rx.borrow().clone();
             frame.power = Some(power.clone());
-            let config = render_config
-                .lock()
-                .expect("configuration lock")
-                .read()
-                .config;
+            let (config, preview) = {
+                let mut store = render_config.lock().expect("configuration lock");
+                let config = store.output();
+                (config, store.preview_active(std::time::Instant::now()))
+            };
+            frame.preview = preview;
             let readings = matrix_core::layout::Readings {
                 hour: now.hour() as u8,
                 minute: now.minute() as u8,

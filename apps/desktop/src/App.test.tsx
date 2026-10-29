@@ -10,7 +10,7 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 const hello: Event = { type: "hello", hello: { protocol_version: 2, daemon_version: "0.1.0", simulated: true, capabilities: ["simulated_panel", "clock_frames"] } };
 const pixels = Array<number>(306).fill(0);
 pixels[10] = 180;
-const frame: Event = { type: "frame", snapshot: { sequence: 42, hour: 12, minute: 34, power: null, panels: [], frame: { width: 9, height: 34, pixels } } };
+const frame: Event = { type: "frame", snapshot: { sequence: 42, hour: 12, minute: 34, preview: false, power: null, panels: [], frame: { width: 9, height: 34, pixels } } };
 
 test("shows daemon pixels and handshake without inventing a clock in React", async () => {
   vi.mocked(subscribe).mockImplementation(async (receive) => { receive(hello); receive(frame); });

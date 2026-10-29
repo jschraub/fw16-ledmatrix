@@ -3,4 +3,4 @@ import type { Frame } from "./Frame";
 import type { PanelFrame } from "./PanelFrame";
 import type { PowerReading } from "./PowerReading";
 
-export type Snapshot = { panels: Array<PanelFrame>, power: PowerReading | null, sequence: number, hour: number, minute: number, frame: Frame, };
+export type Snapshot = { preview: boolean, panels: Array<PanelFrame>, power: PowerReading | null, sequence: number, hour: number, minute: number, frame: Frame, };

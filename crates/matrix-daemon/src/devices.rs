@@ -519,7 +519,7 @@ pub async fn route_loop(
     loop {
         timer.tick().await;
         let snapshot = frames.borrow().clone();
-        let config = config.lock().expect("configuration").read().config;
+        let config = config.lock().expect("configuration").output();
         let _ = tokio::task::spawn_blocking(move || manager().route(config, snapshot)).await;
     }
 }

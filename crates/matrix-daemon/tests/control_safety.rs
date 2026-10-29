@@ -29,6 +29,82 @@ fn fixture() -> (tempfile::TempDir, String) {
 }
 
 #[tokio::test]
+async fn preview_owner_disconnect_restores_current_applied_state_for_all_clients() {
+    use matrix_core::{config::Config, preview::PreviewStatus};
+    let (_dir, endpoint) = fixture();
+    let listener = local::Listener::bind(&endpoint).await.unwrap();
+    let (_tx, rx) = tokio::sync::watch::channel(snapshot(0, 12, 34));
+    let config = std::sync::Arc::new(std::sync::Mutex::new(matrix_daemon::config::Store::memory()));
+    let server = tokio::spawn(matrix_daemon::serve_configured(
+        listener,
+        rx,
+        config.clone(),
+    ));
+    let owner_endpoint = endpoint.clone();
+    let owner = tokio::spawn(async move {
+        Client::request(
+            &owner_endpoint,
+            Request::BeginPreview {
+                owner: "owner".into(),
+                config: Config {
+                    clock_intensity: 200,
+                    ..Config::default()
+                },
+                seconds: 15,
+            },
+        )
+        .await
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !config
+            .lock()
+            .unwrap()
+            .preview_active(std::time::Instant::now())
+        {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(config.lock().unwrap().output().clock_intensity, 200);
+        let busy = Client::request(
+            &endpoint,
+            Request::BeginPreview {
+                owner: "second".into(),
+                config: Config::default(),
+                seconds: 10,
+            },
+        )
+        .await
+        .unwrap();
+        assert!(matches!(busy, Event::Preview { reply } if reply.status == PreviewStatus::Busy));
+        Client::request(
+            &endpoint,
+            Request::ApplyConfig {
+                expected_revision: 0,
+                config: Config {
+                    clock_intensity: 220,
+                    ..Config::default()
+                },
+            },
+        )
+        .await
+        .unwrap();
+        owner.abort();
+        let _ = owner.await;
+        while config
+            .lock()
+            .unwrap()
+            .preview_active(std::time::Instant::now())
+        {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(config.lock().unwrap().output().clock_intensity, 220);
+    })
+    .await
+    .unwrap();
+    server.abort();
+    let _ = server.await;
+}
+
+#[tokio::test]
 async fn two_clients_cannot_silently_overwrite_the_same_revision() {
     use matrix_core::config::{Config, ConfigStatus};
     let (_dir, endpoint) = fixture();

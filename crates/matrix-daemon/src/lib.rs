@@ -15,6 +15,7 @@ pub const MAX_CLIENTS: usize = 32;
 
 pub fn snapshot(sequence: u32, hour: u8, minute: u8) -> Snapshot {
     Snapshot {
+        preview: false,
         panels: vec![],
         power: None,
         sequence,
@@ -114,6 +115,76 @@ async fn configured_session(
             &mut stream,
             &Event::Report {
                 report: probe::report().await,
+            },
+        )
+        .await;
+    }
+    if let Request::CancelPreview { ref owner } = request {
+        let status = if config
+            .lock()
+            .expect("configuration")
+            .cancel_preview(owner, None)
+        {
+            matrix_core::preview::PreviewStatus::Cancelled
+        } else {
+            matrix_core::preview::PreviewStatus::NotOwner
+        };
+        return write_message(
+            &mut stream,
+            &Event::Preview {
+                reply: matrix_core::preview::PreviewReply { status },
+            },
+        )
+        .await;
+    }
+    if let Request::BeginPreview {
+        ref owner,
+        config: ref draft,
+        seconds,
+    } = request
+    {
+        let started = config.lock().expect("configuration").begin_preview(
+            owner,
+            draft.clone(),
+            seconds,
+            std::time::Instant::now(),
+        );
+        let generation = match started {
+            Ok(id) => id,
+            Err(status) => {
+                return write_message(
+                    &mut stream,
+                    &Event::Preview {
+                        reply: matrix_core::preview::PreviewReply { status },
+                    },
+                )
+                .await;
+            }
+        };
+        let _guard = PreviewGuard {
+            config: config.clone(),
+            owner: owner.clone(),
+            generation,
+        };
+        let completed = async {
+            loop {
+                if !config.lock().expect("configuration").owns_preview(
+                    owner,
+                    generation,
+                    std::time::Instant::now(),
+                ) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        };
+        tokio::select! { _ = completed => {}, _ = read_message::<_, Request>(&mut stream) => return Ok(()) }
+        return write_message(
+            &mut stream,
+            &Event::Preview {
+                reply: matrix_core::preview::PreviewReply {
+                    status: matrix_core::preview::PreviewStatus::Ended,
+                },
             },
         )
         .await;
@@ -225,6 +296,19 @@ async fn configured_session(
         tokio::select! {
             changed = frames.changed() => if changed.is_err() { return Ok(()); },
             _ = read_message::<_, Request>(&mut stream) => return Ok(()),
+        }
+    }
+}
+
+struct PreviewGuard {
+    config: Configuration,
+    owner: String,
+    generation: u32,
+}
+impl Drop for PreviewGuard {
+    fn drop(&mut self) {
+        if let Ok(mut store) = self.config.lock() {
+            store.cancel_preview(&self.owner, Some(self.generation));
         }
     }
 }

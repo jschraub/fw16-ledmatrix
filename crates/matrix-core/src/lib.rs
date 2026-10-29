@@ -3,6 +3,7 @@ pub mod brightness;
 pub mod config;
 pub mod layout;
 pub mod power;
+pub mod preview;
 pub mod protocol;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;

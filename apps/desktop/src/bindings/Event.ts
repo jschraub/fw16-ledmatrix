@@ -5,6 +5,7 @@ import type { DeviceReply } from "./DeviceReply";
 import type { ErrorCode } from "./ErrorCode";
 import type { Frame } from "./Frame";
 import type { Hello } from "./Hello";
+import type { PreviewReply } from "./PreviewReply";
 import type { Snapshot } from "./Snapshot";
 
-export type Event = { "type": "devices", reply: DeviceReply, } | { "type": "rendered", frames: Array<Frame>, sample: boolean, } | { "type": "configuration", reply: ConfigReply, } | { "type": "hello", hello: Hello, } | { "type": "frame", snapshot: Snapshot, } | { "type": "error", code: ErrorCode, message: string, } | { "type": "report", report: CapabilityReport, };
+export type Event = { "type": "preview", reply: PreviewReply, } | { "type": "devices", reply: DeviceReply, } | { "type": "rendered", frames: Array<Frame>, sample: boolean, } | { "type": "configuration", reply: ConfigReply, } | { "type": "hello", hello: Hello, } | { "type": "frame", snapshot: Snapshot, } | { "type": "error", code: ErrorCode, message: string, } | { "type": "report", report: CapabilityReport, };

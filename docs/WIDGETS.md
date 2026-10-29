@@ -1,5 +1,21 @@
 # Widgets
 
+## Temporary output previews
+
+Render-only sample/live-time previews never change configuration or output. The
+explicit hardware preview leases the daemon's desired output for ten seconds
+(protocol maximum 15). Only one owner is allowed. A separate local IPC request
+stays connected for the lease; EOF, cancellation, expiry or a crashed desktop
+ends ownership. The lease is not persisted. Apply can update saved state while
+previewing; restoration uses that latest applied state, not a stale original.
+Old generation cleanup cannot cancel a replacement lease.
+
+Identification owns the serial port at higher priority; normal routing skips a
+busy port and resumes preview/applied output afterward. Serial writes are never
+cut short to change priority. Hardware restoration includes the router interval,
+wake settle and in-flight command drain, so expiry is not a zero-latency optical
+guarantee. Real cancellation/unplug/priority observations require panels.
+
 ## Brightness
 
 Application defaults and explicit per-panel overrides define ordered 1–255

@@ -7,6 +7,7 @@ import type { Request } from "./bindings/Request";
 import { Layouts, DraftPreview } from "./Layouts";
 import { Bindings } from "./Bindings";
 import { BrightnessEditor } from "./BrightnessEditor";
+import { HardwarePreview } from "./HardwarePreview";
 
 export function ConfigEditor() {
   const [saved, setSaved] = useState<SavedConfig | null>(null);
@@ -52,6 +53,7 @@ export function ConfigEditor() {
       <BrightnessEditor config={draft} change={setDraft} />
       <Bindings config={draft} change={setDraft} />
       {draft.panels && <DraftPreview config={draft} />}
+      <HardwarePreview config={draft} />
       {!numericSettingsValid && <p role="alert">Numeric settings must be whole values in the 0–255 wire range; use the narrower limits shown by each control.</p>}
       <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>
       <button disabled={busy || !numericSettingsValid || draft.clock_intensity < 1}

@@ -8,6 +8,23 @@ use std::{
 use tauri::{State, ipc::Channel};
 
 #[tauri::command]
+async fn hardware_preview(
+    request: matrix_client::Request,
+) -> Result<matrix_core::preview::PreviewReply, Failure> {
+    if !matches!(
+        request,
+        matrix_client::Request::BeginPreview { .. } | matrix_client::Request::CancelPreview { .. }
+    ) {
+        return Err(Failure::new(ErrorCode::InvalidMessage));
+    }
+    let endpoint = local::endpoint().map_err(|e| Failure::connecting(&e))?;
+    match Client::request(&endpoint, request).await? {
+        Event::Preview { reply } => Ok(reply),
+        _ => Err(Failure::new(ErrorCode::InvalidMessage)),
+    }
+}
+
+#[tauri::command]
 async fn devices(
     request: matrix_client::Request,
 ) -> Result<matrix_client::devices::DeviceReply, Failure> {
@@ -172,7 +189,8 @@ fn main() {
             probe,
             configuration,
             render_draft,
-            devices
+            devices,
+            hardware_preview
         ])
         .run(tauri::generate_context!())
         .expect("failed to run matrix desktop");

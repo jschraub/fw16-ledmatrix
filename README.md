@@ -3,12 +3,30 @@
 A configurable ambient display application for the Framework Laptop 16 LED
 Matrix modules.
 
-The next version is being designed around a standalone Rust daemon and a Tauri
-desktop application using React and TypeScript, targeting Linux and Windows.
-It will provide guided layouts, configurable widgets, brightness policies, and
-live previews. **The initial hardware-free walking skeleton is implemented:** a
-Rust daemon streams a simulated 9×34 clock panel to the React/Tauri desktop.
-Configuration and physical-device support are not implemented yet.
+The native application uses a standalone Rust daemon and a React/TypeScript
+Tauri desktop, targeting Linux and Windows. Closing the UI leaves rendering and
+sources running. **Development builds are available; this is not yet a qualified
+packaged release.**
+
+Implemented software paths:
+
+- Private local IPC, capability reporting, durable validated configuration,
+  Apply/Cancel drafts, revision conflicts and bounded temporary output previews.
+- Guided one/two-panel layouts, live clocks and battery widgets, independent
+  widget intensity, manual brightness limits/overrides and explicit sleep.
+- Framework discovery/firmware identification, physical-location bindings,
+  independent output routing, bounded retries and partial-write quarantine.
+- Metadata-only Claude helper and OpenCode V2 plugin, provider/session selection,
+  context/activity widgets, heartbeat expiry and integration health.
+
+Panel behavior and interactive OS support remain explicitly unqualified. Windows
+stable bay identity is not implemented: unknown locations cannot be assigned.
+Quota sources, display/session policies, overlays, packaging/startup, migration
+and release qualification remain tracked work. See the
+[roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1),
+[support evidence](docs/SUPPORT.md), [widget behavior](docs/WIDGETS.md), and
+[integration setup](docs/INTEGRATIONS.md). Hardware follow-ups remain open rather
+than treating simulated tests as physical evidence.
 
 ## Develop without panels
 
@@ -21,7 +39,7 @@ endpoint overrides, and platform validation limits.
 
 ## Design review
 
-See [PLAN.md](PLAN.md) for the proposed architecture, release scope, milestones,
+See [PLAN.md](PLAN.md) for the approved architecture, release scope, milestones,
 validation strategy, and remaining decisions.
 
 ## Existing proof of concept
@@ -50,7 +68,7 @@ re-run `./install.sh` **from `poc/`**, including your previous `--provider` opti
 if applicable, to update its working directory. External scripts that invoke the
 old root-level installer also need to use `poc/install.sh`.
 
-Do not run the proof of concept and the future Rust daemon against the same
+Do not run the proof of concept and the Rust daemon against the same
 panels simultaneously. This reorganization does not install or restart anything.
 
 ## License

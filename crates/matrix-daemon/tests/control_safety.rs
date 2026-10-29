@@ -156,7 +156,6 @@ async fn malformed_and_oversized_sessions_cannot_crash_the_daemon() {
             (0, b"".as_slice()),
             (65_537, b"".as_slice()),
             (7, b"invalid".as_slice()),
-            (10, b"{".as_slice()),
         ] {
             let mut stream = local::connect(&endpoint).await.unwrap();
             stream.write_u32(length).await.unwrap();
@@ -164,6 +163,12 @@ async fn malformed_and_oversized_sessions_cannot_crash_the_daemon() {
             stream.shutdown().await.unwrap();
             assert!(read_message::<_, Event>(&mut stream).await.is_err());
         }
+        // Named pipes do not support Unix-style write-half shutdown. A truly
+        // truncated request is a disconnected client, not a half-closed pipe.
+        let mut truncated = local::connect(&endpoint).await.unwrap();
+        truncated.write_u32(10).await.unwrap();
+        truncated.write_all(b"{").await.unwrap();
+        drop(truncated);
         let mut valid = Client::connect(&endpoint).await.unwrap();
         assert_eq!(valid.next_frame().await.unwrap(), snapshot(0, 12, 34));
     })

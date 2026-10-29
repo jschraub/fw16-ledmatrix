@@ -31,12 +31,15 @@ impl Store {
                         "configuration too large; preserved",
                     ));
                 }
-                let saved: SavedConfig = serde_json::from_slice(&bytes).map_err(|_| {
+                let mut saved: SavedConfig = serde_json::from_slice(&bytes).map_err(|_| {
                     io::Error::new(
                         io::ErrorKind::InvalidData,
                         "configuration invalid; preserved",
                     )
                 })?;
+                if saved.config.schema_version == 1 {
+                    saved.config.schema_version = 2;
+                }
                 if !saved.config.validate().is_empty() {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
@@ -171,5 +174,17 @@ mod tests {
             ConfigStatus::SaveFailed
         );
         assert_eq!(store.read().revision, 0);
+    }
+    #[test]
+    fn schema_one_migrates_in_memory_without_silently_rewriting_the_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("legacy.json");
+        let legacy = r#"{"revision":3,"config":{"schema_version":1,"clock_intensity":220}}"#;
+        std::fs::write(&path, legacy).unwrap();
+        let store = Store::load(path.clone()).unwrap();
+        assert_eq!(store.read().config.schema_version, 2);
+        assert_eq!(store.read().config.panels.len(), 2);
+        assert_eq!(store.read().revision, 3);
+        assert_eq!(std::fs::read_to_string(path).unwrap(), legacy);
     }
 }

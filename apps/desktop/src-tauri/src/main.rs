@@ -8,6 +8,23 @@ use std::{
 use tauri::{State, ipc::Channel};
 
 #[tauri::command]
+async fn render_draft(
+    config: matrix_core::config::Config,
+    sample: bool,
+) -> Result<Vec<matrix_core::Frame>, Failure> {
+    let endpoint = local::endpoint().map_err(|e| Failure::connecting(&e))?;
+    match Client::request(
+        &endpoint,
+        matrix_client::Request::RenderDraft { config, sample },
+    )
+    .await?
+    {
+        Event::Rendered { frames, .. } => Ok(frames),
+        _ => Err(Failure::new(ErrorCode::InvalidMessage)),
+    }
+}
+
+#[tauri::command]
 async fn configuration(
     request: matrix_client::Request,
 ) -> Result<matrix_core::config::ConfigReply, Failure> {
@@ -134,7 +151,8 @@ fn main() {
             acknowledge,
             start_daemon,
             probe,
-            configuration
+            configuration,
+            render_draft
         ])
         .run(tauri::generate_context!())
         .expect("failed to run matrix desktop");

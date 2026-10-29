@@ -2,7 +2,8 @@
 import type { CapabilityReport } from "./CapabilityReport";
 import type { ConfigReply } from "./ConfigReply";
 import type { ErrorCode } from "./ErrorCode";
+import type { Frame } from "./Frame";
 import type { Hello } from "./Hello";
 import type { Snapshot } from "./Snapshot";
 
-export type Event = { "type": "configuration", reply: ConfigReply, } | { "type": "hello", hello: Hello, } | { "type": "frame", snapshot: Snapshot, } | { "type": "error", code: ErrorCode, message: string, } | { "type": "report", report: CapabilityReport, };
+export type Event = { "type": "rendered", frames: Array<Frame>, sample: boolean, } | { "type": "configuration", reply: ConfigReply, } | { "type": "hello", hello: Hello, } | { "type": "frame", snapshot: Snapshot, } | { "type": "error", code: ErrorCode, message: string, } | { "type": "report", report: CapabilityReport, };

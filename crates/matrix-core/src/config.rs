@@ -6,12 +6,15 @@ use ts_rs::TS;
 pub struct Config {
     pub schema_version: u16,
     pub clock_intensity: u8,
+    #[serde(default = "crate::layout::defaults")]
+    pub panels: Vec<crate::layout::PanelLayout>,
 }
 impl Default for Config {
     fn default() -> Self {
         Self {
-            schema_version: 1,
+            schema_version: 2,
             clock_intensity: 180,
+            panels: crate::layout::defaults(),
         }
     }
 }
@@ -23,7 +26,7 @@ pub struct FieldError {
 impl Config {
     pub fn validate(&self) -> Vec<FieldError> {
         let mut errors = vec![];
-        if self.schema_version != 1 {
+        if self.schema_version != 2 {
             errors.push(FieldError { field: "schema_version".into(), message: "Unsupported configuration schema; preserve the file and use a matching version.".into() });
         }
         if self.clock_intensity == 0 {
@@ -31,6 +34,41 @@ impl Config {
                 field: "clock_intensity".into(),
                 message: "Clock intensity must be between 1 and 255.".into(),
             });
+        }
+        use crate::layout::{Presentation, Source};
+        if !(1..=2).contains(&self.panels.len()) {
+            errors.push(FieldError {
+                field: "panels".into(),
+                message: "Configure one or two panels.".into(),
+            });
+        }
+        let mut names = std::collections::BTreeSet::new();
+        for (p, panel) in self.panels.iter().enumerate() {
+            if panel.name.is_empty() || panel.name.len() > 32 || !names.insert(panel.name.clone()) {
+                errors.push(FieldError {
+                    field: format!("panels.{p}.name"),
+                    message: "Panel names must be unique and 1–32 bytes.".into(),
+                });
+            }
+            if panel.slots.len() != panel.template.presentations().len() {
+                errors.push(FieldError {
+                    field: format!("panels.{p}.slots"),
+                    message: "Slot count must match the guided template.".into(),
+                });
+            }
+            for (s, widget) in panel.slots.iter().enumerate() {
+                if let Some(widget) = widget
+                    && (panel.template.presentations().get(s) != Some(&widget.presentation)
+                        || widget.intensity == Some(0)
+                        || (widget.source == Source::Clock)
+                            != (widget.presentation == Presentation::Clock))
+                {
+                    errors.push(FieldError {
+                        field: format!("panels.{p}.slots.{s}"),
+                        message: "Incompatible widget/slot, source or intensity.".into(),
+                    });
+                }
+            }
         }
         errors
     }
@@ -55,4 +93,27 @@ pub struct ConfigReply {
     pub status: ConfigStatus,
     pub saved: SavedConfig,
     pub errors: Vec<FieldError>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn validates_panel_count_names_geometry_sources_and_intensities() {
+        let mut config = Config::default();
+        assert!(config.validate().is_empty());
+        config.panels[1].name = config.panels[0].name.clone();
+        assert!(!config.validate().is_empty());
+        config = Config::default();
+        config.panels[0].slots.push(None);
+        assert!(!config.validate().is_empty());
+        config = Config::default();
+        config.panels[0].slots[0].as_mut().unwrap().source = crate::layout::Source::Battery;
+        assert!(!config.validate().is_empty());
+        config = Config::default();
+        config.panels[1].slots[1] = config.panels[1].slots[2].clone();
+        assert!(config.validate().is_empty());
+        config.panels[1].slots[1].as_mut().unwrap().intensity = Some(0);
+        assert!(!config.validate().is_empty());
+    }
 }

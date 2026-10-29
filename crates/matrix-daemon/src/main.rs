@@ -34,17 +34,18 @@ async fn run() -> std::io::Result<()> {
             let now = chrono::Local::now();
             sequence = sequence.wrapping_add(1);
             let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
-            let intensity = render_config
+            let config = render_config
                 .lock()
                 .expect("configuration lock")
                 .read()
-                .config
-                .clock_intensity;
-            for value in &mut frame.frame.pixels {
-                if *value > 0 {
-                    *value = intensity;
-                }
-            }
+                .config;
+            let readings = matrix_core::layout::Readings {
+                hour: now.hour() as u8,
+                minute: now.minute() as u8,
+                default_clock_intensity: config.clock_intensity,
+                ..Default::default()
+            };
+            frame.frame = matrix_core::layout::render(&config.panels[0], &readings);
             tx.send_replace(frame);
         }
     };

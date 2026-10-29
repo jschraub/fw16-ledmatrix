@@ -132,6 +132,36 @@ async fn configured_session(
             _ => None,
         }
     };
+    if let Request::RenderDraft { ref config, sample } = request {
+        if !config.validate().is_empty() {
+            return write_message(
+                &mut stream,
+                &Event::Error {
+                    code: ErrorCode::InvalidMessage,
+                    message: Failure::new(ErrorCode::InvalidMessage).message,
+                },
+            )
+            .await;
+        }
+        use chrono::Timelike;
+        let now = chrono::Local::now();
+        let mut readings = if sample {
+            matrix_core::layout::Readings::sample(now.hour() as u8, now.minute() as u8)
+        } else {
+            matrix_core::layout::Readings {
+                hour: now.hour() as u8,
+                minute: now.minute() as u8,
+                ..Default::default()
+            }
+        };
+        readings.default_clock_intensity = config.clock_intensity;
+        let frames = config
+            .panels
+            .iter()
+            .map(|p| matrix_core::layout::render(p, &readings))
+            .collect();
+        return write_message(&mut stream, &Event::Rendered { frames, sample }).await;
+    }
     if let Some(reply) = reply {
         return write_message(&mut stream, &Event::Configuration { reply }).await;
     }

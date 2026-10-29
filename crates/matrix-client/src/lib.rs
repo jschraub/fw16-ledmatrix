@@ -26,6 +26,10 @@ pub enum Request {
     },
     Subscribe {},
     Probe {},
+    RenderDraft {
+        config: matrix_core::config::Config,
+        sample: bool,
+    },
     ReadConfig {},
     ValidateConfig {
         config: matrix_core::config::Config,
@@ -56,6 +60,10 @@ pub struct Snapshot {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    Rendered {
+        frames: Vec<Frame>,
+        sample: bool,
+    },
     Configuration {
         reply: matrix_core::config::ConfigReply,
     },

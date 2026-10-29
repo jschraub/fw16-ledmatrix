@@ -21,4 +21,10 @@ button:focus-visible { outline: 3px solid #91e8bc; outline-offset: 3px; }
 .placeholder { color: #a8b3c3; max-width: 130px; }
 .error { padding: 12px; background: #392422; border-radius: 6px; overflow-wrap: anywhere; }
 footer { margin-top: 24px; font-size: 12px; }
+fieldset { border: 1px solid #3c424c; border-radius: 6px; margin-block: 12px; min-width: 0; }
+label { display: block; margin-block: 8px; }
+input, select { font: inherit; padding: 5px; margin-inline: 8px; max-width: 100%; }
+button { margin: 4px; }
+.draft-panels { display: flex; flex-wrap: wrap; gap: 16px; }
+.draft-panels figure { margin: 8px; }
 @media (max-width: 550px) { main { padding: 18px; } .preview { padding: 14px; gap: 12px; } }

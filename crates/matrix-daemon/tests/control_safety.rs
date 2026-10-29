@@ -29,6 +29,52 @@ fn fixture() -> (tempfile::TempDir, String) {
 }
 
 #[tokio::test]
+async fn two_clients_cannot_silently_overwrite_the_same_revision() {
+    use matrix_core::config::{Config, ConfigStatus};
+    let (_dir, endpoint) = fixture();
+    let listener = local::Listener::bind(&endpoint).await.unwrap();
+    let (_tx, rx) = tokio::sync::watch::channel(snapshot(0, 12, 34));
+    let task = tokio::spawn(serve(listener, rx));
+    for _ in 0..2 {
+        assert!(
+            matches!(Client::request(&endpoint, Request::ReadConfig {}).await.unwrap(), Event::Configuration { reply } if reply.saved.revision == 0)
+        );
+    }
+    let first = Client::request(
+        &endpoint,
+        Request::ApplyConfig {
+            expected_revision: 0,
+            config: Config {
+                clock_intensity: 220,
+                ..Config::default()
+            },
+        },
+    )
+    .await
+    .unwrap();
+    assert!(
+        matches!(first, Event::Configuration { reply } if reply.status == ConfigStatus::Applied)
+    );
+    let stale = Client::request(
+        &endpoint,
+        Request::ApplyConfig {
+            expected_revision: 0,
+            config: Config {
+                clock_intensity: 200,
+                ..Config::default()
+            },
+        },
+    )
+    .await
+    .unwrap();
+    assert!(
+        matches!(stale, Event::Configuration { reply } if reply.status == ConfigStatus::Conflict && reply.saved.revision == 1 && reply.saved.config.clock_intensity == 220)
+    );
+    task.abort();
+    let _ = task.await;
+}
+
+#[tokio::test]
 async fn rejects_incompatible_client_and_keeps_serving_other_clients() {
     let (_dir, endpoint) = fixture();
     let listener = local::Listener::bind(&endpoint).await.unwrap();

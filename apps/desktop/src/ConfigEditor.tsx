@@ -10,12 +10,17 @@ export function ConfigEditor() {
   const [draft, setDraft] = useState<Config | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  async function command(request: Request) {
+  const [conflict, setConflict] = useState<SavedConfig | null>(null);
+  async function command(request: Request, retainDraft = false) {
     setBusy(true);
     try {
       const reply = await invoke<ConfigReply>("configuration", { request });
       setMessage(reply.errors.length ? reply.errors.map((e) => `${e.field}: ${e.message}`).join("; ") : reply.status);
-      if (reply.status === "read" || reply.status === "applied") { setSaved(reply.saved); setDraft(reply.saved.config); }
+      if (reply.status === "conflict") setConflict(reply.saved);
+      if (reply.status === "read" || reply.status === "applied") {
+        setSaved(reply.saved); setConflict(null);
+        if (!retainDraft) setDraft(reply.saved.config);
+      }
     } catch { setMessage("Configuration unavailable. Reconnect and retry; your draft is retained."); }
     finally { setBusy(false); }
   }
@@ -24,6 +29,13 @@ export function ConfigEditor() {
     <button disabled={busy} onClick={() => void command({ type: "read_config" })}>Load saved configuration</button>
     {draft && saved && <>
       <p>Saved revision {saved.revision}. Changes remain a local draft until Apply.</p>
+      <p>Saved configuration is desired state, not proof that a disconnected physical panel has rendered it.</p>
+      <button disabled={busy} onClick={() => void command({ type: "read_config" }, true)}>Refresh saved state (keep draft)</button>
+      {conflict && <div role="alert">
+        Another client saved revision {conflict.revision}. Your draft and original base revision are unchanged.
+        <p>Current saved clock intensity: {conflict.config.clock_intensity}. Draft clock intensity: {draft.clock_intensity}.</p>
+        <p>Refresh to adopt the current revision while keeping your draft, review it, then Apply explicitly; or load saved configuration to discard your draft.</p>
+      </div>}
       <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
         onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>
       <button disabled={busy} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>

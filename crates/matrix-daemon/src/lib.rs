@@ -203,7 +203,7 @@ async fn configured_session(
         let frames = config
             .panels
             .iter()
-            .map(|p| matrix_core::layout::render(p, &readings))
+            .map(|p| matrix_core::layout::render_configured(p, &readings, &config.brightness))
             .collect();
         return write_message(&mut stream, &Event::Rendered { frames, sample }).await;
     }

@@ -70,13 +70,23 @@ async fn run() -> std::io::Result<()> {
                 battery: power.percent.map(f64::from),
                 ..Default::default()
             };
-            frame.frame = matrix_core::layout::render(&config.panels[0], &readings);
+            frame.frame = matrix_core::layout::render_configured(
+                &config.panels[0],
+                &readings,
+                &config.brightness,
+            );
             frame.panels = config
                 .panels
                 .iter()
                 .map(|panel| matrix_client::PanelFrame {
+                    brightness: matrix_core::brightness::effective(&config.brightness, panel)
+                        .level(),
                     name: panel.name.clone(),
-                    frame: matrix_core::layout::render(panel, &readings),
+                    frame: matrix_core::layout::render_configured(
+                        panel,
+                        &readings,
+                        &config.brightness,
+                    ),
                     binding: panel.binding.clone(),
                 })
                 .collect();

@@ -21,6 +21,8 @@ struct Panel {
     retry_at: Instant,
     error: Option<&'static str>,
     needs_replug: bool,
+    confirmed_off: bool,
+    brightness: Option<u8>,
 }
 #[derive(Default)]
 pub struct Manager {
@@ -80,7 +82,11 @@ impl Manager {
             if let Some(panel) = panels.get(&device.port) {
                 if let Ok(panel) = panel.try_lock() {
                     device.firmware = panel.firmware.clone();
-                    device.status = if panel.port.is_some() {
+                    device.status = if let Some(error) = panel.error {
+                        error
+                    } else if panel.confirmed_off {
+                        "sleeping by configured policy"
+                    } else if panel.port.is_some() {
                         "open; identification path ready"
                     } else {
                         panel.error.unwrap_or("disconnected; awaiting retry")
@@ -146,6 +152,8 @@ impl Manager {
                     retry_at: Instant::now(),
                     error: None,
                     needs_replug: false,
+                    confirmed_off: false,
+                    brightness: None,
                 }))
             })
             .clone())
@@ -177,6 +185,16 @@ impl Manager {
                 std::thread::sleep(Duration::from_secs(1));
             }
             panel.open(port_name)?;
+            let saved = config.lock().expect("configuration").read().config;
+            let devices = enumerate().unwrap_or_default();
+            let role = resolve(&saved, &devices)
+                .into_iter()
+                .find(|(_, port)| port == port_name)
+                .and_then(|(name, _)| saved.panels.iter().find(|p| p.name == name));
+            let policy = role
+                .map(|panel| matrix_core::brightness::effective(&saved.brightness, panel))
+                .unwrap_or(&saved.brightness);
+            let flash = 32_u8.clamp(policy.minimum, policy.maximum);
             let port = panel.port.as_mut().expect("open port");
             identify_on(
                 &mut **port,
@@ -192,7 +210,27 @@ impl Manager {
                     .unwrap_or_else(blank)
                 },
                 Duration::from_secs(2),
-            )
+                flash,
+            )?;
+            let saved = config.lock().expect("configuration").read().config;
+            let devices = enumerate().unwrap_or_default();
+            let role = resolve(&saved, &devices)
+                .into_iter()
+                .find(|(_, port)| port == port_name)
+                .and_then(|(name, _)| saved.panels.iter().find(|p| p.name == name));
+            if let Some(level) = role.and_then(|panel| {
+                matrix_core::brightness::effective(&saved.brightness, panel).level()
+            }) {
+                panel
+                    .port
+                    .as_mut()
+                    .expect("open port")
+                    .write_all(&protocol::command(0x00, &[level]))?;
+                panel.brightness = Some(level);
+            } else {
+                panel.sleep();
+            }
+            Ok(())
         })();
         active.store(false, Ordering::Release);
         panel.frame = None;
@@ -219,15 +257,22 @@ impl Manager {
                 if panel.needs_replug && devices.iter().any(|device| &device.port == name) {
                     return true;
                 }
-                if let Some(port) = panel.port.as_mut() {
-                    let _ = port.write_all(&protocol::command(0x03, &[1]));
-                }
+                panel.sleep();
                 false
             } else {
                 true
             }
         });
-        for (_, name) in routes {
+        for (logical, name) in routes {
+            let brightness = matrix_core::brightness::effective(
+                &config.brightness,
+                config
+                    .panels
+                    .iter()
+                    .find(|p| p.name == logical)
+                    .expect("resolved panel"),
+            )
+            .level();
             let Some(frame) = normal_frame(&name, &config, &snapshot, &devices) else {
                 continue;
             };
@@ -243,25 +288,35 @@ impl Manager {
                         return;
                     }
                     let result = (|| {
+                        if brightness.is_none() && panel.confirmed_off {
+                            return Ok(());
+                        }
                         panel.open(&name)?;
+                        let Some(brightness) = brightness else {
+                            panel.sleep();
+                            return Ok(());
+                        };
                         if self.stopping.load(Ordering::Acquire) {
                             panel.sleep();
                             return Ok(());
                         }
-                        if panel.frame.as_ref() != Some(&frame) {
+                        if panel.frame.as_ref() != Some(&frame)
+                            || panel.brightness != Some(brightness)
+                        {
                             let port = panel.port.as_mut().expect("open port");
-                            port.write_all(&protocol::command(0x00, &[32]))?;
+                            port.write_all(&protocol::command(0x00, &[brightness]))?;
                             for command in protocol::greyscale(&frame).expect("valid frame") {
                                 port.write_all(&command)?;
                             }
                             panel.frame = Some(frame);
+                            panel.brightness = Some(brightness);
                             panel.last_write = Instant::now();
                         } else if panel.last_write.elapsed() >= Duration::from_secs(25) {
                             panel
                                 .port
                                 .as_mut()
                                 .expect("open port")
-                                .write_all(&protocol::command(0x00, &[32]))?;
+                                .write_all(&protocol::command(0x00, &[brightness]))?;
                             panel.last_write = Instant::now();
                         }
                         Ok::<_, io::Error>(())
@@ -297,10 +352,18 @@ impl Panel {
     }
     fn sleep(&mut self) {
         if let Some(port) = self.port.as_mut() {
-            let _ = port.write_all(&protocol::command(0x03, &[1]));
+            self.confirmed_off = port
+                .write_all(&protocol::command(0x03, &[1]))
+                .and_then(|_| port.flush())
+                .is_ok();
+            if !self.confirmed_off {
+                self.needs_replug = true;
+                self.error = Some("sleep command failed; reconnect the module");
+            }
         }
         self.port = None;
         self.frame = None;
+        self.brightness = None;
     }
     fn open(&mut self, name: &str) -> io::Result<()> {
         if self.port.is_some() {
@@ -335,6 +398,8 @@ impl Panel {
         self.firmware =
             Some(protocol::firmware(version).ok_or_else(|| io::Error::other("invalid firmware"))?);
         self.port = Some(port);
+        self.confirmed_off = false;
+        self.brightness = None;
         self.error = None;
         self.frame = None;
         Ok(())
@@ -439,7 +504,11 @@ fn normal_frame(
             .map(f64::from),
         ..Default::default()
     };
-    Some(matrix_core::layout::render(panel, &readings))
+    Some(matrix_core::layout::render_configured(
+        panel,
+        &readings,
+        &config.brightness,
+    ))
 }
 pub async fn route_loop(
     frames: tokio::sync::watch::Receiver<Snapshot>,
@@ -460,6 +529,7 @@ fn identify_on<W: Write + ?Sized>(
     active: &AtomicBool,
     latest: impl Fn() -> Frame,
     duration: Duration,
+    brightness: u8,
 ) -> io::Result<()> {
     let mut pattern = Frame {
         width: WIDTH as u8,
@@ -475,7 +545,7 @@ fn identify_on<W: Write + ?Sized>(
     }
     let result = (|| {
         if active.load(Ordering::Acquire) {
-            writer.write_all(&protocol::command(0x00, &[32]))?;
+            writer.write_all(&protocol::command(0x00, &[brightness]))?;
             writer.write_all(&protocol::bw(&pattern).expect("valid pattern"))?;
         }
         let until = Instant::now() + duration;
@@ -513,6 +583,7 @@ mod tests {
             &AtomicBool::new(false),
             || frame.clone(),
             Duration::from_secs(10),
+            32,
         )
         .unwrap();
         let expected: Vec<u8> = protocol::greyscale(&frame)
@@ -571,6 +642,8 @@ mod tests {
             retry_at: now,
             error: None,
             needs_replug: false,
+            confirmed_off: false,
+            brightness: None,
         };
         assert!(panel.ready(now));
         panel.failed(now);
@@ -608,7 +681,8 @@ mod tests {
                 &mut broken,
                 &AtomicBool::new(true),
                 || matrix_core::render_clock(0, 0).unwrap(),
-                Duration::ZERO
+                Duration::ZERO,
+                32
             )
             .is_err()
         );

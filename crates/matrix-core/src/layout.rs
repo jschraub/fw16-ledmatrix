@@ -46,6 +46,8 @@ pub struct PanelLayout {
     pub slots: Vec<Option<Widget>>,
     #[serde(default)]
     pub binding: Option<String>,
+    #[serde(default)]
+    pub brightness_override: Option<crate::brightness::Brightness>,
 }
 
 impl Template {
@@ -95,6 +97,7 @@ pub fn defaults() -> Vec<PanelLayout> {
         template,
         slots: default_slots(template),
         binding: None,
+        brightness_override: None,
     })
     .collect()
 }
@@ -237,6 +240,21 @@ pub fn render(panel: &PanelLayout, readings: &Readings) -> Frame {
     frame
 }
 
+pub fn render_configured(
+    panel: &PanelLayout,
+    readings: &Readings,
+    global: &crate::brightness::Brightness,
+) -> Frame {
+    let mut frame = render(panel, readings);
+    if crate::brightness::effective(global, panel)
+        .level()
+        .is_none()
+    {
+        frame.pixels.fill(0);
+    }
+    frame
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +287,7 @@ mod tests {
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),
             binding: None,
+            brightness_override: None,
         };
         let readings = Readings {
             battery: Some(10.0),
@@ -331,6 +350,7 @@ mod tests {
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),
             binding: None,
+            brightness_override: None,
         };
         panel.slots[0].as_mut().unwrap().warning_threshold = Some(20);
         let low = render(

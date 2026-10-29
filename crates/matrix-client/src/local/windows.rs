@@ -259,9 +259,7 @@ mod tests {
             let reverted = RevertToSelf();
             assert_ne!(reverted, 0);
             assert_eq!(
-                denied
-                    .expect_err("restricted token must be denied")
-                    .kind(),
+                denied.expect_err("restricted token must be denied").kind(),
                 io::ErrorKind::PermissionDenied
             );
         }

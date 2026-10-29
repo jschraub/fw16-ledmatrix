@@ -1,5 +1,21 @@
 # Widgets
 
+## Brightness
+
+Application defaults and explicit per-panel overrides define ordered 1–255
+minimum/manual/maximum levels. Manual output is sent through the hardware's
+global-brightness command, separately from widget greyscale. Explicit off/sleep
+is a separate state, never a numeric level clamped back above zero. Unchecking an
+override restores inheritance; overrides remain independent of global defaults.
+Source thresholds change relative intensity, not the panel's global ceiling.
+
+Use representative sparse clock/gauge previews while adjusting the actual
+hardware. The default minimum of 3 is inherited from POC observations, not a
+universal visibility guarantee. Screen previews show greyscale content and off
+state; their luminance is not a physical calibration model. Identification is
+bounded within the effective min/max and restores the applied brightness/off
+policy afterward. Firmware sleep/wake behavior requires panel qualification.
+
 ## Physical assignment
 
 In the configuration draft, refresh assignment candidates after identifying a

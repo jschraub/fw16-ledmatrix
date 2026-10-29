@@ -6,6 +6,8 @@ use ts_rs::TS;
 pub struct Config {
     pub schema_version: u16,
     pub clock_intensity: u8,
+    #[serde(default)]
+    pub brightness: crate::brightness::Brightness,
     #[serde(default = "crate::layout::defaults")]
     pub panels: Vec<crate::layout::PanelLayout>,
 }
@@ -14,6 +16,7 @@ impl Default for Config {
         Self {
             schema_version: 2,
             clock_intensity: 180,
+            brightness: Default::default(),
             panels: crate::layout::defaults(),
         }
     }
@@ -26,6 +29,9 @@ pub struct FieldError {
 impl Config {
     pub fn validate(&self) -> Vec<FieldError> {
         let mut errors = vec![];
+        if !self.brightness.valid() {
+            errors.push(FieldError { field: "brightness".into(), message: "Require 1 <= minimum <= manual <= maximum <= 255. Use explicit off, not zero brightness.".into() });
+        }
         if self.schema_version != 2 {
             errors.push(FieldError { field: "schema_version".into(), message: "Unsupported configuration schema; preserve the file and use a matching version.".into() });
         }
@@ -45,6 +51,16 @@ impl Config {
         let mut names = std::collections::BTreeSet::new();
         let mut bindings = std::collections::BTreeSet::new();
         for (p, panel) in self.panels.iter().enumerate() {
+            if panel
+                .brightness_override
+                .as_ref()
+                .is_some_and(|brightness| !brightness.valid())
+            {
+                errors.push(FieldError {
+                    field: format!("panels.{p}.brightness_override"),
+                    message: "Invalid panel brightness limits or manual level.".into(),
+                });
+            }
             if let Some(binding) = &panel.binding
                 && (binding.is_empty() || binding.len() > 1024 || !bindings.insert(binding.clone()))
             {

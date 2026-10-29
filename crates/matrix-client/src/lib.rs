@@ -71,6 +71,7 @@ pub struct Snapshot {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PanelFrame {
+    pub brightness: Option<u8>,
     pub name: String,
     pub frame: Frame,
     pub binding: Option<String>,

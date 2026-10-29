@@ -41,6 +41,7 @@ export function App() {
           <p className="muted">9 × 34 · 8-bit greyscale<br />Screen brightness is not calibrated to physical LEDs.</p>
           {hello && <p className="muted">Daemon {hello.daemon_version} · protocol {hello.protocol_version}<br />Capabilities: {hello.capabilities.join(", ")}</p>}
           {snapshot && <p className="muted">Update {snapshot.sequence}</p>}
+          {snapshot?.panels[0] && <p className="muted">Effective panel brightness: {snapshot.panels[0].brightness ?? "off / sleep"}. Preview pixels show relative greyscale, not calibrated luminance.</p>}
           {snapshot?.power && <p className="muted">Battery source: {snapshot.power.status}
             {snapshot.power.percent !== null && <> · {snapshot.power.percent}%</>}
             {snapshot.power.charging !== null && <> · {snapshot.power.charging ? "charging" : "not charging"}</>}

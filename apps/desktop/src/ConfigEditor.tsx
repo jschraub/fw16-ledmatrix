@@ -6,6 +6,7 @@ import type { ConfigReply } from "./bindings/ConfigReply";
 import type { Request } from "./bindings/Request";
 import { Layouts, DraftPreview } from "./Layouts";
 import { Bindings } from "./Bindings";
+import { BrightnessEditor } from "./BrightnessEditor";
 
 export function ConfigEditor() {
   const [saved, setSaved] = useState<SavedConfig | null>(null);
@@ -13,6 +14,13 @@ export function ConfigEditor() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [conflict, setConflict] = useState<SavedConfig | null>(null);
+  function encodable(value: unknown): boolean {
+    if (typeof value === "number") return Number.isInteger(value) && value >= 0 && value <= 255;
+    if (Array.isArray(value)) return value.every(encodable);
+    if (value && typeof value === "object") return Object.values(value).every(encodable);
+    return true;
+  }
+  const numericSettingsValid = draft === null || encodable(draft);
   async function command(request: Request, retainDraft = false) {
     setBusy(true);
     try {
@@ -41,10 +49,12 @@ export function ConfigEditor() {
       <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
         onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>
       <Layouts config={draft} change={setDraft} />
+      <BrightnessEditor config={draft} change={setDraft} />
       <Bindings config={draft} change={setDraft} />
       {draft.panels && <DraftPreview config={draft} />}
-      <button disabled={busy} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>
-      <button disabled={busy || !Number.isInteger(draft.clock_intensity) || draft.clock_intensity < 1 || draft.clock_intensity > 255}
+      {!numericSettingsValid && <p role="alert">Numeric settings must be whole values in the 0–255 wire range; use the narrower limits shown by each control.</p>}
+      <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>
+      <button disabled={busy || !numericSettingsValid || draft.clock_intensity < 1}
         onClick={() => void command({ type: "apply_config", expected_revision: saved.revision, config: draft })}>Apply</button>
       <button disabled={busy} onClick={() => { setDraft(saved.config); setMessage("Draft cancelled"); }}>Cancel draft</button>
     </>}

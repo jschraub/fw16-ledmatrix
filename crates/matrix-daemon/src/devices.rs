@@ -494,6 +494,7 @@ fn normal_frame(
     let (name, _) = routes.iter().find(|(_, value)| value == port)?;
     let panel = config.panels.iter().find(|panel| &panel.name == name)?;
     let readings = matrix_core::layout::Readings {
+        sessions: snapshot.assistants.sessions.clone(),
         hour: snapshot.hour,
         minute: snapshot.minute,
         default_clock_intensity: config.clock_intensity,

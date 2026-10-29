@@ -10,7 +10,7 @@ import type { Widget } from "./bindings/Widget";
 
 const templates: Record<Template, Presentation[]> = { clock_gauge: ["clock", "gauge"], number_two_gauges: ["number", "gauge", "gauge"], full_gauge: ["gauge"] };
 const sources: Source[] = ["battery", "context", "activity", "five_hour", "weekly"];
-function widget(presentation: Presentation): Widget { return { source: presentation === "clock" ? "clock" : "battery", presentation, intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null }; }
+function widget(presentation: Presentation): Widget { return { source: presentation === "clock" ? "clock" : "battery", provider: "claude", session_id: null, presentation, intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null }; }
 
 export function Layouts({ config, change }: { config: Config; change: (config: Config) => void }) {
   const panels = config.panels ?? [];
@@ -29,6 +29,13 @@ export function Layouts({ config, change }: { config: Config; change: (config: C
         </select></label>
         {value && <><label>Intensity for {panel.name} slot {s + 1} <input type="number" min={1} max={255} placeholder="inherit" value={value.intensity ?? ""}
           onChange={(e) => slot(p, s, { ...value, intensity: e.target.value === "" ? null : Number(e.target.value) })} /></label>
+          {value.source !== "clock" && value.source !== "battery" && <>
+            <label>Provider for {panel.name} slot {s + 1} <select value={value.provider ?? "claude"} onChange={(e) => slot(p, s, { ...value, provider: e.target.value as "claude" | "opencode_openai", session_id: null })}>
+              <option value="claude">Claude Code</option><option value="opencode_openai">OpenCode / OpenAI</option>
+            </select></label>
+            <label>Session pin for {panel.name} slot {s + 1} <input placeholder="Latest active main session" value={value.session_id ?? ""} maxLength={128} onChange={(e) => slot(p, s, { ...value, session_id: e.target.value || null })} /></label>
+            <p>A missing/expired pinned session stays blank; it never silently follows another session.</p>
+          </>}
           {value.presentation === "gauge" && <label><input type="checkbox" checked={value.reversed} onChange={(e) => slot(p, s, { ...value, reversed: e.target.checked })} /> Fill downward</label>}
           {value.source !== "clock" && <label>Warning threshold for {panel.name} slot {s + 1} ({value.source === "battery" ? "at or below" : "at or above"})
             <input type="number" min={0} max={100} value={value.warning_threshold ?? ""} placeholder="disabled"

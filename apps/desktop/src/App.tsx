@@ -2,6 +2,7 @@ import { useDaemon } from "./useDaemon";
 import { Capabilities } from "./Capabilities";
 import { ConfigEditor } from "./ConfigEditor";
 import { Devices } from "./Devices";
+import { Integrations } from "./Integrations";
 
 export function App() {
   const { hello, snapshot, error, connecting, starting, connect, start } = useDaemon();
@@ -67,6 +68,7 @@ export function App() {
       </section>}
       <Capabilities />
       <Devices />
+      {snapshot && <Integrations state={snapshot.assistants} />}
       <ConfigEditor />
     </main>
   );

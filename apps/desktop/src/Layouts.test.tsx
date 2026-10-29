@@ -7,7 +7,7 @@ import { DraftPreview, Layouts } from "./Layouts";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 const config: Config = { schema_version: 2, clock_intensity: 180, brightness: { minimum: 3, maximum: 255, manual: 32, off: false }, panels: [{ name: "left", binding: null, brightness_override: null, template: "clock_gauge", slots: [
-  { source: "clock", presentation: "clock", intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null }, { source: "battery", presentation: "gauge", intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null },
+  { source: "clock", provider: "claude", session_id: null, presentation: "clock", intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null }, { source: "battery", provider: "claude", session_id: null, presentation: "gauge", intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null },
 ] }] };
 function Harness() { const [value, setValue] = useState(config); return <Layouts config={value} change={setValue} />; }
 test("guided slots permit empty/repeated widgets and template changes reset compatible slots", () => {

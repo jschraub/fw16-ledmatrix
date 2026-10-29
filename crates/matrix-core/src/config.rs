@@ -86,6 +86,10 @@ impl Config {
                     && (panel.template.presentations().get(s) != Some(&widget.presentation)
                         || widget.intensity == Some(0)
                         || widget
+                            .session_id
+                            .as_ref()
+                            .is_some_and(|id| !crate::assistant::safe_id(id))
+                        || widget
                             .warning_threshold
                             .is_some_and(|threshold| threshold > 100)
                         || (widget.source == Source::Clock)

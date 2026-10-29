@@ -40,6 +40,9 @@ async fn run() -> std::io::Result<()> {
         matrix_core::power::PowerStatus::Unavailable,
     ));
     tokio::spawn(matrix_daemon::power::poll(power_tx));
+    let (feed_tx, feed_rx) =
+        tokio::sync::watch::channel(matrix_core::assistant::AssistantState::default());
+    tokio::spawn(matrix_daemon::feeds::poll(feed_tx));
     let now = chrono::Local::now();
     let (tx, rx) = tokio::sync::watch::channel(snapshot(0, now.hour() as u8, now.minute() as u8));
     tokio::spawn(matrix_daemon::devices::route_loop(
@@ -58,6 +61,8 @@ async fn run() -> std::io::Result<()> {
             let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
             let power = power_rx.borrow().clone();
             frame.power = Some(power.clone());
+            let assistants = feed_rx.borrow().clone();
+            frame.assistants = assistants.clone();
             let (config, preview) = {
                 let mut store = render_config.lock().expect("configuration lock");
                 let config = store.output();
@@ -69,6 +74,7 @@ async fn run() -> std::io::Result<()> {
                 minute: now.minute() as u8,
                 default_clock_intensity: config.clock_intensity,
                 battery: power.percent.map(f64::from),
+                sessions: assistants.sessions,
                 ..Default::default()
             };
             frame.frame = matrix_core::layout::render_configured(

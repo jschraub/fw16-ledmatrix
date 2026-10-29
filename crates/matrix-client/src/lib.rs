@@ -12,6 +12,16 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{io, time::Duration};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use ts_rs::TS;
+pub fn feed_directory() -> io::Result<std::path::PathBuf> {
+    std::env::var_os("MATRIX_FEEDS")
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            dirs::runtime_dir()
+                .or_else(dirs::data_local_dir)
+                .map(|path| path.join("fw16-matrix/feeds"))
+        })
+        .ok_or_else(|| io::Error::other("user metadata directory unavailable"))
+}
 
 pub const PROTOCOL_VERSION: u16 = 2;
 pub const MAX_MESSAGE: usize = 64 * 1024;
@@ -66,6 +76,8 @@ pub struct Hello {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct Snapshot {
+    #[serde(default)]
+    pub assistants: matrix_core::assistant::AssistantState,
     #[serde(default)]
     pub preview: bool,
     #[serde(default)]
@@ -223,6 +235,14 @@ impl Client {
                     && snapshot.hour < 24
                     && snapshot.minute < 60
                     && snapshot.panels.len() <= 2
+                    && snapshot.assistants.sessions.len() <= 64
+                    && snapshot.assistants.sessions.iter().all(|session| {
+                        matrix_core::assistant::safe_id(&session.session_id)
+                            && matrix_core::assistant::safe_id(&session.instance_id)
+                            && session.context_percent.is_none_or(|p| p <= 1000)
+                            && session.last_activity_ms <= 8_640_000_000_000_000
+                            && session.heartbeat_ms <= 8_640_000_000_000_000
+                    })
                     && snapshot.panels.iter().all(|panel| {
                         panel.frame.is_valid() && !panel.name.is_empty() && panel.name.len() <= 32
                     }) =>

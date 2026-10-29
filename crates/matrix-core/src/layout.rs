@@ -29,6 +29,10 @@ pub enum Source {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct Widget {
+    #[serde(default)]
+    pub provider: crate::assistant::Provider,
+    #[serde(default)]
+    pub session_id: Option<String>,
     pub source: Source,
     pub presentation: Presentation,
     pub intensity: Option<u8>,
@@ -70,6 +74,8 @@ pub fn default_slots(template: Template) -> Vec<Option<Widget>> {
         .enumerate()
         .map(|(index, p)| {
             Some(Widget {
+                provider: Default::default(),
+                session_id: None,
                 source: match (template, index) {
                     (Template::ClockGauge, 0) => Source::Clock,
                     (Template::ClockGauge | Template::FullGauge, _) => Source::Battery,
@@ -104,6 +110,7 @@ pub fn defaults() -> Vec<PanelLayout> {
 
 #[derive(Clone)]
 pub struct Readings {
+    pub sessions: Vec<crate::assistant::Session>,
     pub default_clock_intensity: u8,
     pub hour: u8,
     pub minute: u8,
@@ -117,6 +124,7 @@ impl Default for Readings {
     fn default() -> Self {
         Self {
             default_clock_intensity: DATA,
+            sessions: vec![],
             hour: 0,
             minute: 0,
             battery: None,
@@ -140,12 +148,25 @@ impl Readings {
             ..Self::default()
         }
     }
-    fn value(&self, source: Source) -> Option<f64> {
-        match source {
+    fn session(&self, widget: &Widget) -> Option<&crate::assistant::Session> {
+        crate::assistant::selected(
+            &self.sessions,
+            widget.provider,
+            widget.session_id.as_deref(),
+        )
+    }
+    fn value(&self, widget: &Widget) -> Option<f64> {
+        match widget.source {
             Source::Clock => None,
             Source::Battery => self.battery,
-            Source::Context => self.context,
-            Source::Activity => self.activity,
+            Source::Context => self.context.or_else(|| {
+                self.session(widget)
+                    .and_then(|session| session.context_percent.map(f64::from))
+            }),
+            Source::Activity => self.activity.or_else(|| {
+                self.session(widget)
+                    .map(|session| if session.busy { 100.0 } else { 0.0 })
+            }),
             Source::FiveHour => self.five_hour,
             Source::Weekly => self.weekly,
         }
@@ -200,16 +221,18 @@ pub fn render(panel: &PanelLayout, readings: &Readings) -> Frame {
             }
             continue;
         }
-        let Some(value) = readings.value(widget.source) else {
+        let Some(value) = readings.value(widget) else {
             continue;
         };
-        let intensity = if widget.warning_threshold.is_some_and(|threshold| {
-            if widget.source == Source::Battery {
-                value <= f64::from(threshold)
-            } else {
-                value >= f64::from(threshold)
-            }
-        }) {
+        let intensity = if (widget.source == Source::Context
+            && readings.session(widget).is_some_and(|session| session.busy))
+            || widget.warning_threshold.is_some_and(|threshold| {
+                if widget.source == Source::Battery {
+                    value <= f64::from(threshold)
+                } else {
+                    value >= f64::from(threshold)
+                }
+            }) {
             255
         } else {
             intensity

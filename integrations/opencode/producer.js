@@ -1,12 +1,12 @@
 // Optional, read-only V2 adapter. Never serialize SDK objects or error messages.
 import { lstat, mkdir, open, rename, rm } from "node:fs/promises"
 import { homedir } from "node:os"
-import { join, win32 } from "node:path"
+import { join, posix, win32 } from "node:path"
 import { randomUUID } from "node:crypto"
 
 const safeID = (id) => typeof id === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(id)
 export function feedRoot(env = process.env, platform = process.platform, home = homedir()) {
-  const path = platform === "win32" ? win32 : { join }
+  const path = platform === "win32" ? win32 : posix
   if (env.MATRIX_FEEDS) return env.MATRIX_FEEDS
   const base = platform === "win32"
     ? env.LOCALAPPDATA || path.join(home, "AppData", "Local")

@@ -33,6 +33,8 @@ pub struct Widget {
     pub presentation: Presentation,
     pub intensity: Option<u8>,
     pub reversed: bool,
+    #[serde(default)]
+    pub hide_leading_hour_zero: bool,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -72,6 +74,7 @@ pub fn default_slots(template: Template) -> Vec<Option<Widget>> {
                 presentation: *p,
                 intensity: None,
                 reversed: false,
+                hide_leading_hour_zero: false,
             })
         })
         .collect()
@@ -179,6 +182,13 @@ pub fn render(panel: &PanelLayout, readings: &Readings) -> Frame {
         if widget.presentation == Presentation::Clock {
             number(&mut frame, 1, i32::from(readings.hour), intensity);
             number(&mut frame, 7, i32::from(readings.minute), intensity);
+            if widget.hide_leading_hour_zero && readings.hour < 10 {
+                for y in 1..=5 {
+                    for x in 1..=3 {
+                        frame.pixels[y * WIDTH + x] = 0;
+                    }
+                }
+            }
             continue;
         }
         let Some(value) = readings.value(widget.source) else {
@@ -264,6 +274,36 @@ mod tests {
         assert_eq!(
             &full.pixels[WIDTH..2 * WIDTH],
             &[0, 180, 0, 180, 0, 180, 0, 180, 0]
+        );
+    }
+    #[test]
+    fn clock_instances_share_time_but_keep_independent_presentation() {
+        let mut first = defaults().remove(0);
+        let mut second = first.clone();
+        first.slots[0].as_mut().unwrap().intensity = Some(200);
+        second.slots[0].as_mut().unwrap().intensity = Some(255);
+        second.slots[0].as_mut().unwrap().hide_leading_hour_zero = true;
+        let readings = Readings {
+            hour: 7,
+            minute: 5,
+            ..Readings::default()
+        };
+        let a = render(&first, &readings);
+        let b = render(&second, &readings);
+        assert_eq!(a.pixels[WIDTH + 1], 200);
+        assert_eq!(b.pixels[WIDTH + 1], 0);
+        assert_eq!(a.pixels[7 * WIDTH + 1], 200);
+        assert_eq!(b.pixels[7 * WIDTH + 1], 255);
+        assert_ne!(
+            render(
+                &first,
+                &Readings {
+                    hour: 23,
+                    minute: 59,
+                    ..Default::default()
+                }
+            ),
+            render(&first, &Readings::default())
         );
     }
 }

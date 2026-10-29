@@ -2,4 +2,4 @@
 import type { Presentation } from "./Presentation";
 import type { Source } from "./Source";
 
-export type Widget = { source: Source, presentation: Presentation, intensity: number | null, reversed: boolean, };
+export type Widget = { source: Source, presentation: Presentation, intensity: number | null, reversed: boolean, hide_leading_hour_zero: boolean, };

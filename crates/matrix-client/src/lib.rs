@@ -17,13 +17,23 @@ pub const MAX_MESSAGE: usize = 64 * 1024;
 pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 pub const FRAME_TIMEOUT: Duration = Duration::from_secs(10);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Request {
-    Hello { protocol_version: u16 },
+    Hello {
+        protocol_version: u16,
+    },
     Subscribe {},
     Probe {},
+    ReadConfig {},
+    ValidateConfig {
+        config: matrix_core::config::Config,
+    },
+    ApplyConfig {
+        expected_revision: u32,
+        config: matrix_core::config::Config,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -46,6 +56,9 @@ pub struct Snapshot {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    Configuration {
+        reply: matrix_core::config::ConfigReply,
+    },
     Hello {
         hello: Hello,
     },

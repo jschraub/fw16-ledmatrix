@@ -8,6 +8,25 @@ use std::{
 use tauri::{State, ipc::Channel};
 
 #[tauri::command]
+async fn configuration(
+    request: matrix_client::Request,
+) -> Result<matrix_core::config::ConfigReply, Failure> {
+    if !matches!(
+        request,
+        matrix_client::Request::ReadConfig {}
+            | matrix_client::Request::ValidateConfig { .. }
+            | matrix_client::Request::ApplyConfig { .. }
+    ) {
+        return Err(Failure::new(ErrorCode::InvalidMessage));
+    }
+    let endpoint = local::endpoint().map_err(|e| Failure::connecting(&e))?;
+    match Client::request(&endpoint, request).await? {
+        Event::Configuration { reply } => Ok(reply),
+        _ => Err(Failure::new(ErrorCode::InvalidMessage)),
+    }
+}
+
+#[tauri::command]
 async fn probe() -> Result<matrix_client::capabilities::CapabilityReport, Failure> {
     let endpoint = local::endpoint().map_err(|e| Failure::connecting(&e))?;
     match Client::request(&endpoint, matrix_client::Request::Probe {}).await? {
@@ -114,7 +133,8 @@ fn main() {
             subscribe,
             acknowledge,
             start_daemon,
-            probe
+            probe,
+            configuration
         ])
         .run(tauri::generate_context!())
         .expect("failed to run matrix desktop");

@@ -5,7 +5,9 @@ use matrix_client::{
 use std::sync::Arc;
 use std::{io, time::Duration};
 use tokio::sync::{Semaphore, watch};
+pub mod config;
 pub mod probe;
+pub type Configuration = Arc<std::sync::Mutex<config::Store>>;
 
 pub const MAX_CLIENTS: usize = 32;
 
@@ -19,9 +21,19 @@ pub fn snapshot(sequence: u32, hour: u8, minute: u8) -> Snapshot {
 }
 
 /// Watch retains only the latest frame: slow/disconnected clients never queue history.
-pub async fn serve(
+pub async fn serve(listener: local::Listener, frames: watch::Receiver<Snapshot>) -> io::Result<()> {
+    serve_configured(
+        listener,
+        frames,
+        Arc::new(std::sync::Mutex::new(config::Store::memory())),
+    )
+    .await
+}
+
+pub async fn serve_configured(
     mut listener: local::Listener,
     frames: watch::Receiver<Snapshot>,
+    config: Configuration,
 ) -> io::Result<()> {
     let permits = Arc::new(Semaphore::new(MAX_CLIENTS));
     loop {
@@ -35,17 +47,29 @@ pub async fn serve(
             continue;
         };
         let frames = frames.clone();
+        let config = config.clone();
         tokio::spawn(async move {
             let _permit = permit;
             // A disconnected client does not affect the renderer or other clients.
-            let _ = session(stream, frames).await;
+            let _ = configured_session(stream, frames, config).await;
         });
     }
 }
 
-async fn session(
+#[cfg(test)]
+async fn session(stream: local::Stream, frames: watch::Receiver<Snapshot>) -> io::Result<()> {
+    configured_session(
+        stream,
+        frames,
+        Arc::new(std::sync::Mutex::new(config::Store::memory())),
+    )
+    .await
+}
+
+async fn configured_session(
     mut stream: local::Stream,
     mut frames: watch::Receiver<Snapshot>,
+    config: Configuration,
 ) -> io::Result<()> {
     let request = tokio::time::timeout(HANDSHAKE_TIMEOUT, async {
         let request = read_message(&mut stream).await?;
@@ -89,6 +113,27 @@ async fn session(
             },
         )
         .await;
+    }
+    let reply = {
+        let mut store = config
+            .lock()
+            .map_err(|_| io::Error::other("configuration unavailable"))?;
+        match request {
+            Request::ReadConfig {} => Some(matrix_core::config::ConfigReply {
+                status: matrix_core::config::ConfigStatus::Read,
+                saved: store.read(),
+                errors: vec![],
+            }),
+            Request::ValidateConfig { ref config } => Some(store.validate(config)),
+            Request::ApplyConfig {
+                expected_revision,
+                ref config,
+            } => Some(store.apply(expected_revision, config.clone())),
+            _ => None,
+        }
+    };
+    if let Some(reply) = reply {
+        return write_message(&mut stream, &Event::Configuration { reply }).await;
     }
     if !matches!(request, Request::Subscribe {}) {
         return Err(io::Error::other("expected command or subscription"));

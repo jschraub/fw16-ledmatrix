@@ -57,9 +57,13 @@ unresponsive endpoints block startup; they are not permission to replace a
 process. Missing sibling binaries produce an actionable startup error. Automatic
 restart, login startup, and packaging are still deferred.
 
-This slice has no configuration editor yet (#13). Connection state is isolated
-from future caller-owned drafts; a UI harness tests unsaved draft retention
-across disconnect, failed retry, and reconnection without adding fake settings.
+The Configuration section loads a versioned saved document into a local draft.
+Validate, Apply, and Cancel are explicit. Clock intensity changes demonstrate live
+application without a daemon restart. The daemon validates and atomically saves
+before publishing a new revision. Failed saves retain the draft and previous
+applied state; invalid/corrupt/future-schema files are preserved at startup.
+`MATRIX_CONFIG` overrides the config path for isolated development/tests; otherwise
+it is `fw16-matrix/config.json` below the platform user configuration directory.
 
 `npm run dev` alone runs only Vite: a browser cannot access the native Tauri
 bridge and will report a connection error. Use `npm run tauri -- dev` for the

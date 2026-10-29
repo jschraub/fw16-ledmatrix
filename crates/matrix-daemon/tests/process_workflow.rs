@@ -36,6 +36,7 @@ async fn daemon_process_survives_close_reopen_and_keeps_ticking() {
     let mut daemon = Daemon(
         Command::new(env!("CARGO_BIN_EXE_matrix-daemon"))
             .env("MATRIX_ENDPOINT", &endpoint)
+            .env("MATRIX_CONFIG", directory.path().join("config.json"))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())
@@ -94,6 +95,52 @@ async fn daemon_process_survives_close_reopen_and_keeps_ticking() {
 }
 
 struct StartedDaemon(u32);
+
+#[tokio::test]
+async fn applied_configuration_changes_live_output_and_survives_restart() {
+    use matrix_client::{Event, Request};
+    use matrix_core::config::{Config, ConfigStatus};
+    let directory = tempfile::tempdir().unwrap();
+    #[cfg(unix)]
+    let endpoint = directory
+        .path()
+        .join("ipc/config.sock")
+        .to_string_lossy()
+        .into_owned();
+    #[cfg(windows)]
+    let endpoint = format!(
+        r"\\.\pipe\matrix-config-{}-{}",
+        std::process::id(),
+        directory.path().file_name().unwrap().to_string_lossy()
+    );
+    let path = directory.path().join("config.json");
+    let spawn = || {
+        Daemon(
+            Command::new(env!("CARGO_BIN_EXE_matrix-daemon"))
+                .env("MATRIX_ENDPOINT", &endpoint)
+                .env("MATRIX_CONFIG", &path)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::inherit())
+                .spawn()
+                .unwrap(),
+        )
+    };
+    tokio::time::timeout(Duration::from_secs(15), async {
+        let first = spawn();
+        loop { if Client::connect(&endpoint).await.is_ok() { break; } tokio::time::sleep(Duration::from_millis(20)).await; }
+        let event = Client::request(&endpoint, Request::ApplyConfig { expected_revision: 0, config: Config { clock_intensity: 220, ..Config::default() } }).await.unwrap();
+        assert!(matches!(event, Event::Configuration { ref reply } if reply.status == ConfigStatus::Applied && reply.saved.revision == 1));
+        let mut client = Client::connect(&endpoint).await.unwrap();
+        loop { let frame = client.next_frame().await.unwrap(); if frame.frame.pixels.contains(&220) { break; } }
+        drop(client); drop(first);
+        let second = spawn();
+        loop { if Client::connect(&endpoint).await.is_ok() { break; } tokio::time::sleep(Duration::from_millis(20)).await; }
+        let event = Client::request(&endpoint, Request::ReadConfig {}).await.unwrap();
+        assert!(matches!(event, Event::Configuration { reply } if reply.saved.revision == 1 && reply.saved.config.clock_intensity == 220));
+        drop(second);
+    }).await.unwrap();
+}
 
 impl Drop for StartedDaemon {
     fn drop(&mut self) {

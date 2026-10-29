@@ -6,6 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../apps/desktop/src/bindings");
     let config = ts_rs::Config::new().with_out_dir(&path);
     Event::export_all(&config)?;
+    matrix_client::Request::export_all(&config)?;
     matrix_client::Failure::export_all(&config)?;
     let failures: std::collections::BTreeMap<String, matrix_client::Failure> =
         matrix_client::ErrorCode::ALL

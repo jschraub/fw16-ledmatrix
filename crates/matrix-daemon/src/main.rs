@@ -1,6 +1,6 @@
 use chrono::Timelike;
 use matrix_client::{Failure, local};
-use matrix_daemon::{serve, snapshot};
+use matrix_daemon::{config::Store, serve_configured, snapshot};
 
 #[tokio::main]
 async fn main() {
@@ -20,6 +20,8 @@ async fn run() -> std::io::Result<()> {
     }
     let endpoint = local::endpoint()?;
     let listener = local::Listener::bind(&endpoint).await?;
+    let config = std::sync::Arc::new(std::sync::Mutex::new(Store::load(Store::default_path()?)?));
+    let render_config = config.clone();
     let now = chrono::Local::now();
     let (tx, rx) = tokio::sync::watch::channel(snapshot(0, now.hour() as u8, now.minute() as u8));
     eprintln!("matrix-daemon: simulated 9x34 panel; local clock; local-only control");
@@ -31,11 +33,23 @@ async fn run() -> std::io::Result<()> {
             timer.tick().await;
             let now = chrono::Local::now();
             sequence = sequence.wrapping_add(1);
-            tx.send_replace(snapshot(sequence, now.hour() as u8, now.minute() as u8));
+            let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
+            let intensity = render_config
+                .lock()
+                .expect("configuration lock")
+                .read()
+                .config
+                .clock_intensity;
+            for value in &mut frame.frame.pixels {
+                if *value > 0 {
+                    *value = intensity;
+                }
+            }
+            tx.send_replace(frame);
         }
     };
     tokio::select! {
-        result = serve(listener, rx) => result?,
+        result = serve_configured(listener, rx, config) => result?,
         _ = clock => {},
         result = tokio::signal::ctrl_c() => result?,
     }

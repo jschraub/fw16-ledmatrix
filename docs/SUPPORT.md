@@ -213,6 +213,14 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   panel went blank, and confirmed its battery gauge returned shortly after
   cancellation rather than waiting for expiry. No Apply was requested. This is
   an observed restoration, not an instrumented latency measurement.
+- Competing preview owners (#38): two independent IPC clients requested the
+  saved layout on the running two-panel daemon. While A's 15-second lease was
+  active, B's request returned `busy` and B's cancellation returned `not_owner`.
+  After A closed its socket, a subscriber saw preview inactive 1.27 seconds
+  after lease start, before expiry. B then acquired and cancelled a new lease.
+  Saved configuration remained identical at revision 4; both ports reported
+  open with firmware 0.20. This tests owner disconnect and exclusivity, not
+  optical restoration latency or a forced native-desktop crash.
 - Closing the native window during a left-sleep preview restored the battery
   gauge immediately according to the user. Systemd confirmed the desktop exited,
   the same daemon process remained active, and the POC remained stopped. This

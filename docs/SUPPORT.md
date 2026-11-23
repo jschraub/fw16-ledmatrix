@@ -243,6 +243,15 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   the same daemon process remained active, and the POC remained stopped. This
   tests normal window closure, not a forced UI crash; the restoration latency
   was not instrumented.
+- Linux display-follow (#26, `40e6a65`): a 15-second preview paired internal
+  `eDP-2` with `nvidia_wmi_ec_backlight`, using limits 3–215 on the right
+  clock and a manual override of 32 on the left gauge. The observer saw the
+  right clock brighten at 55% screen brightness, dim when the screen dropped
+  to 25%, and return to normal after expiry. The left gauge stayed steady.
+  Subscriber samples at 0.13, 5.13 and 15.13 seconds reported right levels
+  120, 56 and 32 respectively, and left 32 at each sample. These are daemon
+  timings, not optical latency. Requested and actual screen brightness returned
+  to 55/100; saved revision 6 and its contents were unchanged.
 - Right-panel sparse clock: at preview brightness **3** with clock intensity
   **180**, the user found the clock very dim but readable. They observed it
   return to its previous brightness after the ten-second preview. Saved revision

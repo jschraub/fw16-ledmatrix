@@ -302,6 +302,10 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   frame within its observation window. This is a visual pass, not a measurement
   of six-second expiry. Original config contents were restored at revision 10;
   a later subscriber sample showed right brightness 32 and no active preview.
+- After `574f09b`, the observer reported that volume feedback on the physical
+  panel was noticeably more responsive than the previous one-to-two-second
+  delay. The isolated fixture measured 23–25 ms to the software gauge;
+  key-to-LED latency was not instrumented.
 - Right-panel sparse clock: at preview brightness **3** with clock intensity
   **180**, the user found the clock very dim but readable. They observed it
   return to its previous brightness after the ten-second preview. Saved revision

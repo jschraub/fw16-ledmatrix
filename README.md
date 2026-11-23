@@ -30,6 +30,10 @@ than treating simulated tests as physical evidence.
 
 ## Develop without panels
 
+Continuing on a laptop with panels? Start with the
+[hardware-machine handoff](docs/HARDWARE-HANDOFF.md), including open tickets,
+safe first-run steps and the recorded CI blocker.
+
 At the root, start `cargo run --locked -p matrix-daemon`. In another terminal,
 run `npm ci` followed by `npm run tauri -- dev` from `apps/desktop`.
 The daemon remains running when you close the desktop window.

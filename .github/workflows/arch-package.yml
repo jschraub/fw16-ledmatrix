@@ -1,0 +1,42 @@
+name: Arch package candidate
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/arch-package.yml'
+      - 'packaging/**'
+      - 'crates/**'
+      - 'apps/desktop/**'
+      - 'Cargo.*'
+      - 'rust-toolchain.toml'
+      - '.node-version'
+      - 'poc/udev/**'
+      - 'LICENSE'
+      - 'docs/INTEGRATIONS.md'
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build and transaction-test in Arch Linux
+        run: |
+          set -euo pipefail
+          git archive HEAD | docker buildx build \
+            -f packaging/arch/ci.Dockerfile \
+            --build-arg NODE_VERSION="$(cat .node-version)" \
+            --build-arg SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" \
+            --build-arg PKGREL="$((1000 + 2 * GITHUB_RUN_NUMBER))" \
+            --output "type=local,dest=$RUNNER_TEMP/tested" -
+          (cd "$RUNNER_TEMP/tested" && sha256sum -c SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fw16-ledmatrix-arch-x86_64-${{ github.sha }}
+          path: ${{ runner.temp }}/tested/
+          if-no-files-found: error
+          compression-level: 0

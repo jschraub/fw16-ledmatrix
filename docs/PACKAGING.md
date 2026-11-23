@@ -26,6 +26,20 @@ skips dependency installation there, and probes the installed binary with
 host libraries and hidden serial devices. This is packaging evidence, not a
 fresh OS install or a real desktop-login qualification.
 
+## CI candidates
+
+The **Arch package candidate** GitHub Actions workflow builds changes on `main`
+and can be run manually. It passes only the tracked commit to an x86-64 Arch
+container, uses the repo's Rust/Node/npm pins and lockfiles, and runs `makepkg`
+as an unprivileged user. Two revisions from the same source exercise the pacman
+upgrade path, not compatibility across different app versions. The newer
+revision is `1000 + 2 × workflow run number`. Successful runs upload only this
+tested package and `SHA256SUMS`, in an artifact named with the commit SHA.
+Unpack the Actions artifact and run `sha256sum -c SHA256SUMS` there before
+installing. This is an unsigned candidate, not a signed pacman repository.
+The Arch base and system libraries are rolling; pinned app toolchains and
+version metadata do not imply byte-identical rebuilds.
+
 **2026-11-23, CachyOS x86-64:** built `0.1.0-1` and `0.1.0-2` from release
 binaries. The scratch-root check passed install, upgrade (`pacman -Qk`: zero
 missing files), desktop-entry validation, installed daemon probe with zero

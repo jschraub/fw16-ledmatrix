@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # Exercise pacman transactions against a scratch root, never the host database.
 set -euo pipefail
+isolated=false
+if [[ ${1:-} == --isolated-container ]]; then
+    # Docker builds have no panel devices and do not grant nested mount privileges.
+    [[ -f /.dockerenv || -f /run/.containerenv || ${container:-} == docker ]] \
+        || { echo 'Expected an isolated package build container' >&2; exit 2; }
+    isolated=true
+    shift
+fi
 if (( $# != 2 )); then
     echo "usage: bash $0 OLD.pkg.tar.zst NEW.pkg.tar.zst" >&2
     exit 2
@@ -34,8 +42,11 @@ desktop-file-validate "$root/usr/share/applications/fw16-ledmatrix.desktop"
 test -f "$root/usr/lib/systemd/user/fw16-ledmatrix.service"
 test -f "$root/usr/lib/udev/rules.d/60-framework-ledmatrix.rules"
 # Smoke-test the installed binary with host libraries; hide the actual panels.
-bwrap --ro-bind / / --dev /dev --tmpfs /sys/class/tty --chdir "$root" \
-    -- "$root/usr/bin/matrix-daemon" --probe | python3 -c \
+probe=("$root/usr/bin/matrix-daemon" --probe)
+if ! "$isolated"; then
+    probe=(bwrap --ro-bind / / --dev /dev --tmpfs /sys/class/tty --chdir "$root" -- "${probe[@]}")
+fi
+"${probe[@]}" | python3 -c \
     'import json,sys; r=json.load(sys.stdin); assert r["os"]=="linux" and r["panel_count"]==0'
 pm -R fw16-ledmatrix
 test ! -e "$root/usr/bin/matrix-daemon"

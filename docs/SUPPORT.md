@@ -39,8 +39,14 @@ storage as not verified. No suspend or module removal was performed.
 At `2f06bf6` the user ran **Capabilities → Probe this machine** in the native
 desktop against the running qualification daemon. The displayed platform,
 two-panel count, and all ten capability states and descriptions matched the CLI
-probe above. This verifies the populated Linux report; the absent-panel and
-probe-error views were not exercised.
+probe above. This verifies the populated Linux report.
+
+At `76b3052` a second native desktop used an isolated endpoint with no daemon.
+After clicking **Probe this machine**, the user confirmed the message
+“Capability probe failed. Check the daemon connection and retry.” The test
+desktop was then closed; the original daemon and desktop remained active.
+This verifies an unreachable daemon, not an absent-panel report from a
+reachable daemon. The absent-panel view remains untested.
 
 Related tickets: #31 (capability evidence), #32 (clock optics/latency),
 #33 (battery/power), #34 (discovery/identification), #35 (persistent assignment),

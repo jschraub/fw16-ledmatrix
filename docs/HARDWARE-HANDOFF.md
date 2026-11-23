@@ -12,8 +12,9 @@ touchpad input. Full-day soak and Windows bay qualification remain pending.
 ## Resume this machine
 
 - At last inspection the rebuilt `fw16-matrix-handoff-daemon.service` was active
-  with both ports open after resume. The existing `fw16-matrix-panel-map-desktop.service`
-  predates the new settings; reopen the rebuilt desktop to edit them.
+  with both ports open after resume. `fw16-matrix-panel-map-desktop.service`
+  was relaunched with the `f912da7` desktop and its native window verified open.
+  The new display-power and curve controls are under **Configuration → Brightness**.
   These are transient **user** units. Closing the window leaves the daemon running.
 - POC `matrixd.service`: stopped, **still enabled**. It may start on a later login.
   Check actual services and serial ownership before launching another daemon.

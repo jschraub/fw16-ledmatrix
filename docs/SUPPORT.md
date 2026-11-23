@@ -302,6 +302,13 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   frame within its observation window. This is a visual pass, not a measurement
   of six-second expiry. Original config contents were restored at revision 10;
   a later subscriber sample showed right brightness 32 and no active preview.
+- Brightness feedback (#27): brightening the screen from 55% to 75% without
+  the idle-dim marker showed a gauge on the right, then the clock returned.
+  Dimming to 35% with the marker set lowered right-panel brightness to 37
+  without displaying a gauge. The observer confirmed both transitions and
+  that the left gauge stayed steady. This tests the marker, not idle detection
+  itself. The screen returned to 55% and the prior settings, including the
+  three-second right-panel volume gauge, were restored at revision 13.
 - After `574f09b`, the observer reported that volume feedback on the physical
   panel was noticeably more responsive than the previous one-to-two-second
   delay. The isolated fixture measured 23–25 ms to the software gauge;

@@ -296,6 +296,12 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   120, 56 and 32 respectively, and left 32 at each sample. These are daemon
   timings, not optical latency. Requested and actual screen brightness returned
   to 55/100; saved revision 6 and its contents were unchanged.
+- Volume feedback (#27, `1b840e5`): the observer confirmed the dim right-panel
+  gauge appeared at brightness 3, its clock returned, and the left gauge stayed
+  unchanged. The subscriber detected the gauge but did not capture a return
+  frame within its observation window. This is a visual pass, not a measurement
+  of six-second expiry. Original config contents were restored at revision 10;
+  a later subscriber sample showed right brightness 32 and no active preview.
 - Right-panel sparse clock: at preview brightness **3** with clock intensity
   **180**, the user found the clock very dim but readable. They observed it
   return to its previous brightness after the ten-second preview. Saved revision

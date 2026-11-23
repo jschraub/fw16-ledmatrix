@@ -22,7 +22,7 @@ touchpad input. Full-day soak and Windows bay qualification remain pending.
 - Private POC service/settings/integration backup:
   `$HOME/.local/share/fw16-matrix-handoff/poc-backup/`. Keep it private; it is not
   a diagnostic attachment. Assistant settings were preserved, not migrated.
-- Isolated configuration: **revision 8**, right clock with empty gauge slot,
+- Isolated configuration: **revision 10** after the #27 volume check, right clock with empty gauge slot,
   left full battery gauge, clock intensity 180, global manual brightness 32,
   sleep disabled, no per-panel overrides, no saved follow-display or lock preset.
   Use Load saved configuration or Cancel

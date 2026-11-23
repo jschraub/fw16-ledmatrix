@@ -45,6 +45,9 @@ pub struct Widget {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PanelLayout {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub feedback: Option<crate::feedback::Feedback>,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -136,6 +139,7 @@ pub fn defaults() -> Vec<PanelLayout> {
     .map(|(name, template)| PanelLayout {
         name: name.into(),
         when_locked: None,
+        feedback: None,
         template,
         slots: default_slots(template),
         binding: None,
@@ -343,6 +347,7 @@ mod tests {
     fn full_gauge_direction_empty_slots_and_truthful_overflow() {
         let mut panel = PanelLayout {
             name: "test".into(),
+            feedback: None,
             when_locked: None,
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),
@@ -407,6 +412,7 @@ mod tests {
     fn battery_threshold_emphasizes_low_values_but_missing_is_not_zero() {
         let mut panel = PanelLayout {
             name: "battery".into(),
+            feedback: None,
             when_locked: None,
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),

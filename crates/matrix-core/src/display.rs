@@ -30,6 +30,9 @@ pub fn valid_id(id: &str) -> bool {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DisplaySources {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub automatic_dim: Option<bool>,
     pub connected: Vec<String>,
     // Only connectors with an explicit non-On power reading. Missing is not off.
     #[serde(default)]

@@ -77,6 +77,12 @@ impl Config {
         let mut names = std::collections::BTreeSet::new();
         let mut bindings = std::collections::BTreeSet::new();
         for (p, panel) in self.panels.iter().enumerate() {
+            if panel.feedback.as_ref().is_some_and(|f| !f.valid()) {
+                errors.push(FieldError {
+                    field: format!("panels.{p}.feedback"),
+                    message: "Feedback duration must be off or 3–15 seconds.".into(),
+                });
+            }
             if panel
                 .brightness_override
                 .as_ref()

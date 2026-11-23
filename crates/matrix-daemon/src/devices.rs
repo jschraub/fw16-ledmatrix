@@ -253,7 +253,7 @@ impl Manager {
         result
     }
 
-    fn route(&'static self, config: matrix_core::config::Config, snapshot: Snapshot) {
+    fn route(&'static self, snapshot: Snapshot) {
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
@@ -270,7 +270,13 @@ impl Manager {
         let Ok(devices) = enumerate() else {
             return; // A failed scan does not establish absence or release quarantine.
         };
-        let routes = resolve(&config, &devices);
+        if snapshot.suspend_epoch != epoch {
+            return;
+        }
+        let routes = resolve_bindings(
+            snapshot.panels.iter().map(|p| (&p.name, &p.binding)),
+            &devices,
+        );
         self.panels.lock().expect("panels").retain(|name, handle| {
             if routes.iter().any(|(_, port)| port == name) {
                 return true;
@@ -286,18 +292,11 @@ impl Manager {
             }
         });
         for (logical, name) in routes {
-            let brightness = matrix_core::brightness::effective(
-                &config.brightness,
-                config
-                    .panels
-                    .iter()
-                    .find(|p| p.name == logical)
-                    .expect("resolved panel"),
-            )
-            .level();
-            let Some(frame) = normal_frame(&name, &config, &snapshot, &devices) else {
+            let Some(output) = snapshot.panels.iter().find(|p| p.name == logical) else {
                 continue;
             };
+            let brightness = output.brightness;
+            let frame = output.frame.clone();
             if !self.jobs.lock().expect("jobs").insert(name.clone()) {
                 continue;
             }
@@ -512,16 +511,20 @@ fn blank() -> Frame {
     }
 }
 fn resolve(config: &matrix_core::config::Config, devices: &[Device]) -> Vec<(String, String)> {
-    config
-        .panels
-        .iter()
-        .filter_map(|panel| {
-            let binding = panel.binding.as_ref()?;
+    resolve_bindings(config.panels.iter().map(|p| (&p.name, &p.binding)), devices)
+}
+fn resolve_bindings<'a>(
+    bindings: impl Iterator<Item = (&'a String, &'a Option<String>)>,
+    devices: &[Device],
+) -> Vec<(String, String)> {
+    bindings
+        .filter_map(|(name, binding)| {
+            let binding = binding.as_ref()?;
             let matching: Vec<_> = devices
                 .iter()
                 .filter(|device| device.location.as_ref() == Some(binding))
                 .collect();
-            (matching.len() == 1).then(|| (panel.name.clone(), matching[0].port.clone()))
+            (matching.len() == 1).then(|| (name.clone(), matching[0].port.clone()))
         })
         .collect()
 }
@@ -553,22 +556,13 @@ fn normal_frame(
         snapshot.session_locked == Some(true),
     ))
 }
-pub async fn route_loop(
-    frames: tokio::sync::watch::Receiver<Snapshot>,
-    config: crate::Configuration,
-) {
+pub async fn route_loop(frames: tokio::sync::watch::Receiver<Snapshot>) {
     let mut timer = tokio::time::interval(Duration::from_secs(2));
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
         timer.tick().await;
         let snapshot = frames.borrow().clone();
-        let config = config.lock().expect("configuration").output();
-        let config = snapshot
-            .display_sources
-            .clone()
-            .unwrap_or_default()
-            .resolve(config);
-        let _ = tokio::task::spawn_blocking(move || manager().route(config, snapshot)).await;
+        let _ = tokio::task::spawn_blocking(move || manager().route(snapshot)).await;
     }
 }
 

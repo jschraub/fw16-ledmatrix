@@ -9,9 +9,10 @@ import { Layouts, DraftPreview } from "./Layouts";
 import { Bindings } from "./Bindings";
 import { BrightnessEditor } from "./BrightnessEditor";
 import { HardwarePreview } from "./HardwarePreview";
+import { FeedbackEditor } from "./FeedbackEditor";
 import { ViewNav } from "./ViewNav";
 
-const tasks = ["Layout", "Brightness", "Assignments", "Preview"] as const;
+const tasks = ["Layout", "Brightness", "Feedback", "Assignments", "Preview"] as const;
 
 export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: string | null; ref?: Ref<{ loadIfNeeded(): void }>; sources?: DisplaySources }) {
   const [task, setTask] = useState<typeof tasks[number]>("Layout");
@@ -66,6 +67,7 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
       <Layouts config={draft} change={setDraft} panelName={panelName} /></div>
       <div hidden={!!panelName}>
       <div hidden={task !== "Brightness"}><BrightnessEditor config={draft} change={setDraft} sources={sources} /></div>
+      <div hidden={task !== "Feedback"}><FeedbackEditor config={draft} change={setDraft} /></div>
       <div hidden={task !== "Assignments"}><Bindings config={draft} change={setDraft} /></div>
       <div hidden={task !== "Preview"}>
       {draft.panels && <DraftPreview config={draft} />}

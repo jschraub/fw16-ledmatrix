@@ -37,6 +37,11 @@ async fn run() -> std::io::Result<()> {
     tokio::spawn(matrix_daemon::suspend::monitor());
     let config = std::sync::Arc::new(std::sync::Mutex::new(Store::load(Store::default_path()?)?));
     let render_config = config.clone();
+    let (audio_enable, enabled) = tokio::sync::watch::channel(false);
+    let (audio_tx, audio_rx) = tokio::sync::watch::channel(None);
+    tokio::spawn(matrix_daemon::audio::poll(enabled, audio_tx));
+    let feedback_start = std::time::Instant::now();
+    let mut feedback = matrix_daemon::feedback::Runtime::default();
     let (display_tx, display_rx) = tokio::sync::watch::channel(None);
     tokio::spawn(matrix_daemon::display::poll(display_tx));
     let (lock_tx, lock_rx) = tokio::sync::watch::channel(None);
@@ -50,10 +55,7 @@ async fn run() -> std::io::Result<()> {
     tokio::spawn(matrix_daemon::feeds::poll(feed_tx));
     let now = chrono::Local::now();
     let (tx, rx) = tokio::sync::watch::channel(snapshot(0, now.hour() as u8, now.minute() as u8));
-    tokio::spawn(matrix_daemon::devices::route_loop(
-        rx.clone(),
-        config.clone(),
-    ));
+    tokio::spawn(matrix_daemon::devices::route_loop(rx.clone()));
     eprintln!("matrix-daemon: simulated 9x34 panel; local clock; local-only control");
     let clock = async move {
         let mut timer = tokio::time::interval(std::time::Duration::from_secs(1));
@@ -113,6 +115,21 @@ async fn run() -> std::io::Result<()> {
                     binding: panel.binding.clone(),
                 })
                 .collect();
+            let needed = config
+                .panels
+                .iter()
+                .any(|p| p.feedback.as_ref().is_some_and(|s| s.volume > 0));
+            audio_enable.send_if_modified(|v| {
+                let changed = *v != needed;
+                *v = needed;
+                changed
+            });
+            feedback.apply(
+                &mut frame,
+                &config,
+                *audio_rx.borrow(),
+                feedback_start.elapsed(),
+            );
             tx.send_replace(frame);
         }
     };

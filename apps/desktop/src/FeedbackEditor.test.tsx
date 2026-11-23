@@ -1,0 +1,27 @@
+import { useState } from "react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, expect, test } from "vitest";
+import type { Config } from "./bindings/Config";
+import { FeedbackEditor } from "./FeedbackEditor";
+import { defaultBrightness } from "./BrightnessEditor";
+
+afterEach(cleanup);
+function Harness() {
+  const [draft, change] = useState<Config>({ schema_version: 2, clock_intensity: 180,
+    brightness: defaultBrightness, panels: ["left", "right"].map(name => ({
+      name, template: "full_gauge", slots: [null], binding: null, brightness_override: null,
+    })) });
+  return <FeedbackEditor config={draft} change={change} />;
+}
+test("each panel can opt into individual effects without enabling the other panel", () => {
+  render(<Harness />);
+  const left = screen.getByLabelText("Volume and mute on left");
+  const right = screen.getByLabelText("Volume and mute on right");
+  expect(left).toHaveValue("0");
+  fireEvent.change(right, { target: { value: "6" } });
+  fireEvent.click(screen.getByLabelText("Pulse whole left panel while charging"));
+  expect(right).toHaveValue("6");
+  expect(left).toHaveValue("0");
+  expect(screen.getByLabelText("Pulse whole right panel while charging")).not.toBeChecked();
+  expect(screen.getByLabelText("Brightness change on right")).toHaveValue("0");
+});

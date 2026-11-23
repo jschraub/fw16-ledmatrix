@@ -5,9 +5,11 @@ use matrix_client::{
 use std::sync::Arc;
 use std::{io, time::Duration};
 use tokio::sync::{Semaphore, watch};
+pub mod audio;
 pub mod config;
 pub mod devices;
 pub mod display;
+pub mod feedback;
 pub mod feeds;
 mod firmware;
 pub mod power;

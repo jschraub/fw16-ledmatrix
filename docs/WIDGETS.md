@@ -18,6 +18,33 @@ guarantee. Real cancellation/unplug/priority observations require panels.
 
 ## Brightness
 
+### Temporary feedback (Linux)
+
+In **Configuration → Feedback**, choose Off or 3–15 seconds for each panel's
+volume, brightness and AC-change gauges. All effects default off. An AC edge
+shows battery percentage if available; a mute shows zero. Brightness uses
+the selected screen percentage when following a display, otherwise the panel's
+manual level as a percentage of 255. Known automatic dimming is suppressed
+when the existing `$XDG_RUNTIME_DIR/matrixd/brightness-auto` marker is fresh
+(four seconds, to allow for polling); without such a signal the adapter cannot
+distinguish an unmarked automatic change from a user adjustment.
+
+One gauge replaces another on the same panel; it expires from the latest
+observed change. Simultaneous samples use volume before brightness before AC.
+The optional eight-second charging pulse changes **whole-panel brightness**,
+never outside its configured limits. Hardware previews, identification, sleep
+and locked layouts take priority. Expiry returns to current ambient output.
+Physical presentation includes the one-second render and two-second router
+cadences and serial write time; duration is a desired-output timer.
+
+With volume enabled, the daemon polls the default sink's actual volume and mute
+using bounded `pactl` calls. Startup and recovery establish a baseline. Repeated
+identical readings (including notification sounds with unchanged level) do not
+trigger a gauge. Changes between samples can be coalesced. The other sources
+keep working if audio is missing.
+
+### Brightness and session policies
+
 **When locked:** Select a panel on Overview and choose **When locked** to
 keep its normal layout (default), show only the clock, show battery as a full
 gauge, or render a blank frame. Apply saves the setting independently for

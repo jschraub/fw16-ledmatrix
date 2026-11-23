@@ -8,7 +8,20 @@ fn scan(drm: &std::path::Path, lights: &std::path::Path) -> DisplaySources {
     use matrix_core::display::valid_id;
     use std::fs;
     let entries = |dir: &std::path::Path| fs::read_dir(dir).into_iter().flatten().flatten();
-    let mut result = DisplaySources::default();
+    let automatic_dim = std::env::var_os("XDG_RUNTIME_DIR")
+        .and_then(|dir| {
+            fs::metadata(std::path::PathBuf::from(dir).join("matrixd/brightness-auto"))
+                .ok()?
+                .modified()
+                .ok()?
+                .elapsed()
+                .ok()
+        })
+        .map(|age| age <= std::time::Duration::from_secs(4));
+    let mut result = DisplaySources {
+        automatic_dim,
+        ..Default::default()
+    };
     for entry in entries(drm) {
         let name = entry.file_name();
         let Some((card, connector)) = name.to_str().and_then(|n| n.split_once('-')) else {

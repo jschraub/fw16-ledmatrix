@@ -93,7 +93,9 @@ daemon was started with the isolated revision-4 config and was the only visible
 owner of both ports. Both reported open and firmware 0.20. One IPC identification
 targeting the saved left binding completed in 3.147 seconds with restoration
 reported and both ports still open. The daemon journal recorded no serial
-failure. No optical check was made. This attempt did not reproduce the original
+failure. The user subsequently confirmed the left panel showed the battery
+gauge and the right panel showed the clock. This confirms the visible roles
+after identification; it does not measure restoration latency. This attempt did not reproduce the original
 hardware failure or establish its cause. The instrumented daemon was left active.
 
 ## Local validation

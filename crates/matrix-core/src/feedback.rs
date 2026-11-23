@@ -38,6 +38,9 @@ fn changed<T: Eq>(previous: Option<T>, next: Option<T>) -> Option<T> {
     next.filter(|v| previous.as_ref().is_some_and(|old| old != v))
 }
 impl Slot {
+    pub fn rebaseline_brightness(&mut self, level: Option<u8>) {
+        self.previous.brightness = level;
+    }
     pub fn tick(&mut self, now: Duration, settings: &Feedback, next: Signals) -> Option<u8> {
         let old = std::mem::replace(&mut self.previous, next);
         // Stable tie-break for changes first observed in the same render tick.

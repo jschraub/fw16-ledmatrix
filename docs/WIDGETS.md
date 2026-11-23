@@ -22,9 +22,11 @@ guarantee. Real cancellation/unplug/priority observations require panels.
 
 In **Configuration → Feedback**, choose Off or 3–15 seconds for each panel's
 volume, brightness and AC-change gauges. All effects default off. An AC edge
-shows battery percentage if available; a mute shows zero. Brightness uses
-the selected screen percentage when following a display, otherwise the panel's
-manual level as a percentage of 255. Known automatic dimming is suppressed
+shows battery percentage if available; a mute shows zero. The brightness gauge
+shows screen percentage independently of LED brightness. In manual mode it
+uses the sole backlight; if several exist it does not guess. In follow mode it
+uses the explicitly selected pair, including on panels with manual overrides.
+Known automatic dimming is suppressed
 when the existing `$XDG_RUNTIME_DIR/matrixd/brightness-auto` marker is fresh
 (four seconds, to allow for polling); without such a signal the adapter cannot
 distinguish an unmarked automatic change from a user adjustment.

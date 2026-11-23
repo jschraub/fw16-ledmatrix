@@ -36,6 +36,12 @@ manager. Both credential presence checks reported available (existence only).
 The probe reported bay identity, lock/display-off/suspend events and snapshot
 storage as not verified. No suspend or module removal was performed.
 
+At `2f06bf6` the user ran **Capabilities → Probe this machine** in the native
+desktop against the running qualification daemon. The displayed platform,
+two-panel count, and all ten capability states and descriptions matched the CLI
+probe above. This verifies the populated Linux report; the absent-panel and
+probe-error views were not exercised.
+
 Related tickets: #31 (capability evidence), #32 (clock optics/latency),
 #33 (battery/power), #34 (discovery/identification), #35 (persistent assignment),
 #36 (recovery), #37 (brightness/sleep), #38 (temporary previews).

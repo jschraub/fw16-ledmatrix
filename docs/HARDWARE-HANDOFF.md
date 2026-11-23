@@ -1,9 +1,9 @@
 # Hardware-session handoff
 
-Updated **2026-11-23** after the attended #26 Linux lifecycle checks.
+Updated **2026-11-23** after switching the existing account to the installed Linux daemon.
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 
-**#26 is closed for Linux v1. Next: #27 feedback overlays.** Windows
+**Current checkpoint: #28 installed graphical-login qualification.** Windows
 development (#42) and support qualification (#43) are post-v1. Linux optical
 lock, display-off and an attended system suspend/resume cycle passed. Details are in
 [SUPPORT.md](SUPPORT.md#initial-cachyos-hardware-session--2026-11-23).
@@ -12,48 +12,20 @@ touchpad input. Full-day soak and Windows bay qualification remain pending.
 
 ## Resume this machine
 
-- At last inspection the rebuilt `fw16-matrix-handoff-daemon.service` was active
-  with both ports open after resume. `fw16-matrix-panel-map-desktop.service`
-  was relaunched with the `f912da7` desktop and its native window verified open.
-  The new display-power and curve controls are under **Configuration → Brightness**.
-  These are transient **user** units. Closing the window leaves the daemon running.
-- POC `matrixd.service`: stopped, **still enabled**. It may start on a later login.
-  Check actual services and serial ownership before launching another daemon.
-- Private POC service/settings/integration backup:
-  `$HOME/.local/share/fw16-matrix-handoff/poc-backup/`. Keep it private; it is not
-  a diagnostic attachment. Assistant settings were preserved, not migrated.
-- Isolated configuration: **revision 18** after the #27 AC-change check, right clock with three-second volume and brightness feedback and empty gauge slot,
-  left full battery gauge, clock intensity 180, global manual brightness 32,
-  sleep disabled, no per-panel overrides, no saved follow-display or lock preset.
-  Use Load saved configuration or Cancel
-  draft to discard any unsaved preview draft instead of applying it.
-
-Inspect the runtime state first:
+- `fw16-ledmatrix.service` is the **enabled, active systemd user service** from
+  package `0.1.0-3`. The packaged daemon served revision 26, identical to the
+  saved handoff config at cutover, and alone held both firmware-0.20 ports.
+- The legacy `matrixd.service` is disabled and inactive. The transient handoff
+  daemon was stopped before starting the installed service. Private POC backups
+  and the handoff config remain in `$HOME/.local/share/fw16-matrix-handoff/`.
+- Launch **Framework LED Matrix** from the desktop menu or `/usr/bin/matrix-desktop`
+  without handoff environment overrides. The installed config is now
+  `~/.config/fw16-matrix/config.json`; the endpoint is `$XDG_RUNTIME_DIR/fw16-matrix/daemon.sock`.
+  Do not launch a second daemon with the old physical bindings.
 
 ```sh
-git status --short --branch
-git rev-parse HEAD
-systemctl --user show matrixd.service fw16-matrix-handoff-daemon.service fw16-matrix-panel-map-desktop.service fw16-matrix-handoff-desktop.service --property=Id,ActiveState,MainPID
+systemctl --user show matrixd.service fw16-ledmatrix.service fw16-matrix-handoff-daemon.service --property=Id,ActiveState,UnitFileState,MainPID
 fuser -v /dev/ttyACM{0,1}
-```
-
-Both Rust processes use the same isolated environment:
-
-```sh
-export HANDOFF_ROOT="$HOME/.local/share/fw16-matrix-handoff"
-export MATRIX_CONFIG="$HANDOFF_ROOT/config.json"
-export MATRIX_ENDPOINT="$HANDOFF_ROOT/ipc/daemon.sock"
-export MATRIX_FEEDS="$HANDOFF_ROOT/feeds"
-```
-
-Transient units are not installed login startup; inspect again after logout or
-reboot. If they are gone, first confirm the POC is stopped, then use the normal
-launch commands below with this environment. The saved configuration already
-has physical assignments, so restarting this daemon can immediately drive both
-panels. To stop the qualification processes explicitly:
-
-```sh
-systemctl --user stop fw16-matrix-panel-map-desktop.service fw16-matrix-handoff-daemon.service
 ```
 
 Before restoring the POC, review its unit: the installed WorkingDirectory points
@@ -62,12 +34,10 @@ Rollback was not exercised; preserve settings and verify a single USB writer.
 
 ## Immediate test and session results
 
-1. Recheck the units and ownership above. If the daemon is still active, only
-   relaunch the desktop (preserve any draft); use `target/debug/matrix-desktop`
-   with the isolated environment. No persistent session policies are enabled.
-2. Continue Linux development with #27, or the independent #22 lane. Windows
-   PnP identity and display/session qualification moved to #42/#43. Physical
-   module removal on this laptop remains paused.
+1. At the owner's next normal graphical login, verify the packaged daemon starts
+   without opening the desktop and owns both panels; confirm left battery/right
+   clock visually. Manual activation at cutover is not login evidence.
+2. Continue #28 on this existing account; no additional user account requested.
 
 | Area | Evidence from this session |
 | --- | --- |

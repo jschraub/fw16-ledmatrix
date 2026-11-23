@@ -1,5 +1,5 @@
 # Build from a git archive (no working tree, credentials, or host devices).
-ARG NODE_VERSION
+ARG NODE_VERSION=24.15.0
 FROM node:${NODE_VERSION}-bookworm-slim AS node
 FROM archlinux:base-devel AS build
 RUN pacman -Syu --noconfirm --needed git python rustup webkit2gtk-4.1 gtk3 \
@@ -13,7 +13,9 @@ WORKDIR /home/builder/source
 COPY --chown=builder:builder . .
 ENV PATH=/home/builder/.local/bin:/home/builder/.cargo/bin:/usr/local/bin:/usr/bin
 RUN rustup show active-toolchain && test "$(node -p process.versions.node)" = "$(cat .node-version)" \
-    && cd apps/desktop && npm install --global --prefix ~/.local "$(node -p 'require("./package.json").packageManager')" \
+    && cd apps/desktop && /usr/local/bin/npm install --global --prefix /home/builder/.local "$(node -p 'require("./package.json").packageManager')"
+# Fresh shell: resolve npm from the new prefix, not the bootstrap shell's cache.
+RUN cd apps/desktop && test "$(command -v npm)" = /home/builder/.local/bin/npm \
     && test "npm@$(npm --version)" = "$(node -p 'require("./package.json").packageManager')" && npm ci
 ARG SOURCE_DATE_EPOCH
 ARG PKGREL

@@ -309,6 +309,10 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   that the left gauge stayed steady. This tests the marker, not idle detection
   itself. The screen returned to 55% and the prior settings, including the
   three-second right-panel volume gauge, were restored at revision 13.
+- Manual-mode brightness feedback: with the right panel configured for a
+  three-second gauge, the observer confirmed improved physical responsiveness
+  after `d1596cf`. The isolated backlight-to-subscriber measurement fell from
+  2.00 s to 76–78 ms; physical key-to-LED latency was not timed.
 - After `574f09b`, the observer reported that volume feedback on the physical
   panel was noticeably more responsive than the previous one-to-two-second
   delay. The isolated fixture measured 23–25 ms to the software gauge;

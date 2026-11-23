@@ -33,10 +33,15 @@ async fn daemon_process_survives_close_reopen_and_keeps_ticking() {
         std::process::id(),
         directory.path().file_name().unwrap().to_string_lossy()
     );
+    // This lifecycle test expects only a clock, independent of host battery data.
+    let mut saved = matrix_core::config::SavedConfig::default();
+    saved.config.panels[0].slots[1] = None;
+    let config_path = directory.path().join("config.json");
+    std::fs::write(&config_path, serde_json::to_vec(&saved).unwrap()).unwrap();
     let mut daemon = Daemon(
         Command::new(env!("CARGO_BIN_EXE_matrix-daemon"))
             .env("MATRIX_ENDPOINT", &endpoint)
-            .env("MATRIX_CONFIG", directory.path().join("config.json"))
+            .env("MATRIX_CONFIG", &config_path)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())

@@ -41,6 +41,13 @@ backlight brightness was 55/100 in all three samples. A separate user timer
 was armed for backup wake before blanking. This verifies detection of a real
 display-power transition on this setup, not panel sleep or lock/suspend policy.
 
+**Live session lock (#26, `7ed7f14`):** After `loginctl lock-session` on the
+active Wayland session, `hyprctl locked` first reported true at +0.32 s and
+false at +6.40 s. In the samples, logind's `LockedHint` stayed clear, connector
+DPMS stayed On and `PreparingForSleep` stayed false. A clear logind hint cannot
+be used to infer an unlocked compositor here. The follow-up Linux probe reports
+the Hyprland lock sample separately; it does not change panel output.
+
 **Linux inventory follow-up (#31, `74a7a0c`, 2026-11-23).** The interactive
 session ran CachyOS rolling, kernel `7.3.5-2-cachyos` (x86_64), and Hyprland
 `v0.57.2` on Wayland. Hyprland reported one display: internal `eDP-2`, BOE

@@ -70,8 +70,8 @@ async fn sample(program: &str, args: &[&str]) -> Option<String> {
     .flatten()
 }
 
-pub(super) async fn report() -> Vec<Capability> {
-    let (display, lock, sleep) = tokio::join!(
+pub(super) async fn report(hyprland: bool) -> Vec<Capability> {
+    let (display, lock, sleep, compositor) = tokio::join!(
         tokio::task::spawn_blocking(|| displays(Path::new("/sys/class/drm"))),
         sample(
             "loginctl",
@@ -88,6 +88,13 @@ pub(super) async fn report() -> Vec<Capability> {
                 "PreparingForSleep"
             ]
         ),
+        async {
+            if hyprland {
+                sample("hyprctl", &["locked"]).await
+            } else {
+                None
+            }
+        },
     );
     let mut rows = match display {
         Ok(Ok(rows)) if !rows.is_empty() => rows,
@@ -102,6 +109,25 @@ pub(super) async fn report() -> Vec<Capability> {
             "Could not inspect DRM connector state.",
         )],
     };
+    if hyprland {
+        rows.push(match compositor.as_deref().map(str::trim) {
+            Some("true") => item(
+                "compositor_lock",
+                State::Available,
+                "Hyprland reports locked.",
+            ),
+            Some("false") => item(
+                "compositor_lock",
+                State::Available,
+                "Hyprland reports unlocked.",
+            ),
+            _ => item(
+                "compositor_lock",
+                State::NotVerified,
+                "No readable Hyprland lock state.",
+            ),
+        });
+    }
     rows.push(match lock.as_deref().map(str::trim) {
         Some("yes") => item(
             "session_lock_hint",

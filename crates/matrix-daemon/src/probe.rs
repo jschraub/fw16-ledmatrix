@@ -131,7 +131,7 @@ pub async fn report() -> CapabilityReport {
             },
             "User systemd manager reachability, not service installation.",
         ));
-        capabilities.extend(lifecycle::report().await);
+        capabilities.extend(lifecycle::report(desktop == "hyprland").await);
     }
     #[cfg(windows)]
     {

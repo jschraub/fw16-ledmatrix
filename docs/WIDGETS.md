@@ -21,7 +21,9 @@ guarantee. Real cancellation/unplug/priority observations require panels.
 ### Temporary feedback (Linux)
 
 In **Configuration → Feedback**, choose Off or 3–15 seconds for each panel's
-volume, brightness and AC-change gauges. All effects default off. An AC edge
+volume, brightness and AC-change gauges. Each enabled gauge has its own centered
+bar width: 1, 3, 5 (default), 7 or 9 LED columns. Width does not change the
+bottom-to-top percentage scale. All effects default off. An AC edge
 shows battery percentage if available; a mute shows zero. The brightness gauge
 shows screen percentage independently of LED brightness. In manual mode it
 uses the sole backlight; if several exist it does not guess. In follow mode it

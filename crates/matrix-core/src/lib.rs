@@ -1,5 +1,6 @@
 //! Deterministic Framework-sized rendering. No clock, OS, or device I/O.
 pub mod assistant;
+pub mod bar_width;
 pub mod brightness;
 pub mod config;
 pub mod display;

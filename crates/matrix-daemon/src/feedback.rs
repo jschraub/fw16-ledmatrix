@@ -68,8 +68,8 @@ impl Runtime {
                 ac: power.and_then(|p| p.ac),
                 battery: power.and_then(|p| p.percent),
             };
-            if let Some(level) = entry.2.tick(now, settings, signals) {
-                out.frame = gauge(level);
+            if let Some((level, width)) = entry.2.tick(now, settings, signals) {
+                out.frame = gauge(level, width);
             }
             if settings.charging && power.and_then(|p| p.charging) == Some(true) {
                 out.brightness = settings.pulse.unwrap_or_default().level(
@@ -123,8 +123,8 @@ mod tests {
             s.panels.pop().unwrap().frame
         };
         assert_eq!(tick(0, "screen", 55, false), ambient);
-        assert_eq!(tick(1, "screen", 75, false), gauge(75));
-        assert_eq!(tick(3, "screen", 75, false), gauge(75));
+        assert_eq!(tick(1, "screen", 75, false), gauge(75, Default::default()));
+        assert_eq!(tick(3, "screen", 75, false), gauge(75, Default::default()));
         assert_eq!(tick(4, "screen", 75, false), ambient);
         assert_eq!(tick(5, "screen", 35, true), ambient);
         assert_eq!(tick(6, "replacement", 60, false), ambient);

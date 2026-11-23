@@ -46,7 +46,7 @@ def run(root):
                 (supply / "AC/online").write_text(str(int(online)))
                 events.write("KERNEL[1.0] change /devices/fixture/AC (power_supply)\n")
                 events.flush()
-                until(lambda power, px: power["ac"] is online and px == [0]*153 + [180]*153)
+                until(lambda power, px: power["ac"] is online and px == [0]*153 + ([0]*2+[180]*5+[0]*2)*17)
                 elapsed = time.monotonic()-start
                 print(f"AC {'connected' if online else 'disconnected'} to gauge: {elapsed:.3f}s", flush=True)
                 assert elapsed < .4, "AC feedback waited for a periodic tick"

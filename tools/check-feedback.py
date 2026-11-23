@@ -56,7 +56,7 @@ esac
             state.write_text(f"{value}\n")
             events.write("Event 'change' on sink #1\n")
             events.flush()
-            expect(None, count=rows*9)
+            expect(None, count=rows*5)
             elapsed = time.monotonic() - start
             print(f"Volume {value}% to subscriber gauge: {elapsed:.3f}s", flush=True)
             assert elapsed < .4, "volume feedback waited for an ambient render tick"
@@ -69,7 +69,7 @@ esac
         time.sleep(2)
         expect(111)  # recovery is a baseline, not a volume edge
         state.write_text("100\n")
-        expect(None, count=34*9)
+        expect(None, count=34*5)
         with ThreadPoolExecutor() as pool:
             lease = pool.submit(req, "begin_preview", owner="fixture", config=cfg, seconds=5)
             expect(111, preview=True)

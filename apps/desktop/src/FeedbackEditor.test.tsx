@@ -33,9 +33,15 @@ test("each panel can opt into individual effects without enabling the other pane
   const right = screen.getByLabelText("Volume and mute on right");
   expect(left).toHaveValue("0");
   fireEvent.change(right, { target: { value: "6" } });
+  const width = screen.getByLabelText("Volume and mute bar width on right");
+  expect(width).toHaveValue("5");
+  fireEvent.change(width, {target:{value:"7"}});
+  fireEvent.change(screen.getByLabelText("Brightness change on right"), {target:{value:"3"}});
+  expect(screen.getByLabelText("Brightness change bar width on right")).toHaveValue("5");
+  expect(width).toHaveValue("7");
   fireEvent.click(screen.getByLabelText("Pulse whole left panel while charging"));
   expect(right).toHaveValue("6");
   expect(left).toHaveValue("0");
   expect(screen.getByLabelText("Pulse whole right panel while charging")).not.toBeChecked();
-  expect(screen.getByLabelText("Brightness change on right")).toHaveValue("0");
+  expect(screen.getByLabelText("Brightness change on left")).toHaveValue("0");
 });

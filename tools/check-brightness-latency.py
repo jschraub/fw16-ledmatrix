@@ -41,7 +41,7 @@ def run(root):
                 while time.monotonic() - start < 5:
                     _, right = frame()
                     assert right["brightness"] == 32
-                    if right["frame"]["pixels"] == [0]*((34-rows)*9) + [180]*(rows*9):
+                    if right["frame"]["pixels"] == [0]*((34-rows)*9) + ([0]*2+[180]*5+[0]*2)*rows:
                         break
                 else:
                     raise AssertionError("No gauge")

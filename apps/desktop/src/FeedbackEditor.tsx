@@ -2,7 +2,7 @@ import type { Feedback } from "./bindings/Feedback";
 import type { Config } from "./bindings/Config";
 import type { Pulse } from "./bindings/Pulse";
 
-const defaults: Feedback = { volume: 0, brightness: 0, ac: 0, charging: false };
+const defaults: Feedback = { volume: 0, brightness: 0, ac: 0, volume_width: 5, brightness_width: 5, ac_width: 5, charging: false };
 const gauges = { volume: "Volume and mute", brightness: "Brightness change", ac: "Battery level on AC change" };
 
 export function FeedbackEditor({ config, change }: { config: Config; change: (c: Config) => void }) {
@@ -14,10 +14,13 @@ export function FeedbackEditor({ config, change }: { config: Config; change: (c:
       const set = (patch: Partial<Feedback>) => change({ ...config, panels: config.panels.map((p,n) => n === i ? { ...p, feedback: { ...settings, ...patch } } : p) });
       return <fieldset key={panel.name}><legend>{panel.name} panel</legend>
         {(Object.keys(gauges) as (keyof typeof gauges)[]).map(k =>
-          <label key={k}>{gauges[k]} on {panel.name} <select value={settings[k]} onChange={e => set({ [k]: Number(e.target.value) })}>
+          <div key={k}><label>{gauges[k]} on {panel.name} <select value={settings[k]} onChange={e => set({ [k]: Number(e.target.value) })}>
             <option value={0}>Off</option>
             {Array.from({length:13},(_,i)=>i+3).map(n => <option key={n} value={n}>{n} seconds</option>)}
-          </select></label>)}
+          </select></label>
+          {settings[k] > 0 && <label>{gauges[k]} bar width on {panel.name} <select value={settings[`${k}_width`] ?? 5} onChange={e => set({ [`${k}_width`]: Number(e.target.value) })}>
+            {[1, 3, 5, 7, 9].map(width => <option key={width} value={width}>{width} {width === 1 ? "column" : "columns"}</option>)}
+          </select></label>}</div>)}
         <label><input type="checkbox" checked={settings.charging} onChange={e => set({ charging: e.target.checked })} />
           Pulse whole {panel.name} panel while charging</label>
         {settings.charging && <>

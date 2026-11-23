@@ -1,17 +1,113 @@
-# Handoff to a panel-equipped machine
+# Hardware-session handoff
 
-Status checked **2026-11-23**, against `main` at `edbeb99`.
+Updated **2026-11-23** after the first CachyOS/Hyprland hardware session, begun
+on `main` at `dc59d07`. The commits accompanying this update contain the local
+Clippy, lifecycle-test and firmware-handshake fixes described below.
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 
-Start with the CI blocker below, then discovery and identification on one panel.
-Do not start with the full-day soak or assume Windows bay assignment works.
+**Resume with the serial-failure investigation below.** Basic one/two-panel
+checks have already been exercised; detailed observations are in
+[SUPPORT.md](SUPPORT.md#initial-cachyos-hardware-session--2026-11-23).
+Physical module-removal testing is paused because it interrupted keyboard and
+touchpad input. Full-day soak and Windows bay qualification remain pending.
+
+## Resume this machine
+
+At pause, both panels showed their saved roles and laptop input worked:
+
+- `fw16-matrix-handoff-daemon.service` and
+  `fw16-matrix-handoff-desktop.service`: active transient **user** units running
+  the checkout's debug binaries. Closing the window leaves the daemon running.
+- POC `matrixd.service`: stopped, **still enabled**. It may start on a later login.
+  Check actual services and serial ownership before launching another daemon.
+- Private POC service/settings/integration backup:
+  `$HOME/.local/share/fw16-matrix-handoff/poc-backup/`. Keep it private; it is not
+  a diagnostic attachment. Assistant settings were preserved, not migrated.
+- Isolated configuration: **revision 4**, right clock with empty gauge slot,
+  left full battery gauge, clock intensity 180, global manual brightness 32,
+  sleep disabled, no per-panel overrides. Use Load saved configuration or Cancel
+  draft to discard any unsaved preview draft instead of applying it.
+
+Inspect the runtime state first:
+
+```sh
+git status --short --branch
+git rev-parse HEAD
+systemctl --user show matrixd.service fw16-matrix-handoff-daemon.service fw16-matrix-handoff-desktop.service --property=Id,ActiveState,MainPID
+```
+
+Both Rust processes use the same isolated environment:
+
+```sh
+export HANDOFF_ROOT="$HOME/.local/share/fw16-matrix-handoff"
+export MATRIX_CONFIG="$HANDOFF_ROOT/config.json"
+export MATRIX_ENDPOINT="$HANDOFF_ROOT/ipc/daemon.sock"
+export MATRIX_FEEDS="$HANDOFF_ROOT/feeds"
+```
+
+Transient units are not installed login startup; inspect again after logout or
+reboot. If they are gone, first confirm the POC is stopped, then use the normal
+launch commands below with this environment. The saved configuration already
+has physical assignments, so restarting this daemon can immediately drive both
+panels. To stop the qualification processes explicitly:
+
+```sh
+systemctl --user stop fw16-matrix-handoff-desktop.service fw16-matrix-handoff-daemon.service
+```
+
+Before restoring the POC, review its unit: the installed WorkingDirectory points
+to the repository root, while preserved Python sources now live under `poc/`.
+Rollback was not exercised; preserve settings and verify a single USB writer.
+
+## Next: capture the unresolved serial failure (#34 / #36)
+
+1. Read the failure sequence and successful checks in SUPPORT.md. Both panels
+   reported firmware 0.20 and were visually identified. Initial attempts showed
+   stale POC content instead of an outline, then reconnecting/write-quarantine
+   status. No failing per-command trace has been captured.
+2. Build a controlled **software-only** reproduction and capture which serial
+   operation fails, its error kind and elapsed time. Successful traces alone do
+   not explain the failures. Temporary stage logging and probe scripts from this
+   session were removed. The `diagnosing-bugs` skill fits this work.
+3. Compare Rust and POC at the serial boundary. Rust's 250 ms timeout applies to
+   writes as well as reads; POC writes block. This is a lead, not a confirmed
+   cause or justification for simply increasing the timeout.
+4. Preserve partial-write quarantine. Restarting the daemon clears its in-memory
+   state but does not prove the firmware parser is reset. The right panel
+   succeeded on a retry after a daemon restart **without** physical reconnection;
+   the left succeeded after an explicit five-second disconnect/reconnect. Neither
+   result establishes automatic recovery reliability.
+5. Keep both modules installed for now. During a later removal attempt, keyboard
+   and touchpad stopped working; reconnecting the left module restored input and
+   both displays. Establish a supported removal procedure and independent input
+   before resuming physical-removal tests. The mechanism is still unknown.
+
+The handshake now allows three unanswered version queries with two-second reply
+windows and 300 ms gaps, retaining partial replies within each window. Six new
+regression tests cover missing/fragmented replies and bounded failure behavior.
+**This did not eliminate the observed write failure.** Limits are documented in
+WIDGETS.md. Keep #34/#36 and their parent specs open.
+
+## Firmware release check
+
+Checked Framework's official repository on **2026-11-23**: the latest published
+LED Matrix firmware is [v0.2.0, released 2023-12-06](https://github.com/FrameworkComputer/inputmodule-rs/releases/tag/v0.2.0).
+Both panels' **0.20** readings correspond to v0.2.0: the USB version encoding
+packs minor and patch digits together, and the current app displays those digits
+without a separating dot. This does not fingerprint the installed binary.
+
+The [development branch has newer source changes](https://github.com/FrameworkComputer/inputmodule-rs/compare/v0.2.0...main),
+but no newer published firmware release was found. No firmware was flashed.
+Keep the current firmware for reproducible host-side diagnosis; a development
+build is not an established fix for these failures.
 
 ## Current state and authoritative references
 
 Software slices #9–#21 and #23–#25 are closed with individual commits and
 validation records. Their closure records software delivery, **not physical
-qualification**. No panels were connected on the development machine, and native
-window interaction was unavailable there.
+qualification**. The original development machine lacked panels and native-window
+interaction; this session added limited CachyOS/Hyprland hardware evidence in
+SUPPORT.md, not full platform qualification.
 
 Implemented: independent Rust daemon and React/Tauri UI, private local IPC,
 durable configuration with conflict handling, guided one/two-panel layouts,
@@ -43,29 +139,39 @@ can be closed merely by connecting hardware.
 - [`poc/`](../poc/): preserved Python reference, tests, installer and hardware tools.
   Keep it intact for comparison and rollback.
 
-## First blocker: CI is red
+## Validation and CI checkpoint
 
-The previous handoff said the rerun was pending. It has completed:
-[run 40831022539](https://github.com/jschraub/fw16-ledmatrix/actions/runs/40831022539)
-failed Clippy on **both Linux and Windows**.
+The baseline [run 45141501943](https://github.com/jschraub/fw16-ledmatrix/actions/runs/45141501943)
+for `dc59d07` failed Clippy on Linux and Windows. This session fixed
+`clippy::nonminimal_bool` in `matrix-claude` using `is_none_or`, without suppressing
+the lint. The lifecycle test also now explicitly saves a clock-only layout,
+instead of assuming the host has no battery.
 
-The recorded diagnostic is `clippy::nonminimal_bool` in
-`crates/matrix-claude/src/main.rs:15`:
+Local validation passed **65 Rust tests**, **13 OpenCode producer tests**,
+**23 UI tests**, formatting, workspace/all-target Clippy, generated-contract
+comparison, frontend build and native Tauri debug no-bundle build. Rust was
+**1.94.0**, Node **24.15.0**, npm **11.16.0**. These are separate from physical
+observations in SUPPORT.md. Check the new pushed revision's Linux/Windows CI;
+the failed baseline does not describe the fixed code, and local success is not
+proof of remote CI success.
 
-```rust
-if !hook && !args.first().is_some_and(|arg| arg == "statusline") {
+The machine's system Rust/Node are newer than the pins. This session used an
+isolated rustup under `/tmp/opencode`:
+
+```sh
+env PATH="/tmp/opencode/cargo/bin:$PATH" RUSTUP_HOME=/tmp/opencode/rustup cargo test --locked
+npx --yes --package=node@24.15.0 --package=npm@11.16.0 --call 'npm test'
 ```
 
-Clippy recommends `args.first().is_none_or(|arg| arg != "statusline")` for the
-second expression. Fix and validate with the pinned Rust **1.94.0** toolchain,
-then check a new Linux/Windows CI run. Do not suppress the lint or describe the
-current branch as green. This document does not change application code.
+Run the npm command in the relevant package directory. Temporary toolchains may
+be cleared; reinstall the pinned prerequisites when needed. OpenCode integration
+dependency installation reported 24 moderate vulnerabilities; no dependency
+upgrade was attempted.
 
-Previous local validation passed 59 Rust tests, 13 OpenCode producer tests,
-23 UI tests and the frontend build. The earlier local Clippy success does not
-override the recorded CI failure. Re-run validation on the destination machine.
+## Fresh-machine checkout and first launch
 
-## Safe checkout and first launch
+Use this section for a fresh environment. On the current laptop, begin with
+the resume checkpoint above so existing bindings and USB ownership are understood.
 
 1. Clone/pull `main`, inspect `git status`, and note the exact commit:
 
@@ -149,7 +255,11 @@ override the recorded CI failure. Re-run validation on the destination machine.
    The daemon's startup log still says “simulated”; that string does not establish
    whether assigned physical output is active. Inspect Devices and bindings.
 
-## First hardware session
+## Fresh-machine hardware sequence
+
+This is a general sequence, not the current session's completion checklist.
+Consult SUPPORT.md for checks already exercised and remaining acceptance gaps.
+On this laptop, physical module-removal checks remain paused as described above.
 
 - [ ] Begin with **one panel**. In Devices, discover it and record port/location.
 - [ ] Explicitly identify it. Check firmware, outline orientation and timeout.
@@ -173,10 +283,13 @@ the native PnP location adapter in #35 using actual device properties. COM order
 and duplicate USB serial numbers are not substitutes for bay identity.
 
 **Recovery limit:** a write failure quarantines the connection because the
-firmware parser can be inside a partial payload. Disconnect the module for more
-than one two-second discovery interval before retrying. Rapid resume/re-enumeration
-is not proven safe. Open failures retry no sooner than five seconds; static
-frames receive a 25-second keepalive. Investigate deviations under #36.
+firmware parser can be inside a partial payload. The current retry path requires
+the module to be absent for more than one two-second discovery interval; that
+implementation requirement is not a supported physical-removal procedure for
+this laptop. Keep removal paused until the input-loss blocker is addressed.
+Rapid resume/re-enumeration is not proven safe. Open failures retry no sooner
+than five seconds; static frames receive a 25-second keepalive. Investigate
+deviations under #36.
 
 ## Hardware and interactive qualification tickets
 
@@ -222,7 +335,7 @@ qualification or software work remains.
 
 | Area | Files |
 | --- | --- |
-| USB discovery, stable identity, serial lifecycle, priorities | `crates/matrix-daemon/src/devices.rs`, `crates/matrix-core/src/protocol.rs` |
+| USB discovery, stable identity, serial lifecycle, priorities | `crates/matrix-daemon/src/devices.rs`, `firmware.rs`, `crates/matrix-core/src/protocol.rs` |
 | Pure geometry, widgets and brightness | `crates/matrix-core/src/layout.rs`, `brightness.rs`, `config.rs` |
 | Persistence, revisions, preview leases | `crates/matrix-daemon/src/config.rs` |
 | Runtime/source supervision and capability report | `crates/matrix-daemon/src/main.rs`, `power.rs`, `feeds.rs`, `probe.rs` |

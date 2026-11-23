@@ -1,39 +1,29 @@
 # Hardware-session handoff
 
-Updated **2026-11-23** after the first CachyOS/Hyprland hardware session, begun
-on `main` at `dc59d07`. The commits accompanying this update contain the local
-Clippy, lifecycle-test and firmware-handshake fixes described below.
+Updated **2026-11-23** through implementation commit `3620592` on `main`.
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 
-**Resume with the serial-failure investigation below.** Basic one/two-panel
-checks have already been exercised; detailed observations are in
+**Resume with the per-panel lock-content optical check (#26).** The binaries
+are built; the running processes predate this feature. Detailed observations are in
 [SUPPORT.md](SUPPORT.md#initial-cachyos-hardware-session--2026-11-23).
 Physical module-removal testing is paused because it interrupted keyboard and
 touchpad input. Full-day soak and Windows bay qualification remain pending.
 
 ## Resume this machine
 
-Resume inspection on **2026-11-23**, at `b3c0415`: the working tree was clean and
-all three services below were inactive. After the startup-quarantine fix, the
-instrumented daemon alone was started on revision 4. Both panels opened; a
-left-panel IPC identification succeeded without a failure trace. See
-[the investigation](SERIAL-FAILURE-INVESTIGATION.md#startup-quarantine-follow-up-36).
-The following describes the earlier pause,
-not the current running state.
-
-At pause, both panels showed their saved roles and laptop input worked:
-
-- `fw16-matrix-handoff-daemon.service` and
-  `fw16-matrix-handoff-desktop.service`: active transient **user** units running
-  the checkout's debug binaries. Closing the window leaves the daemon running.
+- At inspection: `fw16-matrix-handoff-daemon.service` active (PID 340033, sole
+  visible owner of both ttyACM ports); `fw16-matrix-panel-map-desktop.service`
+  active (PID 304907); older `fw16-matrix-handoff-desktop.service` inactive.
+  These are transient **user** units. Closing the window leaves the daemon running.
 - POC `matrixd.service`: stopped, **still enabled**. It may start on a later login.
   Check actual services and serial ownership before launching another daemon.
 - Private POC service/settings/integration backup:
   `$HOME/.local/share/fw16-matrix-handoff/poc-backup/`. Keep it private; it is not
   a diagnostic attachment. Assistant settings were preserved, not migrated.
-- Isolated configuration: **revision 4**, right clock with empty gauge slot,
+- Isolated configuration: **revision 6**, right clock with empty gauge slot,
   left full battery gauge, clock intensity 180, global manual brightness 32,
-  sleep disabled, no per-panel overrides. Use Load saved configuration or Cancel
+  sleep disabled, no per-panel overrides, no saved follow-display or lock preset.
+  Use Load saved configuration or Cancel
   draft to discard any unsaved preview draft instead of applying it.
 
 Inspect the runtime state first:
@@ -41,7 +31,8 @@ Inspect the runtime state first:
 ```sh
 git status --short --branch
 git rev-parse HEAD
-systemctl --user show matrixd.service fw16-matrix-handoff-daemon.service fw16-matrix-handoff-desktop.service --property=Id,ActiveState,MainPID
+systemctl --user show matrixd.service fw16-matrix-handoff-daemon.service fw16-matrix-panel-map-desktop.service fw16-matrix-handoff-desktop.service --property=Id,ActiveState,MainPID
+fuser -v /dev/ttyACM{0,1}
 ```
 
 Both Rust processes use the same isolated environment:
@@ -60,23 +51,49 @@ has physical assignments, so restarting this daemon can immediately drive both
 panels. To stop the qualification processes explicitly:
 
 ```sh
-systemctl --user stop fw16-matrix-handoff-desktop.service fw16-matrix-handoff-daemon.service
+systemctl --user stop fw16-matrix-panel-map-desktop.service fw16-matrix-handoff-daemon.service
 ```
 
 Before restoring the POC, review its unit: the installed WorkingDirectory points
 to the repository root, while preserved Python sources now live under `poc/`.
 Rollback was not exercised; preserve settings and verify a single USB writer.
 
-## Next: capture the unresolved serial failure (#34 / #36)
+## Immediate test and session results
+
+1. Coordinate closing the open desktop so an unsaved draft is not lost. Stop the
+   qualification units above. Recheck that the POC is inactive and ports are free.
+   With the isolated environment exported above, run `target/debug/matrix-daemon`
+   and then `target/debug/matrix-desktop` in separate terminals from the checkout.
+2. On Overview select each panel and choose **When locked**. For an unambiguous
+   check try left **Clock only** and right **Blank panel**. Apply deliberately;
+   it saves a new revision. Coordinate a normal lock/unlock with the owner at
+   the keyboard. Confirm both physical roles while locked and restoration to the
+   latest normal layouts on unlock. Restore **Keep normal layout** unless the
+   owner wants the presets retained. Do not infer optical success from snapshots.
+3. Continue #26: display-off policy, supervised suspend/resume, additional
+   mapping curves and Windows support. Suspend/resume is not qualified; plan a
+   separate owner-attended check. Physical removal remains paused.
+
+| Area | Evidence from this session |
+| --- | --- |
+| #31 capability screen | Native two-panel report matched CLI; zero-panel report and unreachable-daemon error passed using isolated instances. |
+| #32/#37 optics | Left numeric layout showed legible overflow `XX` at 100% battery and correct gauge placement. Right sparse clock at brightness 3/intensity 180 was dim but readable. Both preview checks restored saved output. |
+| #38 preview ownership/restoration | Competing client rejected; owner EOF released lease. Isolated expiry/cancel/owner-kill restored concurrent Apply. On hardware the left clock appeared after expiry, rollback restored its battery gauge, and the right clock stayed visible. The 1.99 s acknowledgment includes human reaction; it is not LED latency. |
+| #26 display/session | Explicit Linux connector/backlight pair, linear mapping and manual fallback implemented. Right clock visibly followed screen 55% → 25%; left override held. Live DPMS On → Off → On was distinct from dimming/lock. `hyprctl locked` tracked lock/unlock even though logind’s lock hint remained clear. Lock-content presets passed isolated daemon tests, not optical qualification. |
+| #41 product design | Owner chose Option A, the left/right panel map (`1bad83c`). Select a panel to edit widgets/brightness; diagnostics have their own destination. Current UI accepted **for now**, not final sign-off. [Prototype branch](https://github.com/jschraub/fw16-ledmatrix/tree/prototype/41-panel-map); #41 still blocks release #30. |
+
+Repeatable Linux fixtures (after building `matrix-daemon`): `python3
+tools/check-display-follow.py`, `python3 tools/check-lifecycle-signals.py`,
+`python3 tools/check-lock-content.py`, and `python3 tools/check-preview-apply.py`.
+See [WIDGETS.md](WIDGETS.md) for actual lock polling, fallback and priority limits.
+
+## Ongoing: capture the unresolved serial failure (#34 / #36)
 
 1. Read the failure sequence and successful checks in SUPPORT.md. Both panels
    reported firmware 0.20 and were visually identified. Initial attempts showed
    stale POC content instead of an outline, then reconnecting/write-quarantine
    status. No failing per-command trace has been captured.
-2. Build a controlled **software-only** reproduction and capture which serial
-   operation fails, its error kind and elapsed time. Successful traces alone do
-   not explain the failures. Temporary stage logging and probe scripts from this
-   session were removed. The `diagnosing-bugs` skill fits this work.
+2. Startup partial-write quarantine was reproduced and fixed (`e1ca58d`).
    The resumed investigation now has Linux PTY backpressure tests and failure-only
    serial-boundary diagnostics; see [SERIAL-FAILURE-INVESTIGATION.md](SERIAL-FAILURE-INVESTIGATION.md).
    These reproduce injected write timeouts, not the unexplained physical failure.
@@ -126,7 +143,7 @@ clock/battery widgets, discovery/identification, location bindings, serial outpu
 routing/recovery safeguards, manual brightness/sleep, temporary output previews,
 and optional Claude/OpenCode context/activity producers.
 
-Still unimplemented: account-bound quota sources, display/session policies,
+Still outstanding: account-bound quota sources, remaining display/session policies,
 feedback overlays, production packaging/login startup, and the complete migration
 and release-qualification workflows. These are software tickets, not checks that
 can be closed merely by connecting hardware.
@@ -151,6 +168,12 @@ can be closed merely by connecting hardware.
   Keep it intact for comparison and rollback.
 
 ## Validation and CI checkpoint
+
+At `3620592`: Rust tests, 25 desktop tests, workspace/all-target Clippy,
+generated TypeScript bindings, debug no-bundle Tauri build, and isolated
+lock-content check passed locally. [Build and test run 45253787176](https://github.com/jschraub/fw16-ledmatrix/actions/runs/45253787176)
+was in progress at handoff inspection; check its final Linux/Windows result.
+The numbers and baseline below describe the **earlier** session.
 
 The baseline [run 45141501943](https://github.com/jschraub/fw16-ledmatrix/actions/runs/45141501943)
 for `dc59d07` failed Clippy on Linux and Windows. This session fixed
@@ -330,10 +353,11 @@ Windows runner does not qualify physical Windows hardware.
 | Ticket | Outcome and prerequisites |
 | --- | --- |
 | [#22 Account-bound usage windows](https://github.com/jschraub/fw16-ledmatrix/issues/22) | Read-only supported credential discovery, independent Claude/OpenAI windows, correct durations, account changes, caching/expiry, 401/schema failures and redaction. Depends on closed #20/#21. Live requests require explicit opt-in; never paste tokens into config or take ownership of refresh. |
-| [#26 Display/session policy](https://github.com/jschraub/fw16-ledmatrix/issues/26) | Selected-display brightness adapters, min/max/curves, manual fallback, distinct lock/display-off/suspend signals and latest-state resume. Depends on closed #11/#24/#25; actual desktop evidence is still needed. |
+| [#26 Display/session policy](https://github.com/jschraub/fw16-ledmatrix/issues/26) | In progress: Linux linear follow + fallback and per-panel Hyprland lock content implemented. Finish optical lock check and remaining policy/platform coverage above. |
 | [#27 Feedback overlays](https://github.com/jschraub/fw16-ledmatrix/issues/27) | Enabled/target/duration settings, latest-event replacement, ambient updates underneath, supervised real audio state and bounded charging indication. Depends on #26 and closed #18. Preserve identify/preview priority and complete serial commands. |
 | [#28 Packaging/startup](https://github.com/jschraub/fw16-ledmatrix/issues/28) | Choose installers/startup from platform evidence, install outside the checkout, narrow USB access, login startup, upgrade/uninstall and signing limits. Depends on closed #11/#14/#24. Do not confuse existing explicit desktop “Start daemon” with login startup. |
 | [#29 Migration/diagnostics](https://github.com/jschraub/fw16-ledmatrix/issues/29) | Explicit POC stop/disable, preserved settings, rollback without dual writers, keyboard workflows and redacted diagnostics. Depends on #22/#27/#28 and closed #15/#17. |
+| [#41 Desktop redesign](https://github.com/jschraub/fw16-ledmatrix/issues/41) | Iterate on the selected panel map, demonstrate everyday workflows and obtain owner sign-off before #30. |
 | [#30 Release qualification](https://github.com/jschraub/fw16-ledmatrix/issues/30) | Dated supported-environment evidence, POC parity, disruptive checks by approval, full-day product soak and green CI. Depends on #29. The device-focused #36 soak alone does not complete release qualification. |
 
 Suggested development lanes: #22 independently; #26 then #27; #28 after initial

@@ -1,6 +1,30 @@
 # Framework LED Matrix application — proposed implementation plan
 
-Status: proposed for review; no rewrite implementation is included in this change.
+Status: agreed v1 scope; implementation and qualification are in progress.
+
+## Delivery checkpoint — 2026-11-23
+
+Through `3620592`, **16 of the original 22 delivery slices are closed**
+(#9–#21 and #23–#25). This measures software delivery, not release readiness.
+The [live roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1) tracks
+the specs; the [handoff](docs/HARDWARE-HANDOFF.md) gives the next machine steps
+and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
+
+1. **Now — #26:** Linux display-follow with manual fallback has optical evidence.
+   DPMS and compositor lock were observed independently; per-panel lock content
+   is implemented. Verify locked output and latest-layout restoration on hardware
+   next. Finish display-off/suspend/resume, mapping curves and Windows adapters.
+2. **Feature lanes:** #22 (account-bound usage) can proceed independently;
+   #27 (feedback overlays) follows #26. #28 covers packaging and login startup.
+3. **Release UX — #41:** the panel-map design was selected and its first native
+   workflow implemented. Significant redesign and owner usability sign-off
+   remain a release gate; the hardware-test UI is not the final design.
+4. **Qualification — #31–#40:** keep gathering evidence alongside development.
+   Linux optics, preview ownership/restoration and diagnostics have passed
+   specific scenarios. Physical serial failure capture, safe reconnect, Windows
+   bay identity, integration activation and the full-day soak remain open.
+5. **Converge:** #29 demonstrates migration and rollback; #30 requires packaging,
+   qualified environments, hardware parity, full-day results, green CI and #41.
 
 ## 1. Agreed direction
 

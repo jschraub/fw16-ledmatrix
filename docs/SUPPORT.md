@@ -309,6 +309,12 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   that the left gauge stayed steady. This tests the marker, not idle detection
   itself. The screen returned to 55% and the prior settings, including the
   three-second right-panel volume gauge, were restored at revision 13.
+- AC-change feedback (#27): unplugging and reconnecting the charger each showed
+  the right panel's 100% battery gauge, then restored its clock. The observer
+  confirmed both transitions and that the left gauge stayed unchanged. AC
+  changed from disconnected to connected, but charging stayed false at 100%;
+  the charging pulse was not physically exercised. Prior settings were restored
+  and verified at revision 18.
 - Manual-mode brightness feedback: with the right panel configured for a
   three-second gauge, the observer confirmed improved physical responsiveness
   after `d1596cf`. The isolated backlight-to-subscriber measurement fell from

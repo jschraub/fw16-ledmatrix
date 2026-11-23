@@ -518,10 +518,11 @@ fn normal_frame(
             .map(f64::from),
         ..Default::default()
     };
-    Some(matrix_core::layout::render_configured(
+    Some(matrix_core::layout::render_live(
         panel,
         &readings,
         &config.brightness,
+        snapshot.session_locked == Some(true),
     ))
 }
 pub async fn route_loop(

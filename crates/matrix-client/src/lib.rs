@@ -78,6 +78,9 @@ pub struct Hello {
 pub struct Snapshot {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub session_locked: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub display_sources: Option<matrix_core::display::DisplaySources>,
     #[serde(default)]
     pub assistants: matrix_core::assistant::AssistantState,

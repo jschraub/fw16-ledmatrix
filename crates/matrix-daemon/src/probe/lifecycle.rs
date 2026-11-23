@@ -70,6 +70,10 @@ async fn sample(program: &str, args: &[&str]) -> Option<String> {
     .flatten()
 }
 
+pub(crate) async fn compositor_locked() -> Option<bool> {
+    sample("hyprctl", &["locked"]).await?.trim().parse().ok()
+}
+
 pub(super) async fn report(hyprland: bool) -> Vec<Capability> {
     let (display, lock, sleep, compositor) = tokio::join!(
         tokio::task::spawn_blocking(|| displays(Path::new("/sys/class/drm"))),
@@ -90,7 +94,7 @@ pub(super) async fn report(hyprland: bool) -> Vec<Capability> {
         ),
         async {
             if hyprland {
-                sample("hyprctl", &["locked"]).await
+                compositor_locked().await
             } else {
                 None
             }
@@ -110,13 +114,13 @@ pub(super) async fn report(hyprland: bool) -> Vec<Capability> {
         )],
     };
     if hyprland {
-        rows.push(match compositor.as_deref().map(str::trim) {
-            Some("true") => item(
+        rows.push(match compositor {
+            Some(true) => item(
                 "compositor_lock",
                 State::Available,
                 "Hyprland reports locked.",
             ),
-            Some("false") => item(
+            Some(false) => item(
                 "compositor_lock",
                 State::Available,
                 "Hyprland reports unlocked.",

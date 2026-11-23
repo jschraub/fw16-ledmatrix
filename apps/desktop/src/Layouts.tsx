@@ -7,6 +7,7 @@ import type { Template } from "./bindings/Template";
 import type { Presentation } from "./bindings/Presentation";
 import type { Source } from "./bindings/Source";
 import type { Widget } from "./bindings/Widget";
+import type { LockContent } from "./bindings/LockContent";
 
 const templates: Record<Template, Presentation[]> = { clock_gauge: ["clock", "gauge"], number_two_gauges: ["number", "gauge", "gauge"], full_gauge: ["gauge"] };
 const sources: Source[] = ["battery", "context", "activity", "five_hour", "weekly"];
@@ -19,6 +20,12 @@ export function Layouts({ config, change, panelName }: { config: Config; change:
   return <fieldset><legend>{panelName ? "Panel content" : "Guided layouts"}</legend>
     <p>Changing a template replaces that panel’s draft widgets. Expand a slot to edit it.</p>
     {panels.map((panel, p) => (!panelName || panelName === panel.name) && <fieldset key={panel.name}><legend>{panel.name}</legend>
+      <label>When locked <select aria-label={`When locked for ${panel.name}`} value={panel.when_locked ?? ""}
+        onChange={e => update(p, { ...panel, when_locked: (e.target.value || undefined) as LockContent | undefined })}>
+        <option value="">Keep normal layout</option><option value="clock">Clock only</option>
+        <option value="battery">Battery gauge</option><option value="blank">Blank panel</option>
+      </select></label>
+      <small>Lock detection currently requires Hyprland on Linux.</small>
       <label>Template for {panel.name} <select value={panel.template} onChange={(e) => { const template = e.target.value as Template; update(p, { ...panel, template, slots: templates[template].map(widget) }); }}>
         {Object.keys(templates).map((t) => <option key={t} value={t}>{t.replaceAll("_", " ")}</option>)}
       </select></label>

@@ -38,6 +38,8 @@ async fn run() -> std::io::Result<()> {
     let render_config = config.clone();
     let (display_tx, display_rx) = tokio::sync::watch::channel(None);
     tokio::spawn(matrix_daemon::display::poll(display_tx));
+    let (lock_tx, lock_rx) = tokio::sync::watch::channel(None);
+    tokio::spawn(matrix_daemon::session_lock::poll(lock_tx));
     let (power_tx, power_rx) = tokio::sync::watch::channel(matrix_daemon::power::unavailable(
         matrix_core::power::PowerStatus::Unavailable,
     ));
@@ -71,6 +73,7 @@ async fn run() -> std::io::Result<()> {
                 (config, store.preview_active(std::time::Instant::now()))
             };
             frame.preview = preview;
+            frame.session_locked = *lock_rx.borrow();
             frame.display_sources = display_rx.borrow().clone();
             let config = frame
                 .display_sources
@@ -86,10 +89,11 @@ async fn run() -> std::io::Result<()> {
                 sessions: assistants.sessions,
                 ..Default::default()
             };
-            frame.frame = matrix_core::layout::render_configured(
+            frame.frame = matrix_core::layout::render_live(
                 &config.panels[0],
                 &readings,
                 &config.brightness,
+                frame.session_locked == Some(true),
             );
             frame.panels = config
                 .panels
@@ -98,10 +102,11 @@ async fn run() -> std::io::Result<()> {
                     brightness: matrix_core::brightness::effective(&config.brightness, panel)
                         .level(),
                     name: panel.name.clone(),
-                    frame: matrix_core::layout::render_configured(
+                    frame: matrix_core::layout::render_live(
                         panel,
                         &readings,
                         &config.brightness,
+                        frame.session_locked == Some(true),
                     ),
                     binding: panel.binding.clone(),
                 })

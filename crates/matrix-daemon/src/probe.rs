@@ -7,7 +7,7 @@ use tokio::io::AsyncReadExt;
 #[cfg(target_os = "linux")]
 pub(crate) mod backlight;
 #[cfg(target_os = "linux")]
-mod lifecycle;
+pub(crate) mod lifecycle;
 
 fn item(name: &str, state: State, detail: &str) -> Capability {
     Capability {

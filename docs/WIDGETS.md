@@ -18,6 +18,16 @@ guarantee. Real cancellation/unplug/priority observations require panels.
 
 ## Brightness
 
+**When locked:** Select a panel on Overview and choose **When locked** to
+keep its normal layout (default), show only the clock, show battery as a full
+gauge, or render a blank frame. Apply saves the setting independently for
+each panel. Brightness and explicit sleep still apply. Hyprland on Linux is
+polled roughly every two seconds, plus render/serial routing delay; switching
+is not instantaneous. An unreadable sample retains the last known state;
+before the first successful sample or on unsupported desktops the normal
+layout is used. Unlock restores the latest desired layout. This is a display
+preference, not a privacy guarantee; identification can still flash an outline.
+
 On Linux, open **Configuration → Brightness → Display and backlight** to
 explicitly pair a connected DRM connector with a sysfs backlight. The app
 reads the source; it does not change the display's brightness or verify that
@@ -31,7 +41,7 @@ and per-panel overrides keep precedence. If the connector disappears, the
 reading is invalid, or sampling times out, output returns to the saved manual
 level; recovery resumes following the same pair. Polling is nominally every
 two seconds, in addition to rendering and routing delays. Other curves, Windows
-sources and lock/display-off/suspend policies are not implemented here.
+sources and display-off/suspend policies are not implemented here.
 
 Application defaults and explicit per-panel overrides define ordered 1–255
 minimum/manual/maximum levels. Manual output is sent through the hardware's

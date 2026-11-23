@@ -46,12 +46,47 @@ pub struct Widget {
 #[serde(deny_unknown_fields)]
 pub struct PanelLayout {
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub when_locked: Option<LockContent>,
     pub template: Template,
     pub slots: Vec<Option<Widget>>,
     #[serde(default)]
     pub binding: Option<String>,
     #[serde(default)]
     pub brightness_override: Option<crate::brightness::Brightness>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum LockContent {
+    Clock,
+    Battery,
+    Blank,
+}
+
+/// Derive temporary content without mutating the saved layout or power policy.
+pub fn render_live(
+    panel: &PanelLayout,
+    readings: &Readings,
+    global: &crate::brightness::Brightness,
+    locked: bool,
+) -> Frame {
+    let Some(content) = panel.when_locked.filter(|_| locked) else {
+        return render_configured(panel, readings, global);
+    };
+    let mut temporary = panel.clone();
+    temporary.template = match content {
+        LockContent::Clock => Template::ClockGauge,
+        LockContent::Battery | LockContent::Blank => Template::FullGauge,
+    };
+    temporary.slots = default_slots(temporary.template);
+    match content {
+        LockContent::Clock => temporary.slots[1] = None,
+        LockContent::Blank => temporary.slots[0] = None,
+        LockContent::Battery => {}
+    }
+    render_configured(&temporary, readings, global)
 }
 
 impl Template {
@@ -100,6 +135,7 @@ pub fn defaults() -> Vec<PanelLayout> {
     .into_iter()
     .map(|(name, template)| PanelLayout {
         name: name.into(),
+        when_locked: None,
         template,
         slots: default_slots(template),
         binding: None,
@@ -307,6 +343,7 @@ mod tests {
     fn full_gauge_direction_empty_slots_and_truthful_overflow() {
         let mut panel = PanelLayout {
             name: "test".into(),
+            when_locked: None,
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),
             binding: None,
@@ -370,6 +407,7 @@ mod tests {
     fn battery_threshold_emphasizes_low_values_but_missing_is_not_zero() {
         let mut panel = PanelLayout {
             name: "battery".into(),
+            when_locked: None,
             template: Template::FullGauge,
             slots: default_slots(Template::FullGauge),
             binding: None,

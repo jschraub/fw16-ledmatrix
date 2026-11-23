@@ -218,6 +218,11 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   the same daemon process remained active, and the POC remained stopped. This
   tests normal window closure, not a forced UI crash; the restoration latency
   was not instrumented.
+- Right-panel sparse clock: at preview brightness **3** with clock intensity
+  **180**, the user found the clock very dim but readable. They observed it
+  return to its previous brightness after the ten-second preview. Saved revision
+  4 still specified manual brightness 32. This is one observer's result on the
+  right module; left-gauge continuity was not reported for this run.
 - Independent brightness preview passed: with an unsaved left-panel override at
   manual brightness 64 and sleep disabled, the user confirmed only the left
   battery gauge became brighter, then returned to its saved brightness after

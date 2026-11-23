@@ -57,6 +57,13 @@ click. Afterward, systemd independently reported `fw16-ledmatrix.service`
 disabled and inactive, with the handoff daemon still active. This verifies the
 control in the installed app, not daemon startup at an actual graphical login.
 
+**Existing-account graphical login (CachyOS/Hyprland, `0.1.0-3`):** After
+logout and login, the owner saw the clock and battery gauge return. The enabled
+packaged service had a new PID and was the only visible owner of both serial
+ports. Default IPC reported revision 26 and firmware 0.20 on both open ports.
+The old POC service remained disabled/inactive and the handoff daemon inactive.
+This verifies startup on the migrated account, not a fresh-user installation.
+
 ## Installed usage
 
 Install a reviewed local artifact with `sudo pacman -U /path/to/package.pkg.tar.zst`.

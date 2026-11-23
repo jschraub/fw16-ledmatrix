@@ -34,9 +34,9 @@ Rollback was not exercised; preserve settings and verify a single USB writer.
 
 ## Immediate test and session results
 
-1. At the owner's next normal graphical login, verify the packaged daemon starts
-   without opening the desktop and owns both panels; confirm left battery/right
-   clock visually. Manual activation at cutover is not login evidence.
+1. Existing-account graphical login passed: the owner saw the clock and battery
+   gauge return after logout/login. The packaged daemon had a new PID, served
+   revision 26 on default IPC and alone held both firmware-0.20 ports.
 2. Continue #28 on this existing account; no additional user account requested.
 
 | Area | Evidence from this session |

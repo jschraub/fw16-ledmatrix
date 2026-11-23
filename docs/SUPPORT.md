@@ -315,6 +315,10 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   changed from disconnected to connected, but charging stayed false at 100%;
   the charging pulse was not physically exercised. Prior settings were restored
   and verified at revision 18.
+- After `6849d94`, the observer reported noticeably faster AC feedback on the
+  physical panel. The isolated fixture measured 27 ms from unplug and 29 ms
+  from reconnect to a subscriber gauge; neither is a key-to-LED or optical
+  measurement.
 - Manual-mode brightness feedback: with the right panel configured for a
   three-second gauge, the observer confirmed improved physical responsiveness
   after `d1596cf`. The isolated backlight-to-subscriber measurement fell from

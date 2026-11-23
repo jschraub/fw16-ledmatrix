@@ -221,6 +221,15 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   Saved configuration remained identical at revision 4; both ports reported
   open with firmware 0.20. This tests owner disconnect and exclusivity, not
   optical restoration latency or a forced native-desktop crash.
+- Concurrent Apply (#38, isolated Linux daemon): `python3 tools/check-preview-apply.py`
+  ran a real daemon with private config/feeds/IPC, private `/dev` and an empty
+  tty inventory (requires `bwrap` and `cargo build -p matrix-daemon`). A second
+  client saved revision 1 during a preview. A fresh post-Apply tick still
+  showed the preview brightness, pixels and fixture binding. Natural expiry,
+  explicit cancellation, and killing the owning IPC client each restored the
+  newly saved output, including its changed binding; the cancellation case
+  restored explicit off and blank pixels. Each result survived daemon restart.
+  No physical routing, native UI crash, or optical latency was tested.
 - Closing the native window during a left-sleep preview restored the battery
   gauge immediately according to the user. Systemd confirmed the desktop exited,
   the same daemon process remained active, and the POC remained stopped. This

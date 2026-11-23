@@ -15,6 +15,7 @@ use std::{
 };
 
 struct Panel {
+    epoch: usize,
     port: Option<Box<dyn serialport::SerialPort>>,
     firmware: Option<String>,
     frame: Option<Frame>,
@@ -147,6 +148,7 @@ impl Manager {
             .entry(port.into())
             .or_insert_with(|| {
                 Arc::new(Mutex::new(Panel {
+                    epoch: crate::suspend::epoch(),
                     port: None,
                     firmware: None,
                     frame: None,
@@ -171,7 +173,7 @@ impl Manager {
         let mut panel = panel
             .try_lock()
             .map_err(|_| io::Error::other("device busy"))?;
-        if !panel.ready(Instant::now()) {
+        if !panel.sync_epoch(crate::suspend::epoch()) || !panel.ready(Instant::now()) {
             return Err(io::Error::new(
                 io::ErrorKind::WouldBlock,
                 "device awaiting retry or physical reconnect",
@@ -255,6 +257,16 @@ impl Manager {
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
+        let epoch = crate::suspend::epoch();
+        if !epoch.is_multiple_of(2) {
+            // Don't treat transient enumeration loss during sleep as a replug.
+            for handle in self.panels.lock().expect("panels").values() {
+                if let Ok(mut panel) = handle.try_lock() {
+                    panel.sync_epoch(epoch);
+                }
+            }
+            return;
+        }
         let Ok(devices) = enumerate() else {
             return; // A failed scan does not establish absence or release quarantine.
         };
@@ -293,7 +305,11 @@ impl Manager {
                 if let Ok(handle) = self.panel(&name)
                     && let Ok(mut panel) = handle.try_lock()
                 {
-                    if !panel.ready(Instant::now()) || self.stopping.load(Ordering::Acquire) {
+                    if epoch != crate::suspend::epoch()
+                        || !panel.sync_epoch(epoch)
+                        || !panel.ready(Instant::now())
+                        || self.stopping.load(Ordering::Acquire)
+                    {
                         self.jobs.lock().expect("jobs").remove(&name);
                         return;
                     }
@@ -349,6 +365,18 @@ impl Manager {
 }
 
 impl Panel {
+    fn sync_epoch(&mut self, epoch: usize) -> bool {
+        if self.epoch != epoch {
+            self.port = None;
+            self.frame = None;
+            self.brightness = None;
+            self.firmware = None;
+            self.confirmed_off = false;
+            self.epoch = epoch;
+            // Neither a resume nor a dropped handle proves parser recovery.
+        }
+        epoch.is_multiple_of(2)
+    }
     fn ready(&self, now: Instant) -> bool {
         !self.needs_replug && now >= self.retry_at
     }
@@ -690,6 +718,7 @@ mod tests {
             // one byte into wake or firmware query
             let now = Instant::now();
             let mut panel = Panel {
+                epoch: 0,
                 port: None,
                 firmware: None,
                 frame: None,
@@ -723,6 +752,7 @@ mod tests {
     fn retry_deadlines_are_bounded_and_quarantine_requires_replug() {
         let now = Instant::now();
         let mut panel = Panel {
+            epoch: 0,
             port: None,
             firmware: None,
             frame: None,
@@ -738,6 +768,12 @@ mod tests {
         assert!(!panel.ready(now + Duration::from_secs(4)));
         assert!(panel.ready(now + Duration::from_secs(5)));
         panel.needs_replug = true;
+        assert!(!panel.ready(now + Duration::from_secs(600)));
+        panel.confirmed_off = true;
+        panel.frame = Some(blank());
+        assert!(!panel.sync_epoch(1));
+        assert!(panel.frame.is_none() && !panel.confirmed_off);
+        assert!(panel.sync_epoch(2));
         assert!(!panel.ready(now + Duration::from_secs(600)));
     }
     #[test]

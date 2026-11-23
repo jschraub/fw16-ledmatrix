@@ -27,6 +27,8 @@ def run(root):
     status = drm / "card7-eDP-2/status"
     status.parent.mkdir(parents=True)
     status.write_text("connected\n")
+    dpms = status.with_name("dpms")
+    dpms.write_text("On")
     (drm / "card7").mkdir()
     (root / "fixture-gpu").mkdir()
     (drm / "card7/device").symlink_to(root / "fixture-gpu")
@@ -58,6 +60,18 @@ def run(root):
         reply = request(endpoint, "apply_config", expected_revision=0, config=config)
         assert reply["status"] == "applied"
         verify(endpoint, [65, 40])
+        config["follow_display"]["curve"] = "quadratic"
+        config["sleep_with_display"] = "eDP-2@fixture-gpu"
+        assert request(endpoint, "apply_config", expected_revision=1, config=config)["status"] == "applied"
+        verify(endpoint, [40, 40])  # 10 + round(100 * .55²)
+        dpms.write_text("Off")
+        verify(endpoint, [None, None])
+        config["panels"][1]["brightness_override"]["manual"] = 45
+        assert request(endpoint, "apply_config", expected_revision=2, config=config)["status"] == "applied"
+        dpms.write_text("On")
+        verify(endpoint, [40, 45])
+        config["panels"][1]["brightness_override"]["manual"] = 40
+        assert request(endpoint, "apply_config", expected_revision=3, config=config)["status"] == "applied"
         actual = lights / "selected/actual_brightness"
         actual.write_text("0")
         verify(endpoint, [10, 40])
@@ -70,7 +84,7 @@ def run(root):
         status.write_text("connected")
         verify(endpoint, [110, 40])
         config["brightness"]["off"] = True
-        assert request(endpoint, "apply_config", expected_revision=1, config=config)["status"] == "applied"
+        assert request(endpoint, "apply_config", expected_revision=4, config=config)["status"] == "applied"
         verify(endpoint, [None, 40])
         assert request(endpoint, "read_config")["saved"]["config"] == config
         print("PASS: selected pair, zero, lost reading, disconnect, recovery, override, sleep and durable manual fallback")

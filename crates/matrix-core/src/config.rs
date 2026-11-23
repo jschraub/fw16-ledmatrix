@@ -9,6 +9,9 @@ pub struct Config {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub follow_display: Option<crate::display::DisplaySelection>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sleep_with_display: Option<String>,
     #[serde(default)]
     pub brightness: crate::brightness::Brightness,
     #[serde(default = "crate::layout::defaults")]
@@ -20,6 +23,7 @@ impl Default for Config {
             schema_version: 2,
             clock_intensity: 180,
             follow_display: None,
+            sleep_with_display: None,
             brightness: Default::default(),
             panels: crate::layout::defaults(),
         }
@@ -33,6 +37,16 @@ pub struct FieldError {
 impl Config {
     pub fn validate(&self) -> Vec<FieldError> {
         let mut errors = vec![];
+        if self
+            .sleep_with_display
+            .as_ref()
+            .is_some_and(|id| !crate::display::valid_id(id))
+        {
+            errors.push(FieldError {
+                field: "sleep_with_display".into(),
+                message: "Choose a display for the off policy.".into(),
+            });
+        }
         if self.follow_display.as_ref().is_some_and(|s| {
             !crate::display::valid_id(&s.connector) || !crate::display::valid_id(&s.backlight)
         }) {

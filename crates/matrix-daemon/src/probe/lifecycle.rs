@@ -74,6 +74,25 @@ pub(crate) async fn compositor_locked() -> Option<bool> {
     sample("hyprctl", &["locked"]).await?.trim().parse().ok()
 }
 
+pub(crate) async fn preparing() -> Option<bool> {
+    sample(
+        "busctl",
+        &[
+            "--system",
+            "get-property",
+            "org.freedesktop.login1",
+            "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager",
+            "PreparingForSleep",
+        ],
+    )
+    .await?
+    .trim()
+    .strip_prefix("b ")?
+    .parse()
+    .ok()
+}
+
 pub(super) async fn report(hyprland: bool) -> Vec<Capability> {
     let (display, lock, sleep, compositor) = tokio::join!(
         tokio::task::spawn_blocking(|| displays(Path::new("/sys/class/drm"))),
@@ -81,17 +100,7 @@ pub(super) async fn report(hyprland: bool) -> Vec<Capability> {
             "loginctl",
             &["show-session", "auto", "-p", "LockedHint", "--value"]
         ),
-        sample(
-            "busctl",
-            &[
-                "--system",
-                "get-property",
-                "org.freedesktop.login1",
-                "/org/freedesktop/login1",
-                "org.freedesktop.login1.Manager",
-                "PreparingForSleep"
-            ]
-        ),
+        preparing(),
         async {
             if hyprland {
                 compositor_locked().await
@@ -149,13 +158,13 @@ pub(super) async fn report(hyprland: bool) -> Vec<Capability> {
             "No readable session lock hint.",
         ),
     });
-    rows.push(match sleep.as_deref().map(str::trim) {
-        Some("b true") => item(
+    rows.push(match sleep {
+        Some(true) => item(
             "preparing_for_sleep",
             State::Available,
             "logind is preparing for system sleep.",
         ),
-        Some("b false") => item(
+        Some(false) => item(
             "preparing_for_sleep",
             State::Available,
             "logind is not preparing for system sleep.",

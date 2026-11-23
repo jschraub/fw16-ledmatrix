@@ -1,5 +1,7 @@
 use matrix_core::display::DisplaySources;
 use tokio::sync::watch;
+#[cfg(windows)]
+mod windows;
 
 #[cfg(target_os = "linux")]
 fn scan(drm: &std::path::Path, lights: &std::path::Path) -> DisplaySources {
@@ -24,6 +26,14 @@ fn scan(drm: &std::path::Path, lights: &std::path::Path) -> DisplaySources {
         };
         let id = format!("{connector}@{gpu}");
         if valid_id(connector) && valid_id(gpu) && id.len() <= 128 {
+            if let Ok(power) = fs::read_to_string(entry.path().join("dpms")) {
+                if matches!(power.trim(), "Off" | "Suspend" | "Standby") {
+                    result.powered_off.push(id.clone());
+                }
+                if matches!(power.trim(), "On" | "Off" | "Suspend" | "Standby") {
+                    result.power_sources.push(id.clone());
+                }
+            }
             result.connected.push(id);
         }
     }
@@ -44,8 +54,21 @@ fn scan(drm: &std::path::Path, lights: &std::path::Path) -> DisplaySources {
 }
 
 pub async fn poll(tx: watch::Sender<Option<DisplaySources>>) {
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", windows)))]
     drop(tx);
+    #[cfg(windows)]
+    loop {
+        let mut sources = windows::read().await.unwrap_or_default();
+        if let Some(off) = crate::windows_session::console_off() {
+            let name = "Windows-console".to_owned();
+            sources.power_sources.push(name.clone());
+            if off {
+                sources.powered_off.push(name);
+            }
+        }
+        tx.send_replace(Some(sources));
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    }
     #[cfg(target_os = "linux")]
     {
         use std::{path::Path, time::Duration};

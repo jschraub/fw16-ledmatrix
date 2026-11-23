@@ -25,6 +25,25 @@ identity persistence across USB reordering, reconnect or suspend.
 
 ## Initial CachyOS hardware session — 2026-11-23
 
+**Lock-content optical qualification (#26):** Both firmware-0.20 panels remained
+installed. The owner confirmed left clock / right blank while Hyprland was
+locked, then left battery / right clock after unlock. Temporary saved presets
+were reverted and original config contents verified at revision 8. Linux
+fixtures separately cover quadratic mapping, DPMS sleep precedence over a
+manual override, Apply while dark, preview cancellation across suspend, and
+restoration of latest saved output. Windows adapters have GNU-target compile
+and Clippy evidence only; Windows 11 interactive/hardware results remain open.
+
+**Live display-off and suspend follow-up (#26):** With the explicit `eDP-2`
+sleep policy temporarily previewed, both panel levels became off while the
+session remained unlocked and the suspend epoch remained 0. The owner saw
+both panels go dark and normal roles return after display wake and preview
+cancellation. An independently approved system suspend then advanced the epoch
+from 0 to 2. Both modules reopened with firmware 0.20; the owner confirmed left
+battery, right clock and working keyboard/touchpad after wake/unlock. The saved
+revision-8 configuration was identical. This is one installed two-panel cycle,
+not replug qualification or proof of parser recovery.
+
 **Linux lifecycle probes (#26):** A read-only CLI sample reported internal
 connector `card1-eDP-2` DPMS On, logind's session lock hint clear, and system
 sleep preparation false. `tools/check-lifecycle-signals.py` exercised the same

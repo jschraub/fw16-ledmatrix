@@ -25,7 +25,7 @@ export function Layouts({ config, change, panelName }: { config: Config; change:
         <option value="">Keep normal layout</option><option value="clock">Clock only</option>
         <option value="battery">Battery gauge</option><option value="blank">Blank panel</option>
       </select></label>
-      <small>Lock detection currently requires Hyprland on Linux.</small>
+      <small>Lock detection uses Hyprland on Linux or the current Windows session.</small>
       <label>Template for {panel.name} <select value={panel.template} onChange={(e) => { const template = e.target.value as Template; update(p, { ...panel, template, slots: templates[template].map(widget) }); }}>
         {Object.keys(templates).map((t) => <option key={t} value={t}>{t.replaceAll("_", " ")}</option>)}
       </select></label>

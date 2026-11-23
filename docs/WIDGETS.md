@@ -37,11 +37,30 @@ individual monitor plugged into it.
 
 Inherited panel brightness maps the source percentage linearly between the
 configured minimum and maximum (zero means minimum, not sleep). Explicit sleep
-and per-panel overrides keep precedence. If the connector disappears, the
+and per-panel overrides keep precedence during brightness-follow. If the connector disappears, the
 reading is invalid, or sampling times out, output returns to the saved manual
 level; recovery resumes following the same pair. Polling is nominally every
-two seconds, in addition to rendering and routing delays. Other curves, Windows
-sources and display-off/suspend policies are not implemented here.
+two seconds, in addition to rendering and routing delays. **Dimmer at low
+levels** uses a quadratic curve with the same endpoints. Sampling brightness
+only recomputes desired output; it does not generate manual-feedback events.
+
+**Sleep panels when this display turns off** is separate from brightness-follow
+and lock content. An explicitly off/standby/suspended DRM connector sleeps
+both panels, including overridden panels; an unreadable or disconnected
+connector is not evidence of display-off. On wake the daemon resolves the
+latest configuration, never a pre-sleep copy. An identification request still
+has temporary priority. On Linux the supervised `gdbus monitor` watches logind
+`PrepareForSleep` separately; a sleep/wake boundary ends preview leases and
+invalidates cached serial handles and frames without clearing quarantine.
+It does not inhibit suspend or guarantee completion of in-flight OS writes.
+
+**Windows adapter (physical qualification pending):** active internal WMI
+brightness instances are keyed by a digest of their instance name. Unsupported
+external displays do not fall back to a different monitor. WTS reports current
+session lock state. Power notification callbacks distinguish system suspend from
+console display state: `Windows-console` is a console-wide on/off policy, not
+per-monitor DPMS. Windows reports dimmed separately from off; dimmed is treated
+as on. These sources are not a claim of support for every driver or device.
 
 Application defaults and explicit per-panel overrides define ordered 1–255
 minimum/manual/maximum levels. Manual output is sent through the hardware's

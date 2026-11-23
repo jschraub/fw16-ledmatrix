@@ -3,4 +3,4 @@ import type { Brightness } from "./Brightness";
 import type { DisplaySelection } from "./DisplaySelection";
 import type { PanelLayout } from "./PanelLayout";
 
-export type Config = { schema_version: number, clock_intensity: number, follow_display?: DisplaySelection, brightness: Brightness, panels: Array<PanelLayout>, };
+export type Config = { schema_version: number, clock_intensity: number, follow_display?: DisplaySelection, sleep_with_display?: string, brightness: Brightness, panels: Array<PanelLayout>, };

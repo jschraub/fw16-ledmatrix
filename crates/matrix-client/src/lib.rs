@@ -76,6 +76,8 @@ pub struct Hello {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct Snapshot {
+    #[serde(default)]
+    pub suspend_epoch: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub session_locked: Option<bool>,

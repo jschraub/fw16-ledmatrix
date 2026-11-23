@@ -6,6 +6,7 @@ use std::{
 };
 
 pub struct Store {
+    power_epoch: usize,
     saved: SavedConfig,
     path: Option<PathBuf>,
     preview: Option<Lease>,
@@ -20,6 +21,7 @@ struct Lease {
 impl Store {
     pub fn memory() -> Self {
         Self {
+            power_epoch: crate::suspend::epoch(),
             saved: SavedConfig::default(),
             path: None,
             preview: None,
@@ -62,6 +64,7 @@ impl Store {
             Err(e) => return Err(e),
         };
         Ok(Self {
+            power_epoch: crate::suspend::epoch(),
             saved,
             path: Some(path),
             preview: None,
@@ -77,6 +80,7 @@ impl Store {
             .is_some_and(|lease| now < lease.expires)
     }
     pub fn output(&mut self) -> Config {
+        self.sync_power_epoch();
         self.output_at(std::time::Instant::now())
     }
     fn output_at(&mut self, now: std::time::Instant) -> Config {
@@ -96,6 +100,10 @@ impl Store {
         now: std::time::Instant,
     ) -> Result<u32, matrix_core::preview::PreviewStatus> {
         use matrix_core::preview::PreviewStatus;
+        self.sync_power_epoch();
+        if !self.power_epoch.is_multiple_of(2) {
+            return Err(PreviewStatus::Busy);
+        }
         if owner.is_empty()
             || owner.len() > 64
             || !owner
@@ -125,6 +133,13 @@ impl Store {
         self.preview.as_ref().is_some_and(|lease| {
             lease.owner == owner && lease.generation == generation && now < lease.expires
         })
+    }
+    fn sync_power_epoch(&mut self) {
+        let epoch = crate::suspend::epoch();
+        if self.power_epoch != epoch {
+            self.preview = None;
+            self.power_epoch = epoch;
+        }
     }
     pub fn cancel_preview(&mut self, owner: &str, generation: Option<u32>) -> bool {
         if self.preview.as_ref().is_some_and(|lease| {

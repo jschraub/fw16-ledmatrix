@@ -14,12 +14,16 @@ pub mod power;
 pub mod probe;
 mod serial_io;
 pub mod session_lock;
+pub mod suspend;
+#[cfg(windows)]
+mod windows_session;
 pub type Configuration = Arc<std::sync::Mutex<config::Store>>;
 
 pub const MAX_CLIENTS: usize = 32;
 
 pub fn snapshot(sequence: u32, hour: u8, minute: u8) -> Snapshot {
     Snapshot {
+        suspend_epoch: 0,
         session_locked: None,
         display_sources: None,
         assistants: Default::default(),

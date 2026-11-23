@@ -34,6 +34,7 @@ async fn run() -> std::io::Result<()> {
     }
     let endpoint = local::endpoint()?;
     let listener = local::Listener::bind(&endpoint).await?;
+    tokio::spawn(matrix_daemon::suspend::monitor());
     let config = std::sync::Arc::new(std::sync::Mutex::new(Store::load(Store::default_path()?)?));
     let render_config = config.clone();
     let (display_tx, display_rx) = tokio::sync::watch::channel(None);
@@ -74,6 +75,7 @@ async fn run() -> std::io::Result<()> {
             };
             frame.preview = preview;
             frame.session_locked = *lock_rx.borrow();
+            frame.suspend_epoch = matrix_daemon::suspend::epoch();
             frame.display_sources = display_rx.borrow().clone();
             let config = frame
                 .display_sources

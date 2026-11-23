@@ -11,9 +11,10 @@ the specs; the [handoff](docs/HARDWARE-HANDOFF.md) gives the next machine steps
 and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
 
 1. **Now — #26:** Linux display-follow with manual fallback has optical evidence.
-   DPMS and compositor lock were observed independently; per-panel lock content
-   is implemented. Verify locked output and latest-layout restoration on hardware
-   next. Finish display-off/suspend/resume, mapping curves and Windows adapters.
+   Owner confirmed independent lock content, display-off sleep and restored
+   roles after a real Linux suspend/resume. Linear/quadratic mapping and Windows
+   adapters are implemented. Windows runtime and hardware qualification remain
+   the next #26 gate; #35 is required for physical Windows routing.
 2. **Feature lanes:** #22 (account-bound usage) can proceed independently;
    #27 (feedback overlays) follows #26. #28 covers packaging and login startup.
 3. **Release UX — #41:** the panel-map design was selected and its first native

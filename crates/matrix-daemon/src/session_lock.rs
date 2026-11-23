@@ -1,8 +1,16 @@
 use tokio::sync::watch;
 
 pub async fn poll(tx: watch::Sender<Option<bool>>) {
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", windows)))]
     drop(tx);
+    #[cfg(windows)]
+    loop {
+        if let Ok(Some(locked)) = tokio::task::spawn_blocking(crate::windows_session::locked).await
+        {
+            tx.send_replace(Some(locked));
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    }
     #[cfg(target_os = "linux")]
     {
         if !std::env::var("XDG_CURRENT_DESKTOP")

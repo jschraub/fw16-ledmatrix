@@ -8,6 +8,16 @@ use ts_rs::TS;
 pub struct DisplaySelection {
     pub connector: String,
     pub backlight: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub curve: Option<Curve>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum Curve {
+    Linear,
+    Quadratic,
 }
 
 pub fn valid_id(id: &str) -> bool {
@@ -21,6 +31,11 @@ pub fn valid_id(id: &str) -> bool {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct DisplaySources {
     pub connected: Vec<String>,
+    // Only connectors with an explicit non-On power reading. Missing is not off.
+    #[serde(default)]
+    pub powered_off: Vec<String>,
+    #[serde(default)]
+    pub power_sources: Vec<String>,
     // None means present but unreadable. Zero is a valid reading.
     pub backlights: BTreeMap<String, Option<u8>>,
 }
@@ -33,8 +48,27 @@ impl DisplaySources {
             && let Some(Some(percent @ 0..=100)) = self.backlights.get(&source.backlight)
         {
             let policy = &mut config.brightness;
-            let span = u16::from(policy.maximum - policy.minimum);
-            policy.manual = policy.minimum + ((span * u16::from(*percent) + 50) / 100) as u8;
+            let span = u32::from(policy.maximum - policy.minimum);
+            let p = u32::from(*percent);
+            let (weight, scale) = match source.curve.unwrap_or(Curve::Linear) {
+                Curve::Linear => (p, 100),
+                Curve::Quadratic => (p * p, 10000),
+            };
+            policy.manual = policy.minimum + ((span * weight + scale / 2) / scale) as u8;
+        }
+        if config
+            .sleep_with_display
+            .as_ref()
+            .is_some_and(|id| self.powered_off.contains(id))
+        {
+            config.brightness.off = true;
+            for policy in config
+                .panels
+                .iter_mut()
+                .filter_map(|p| p.brightness_override.as_mut())
+            {
+                policy.off = true;
+            }
         }
         config
     }

@@ -4,7 +4,7 @@ A configurable ambient display application for the Framework Laptop 16 LED
 Matrix modules.
 
 The native application uses a standalone Rust daemon and a React/TypeScript
-Tauri desktop, targeting Linux and Windows. Closing the UI leaves rendering and
+Tauri desktop. **Linux is the only v1 release target.** Closing the UI leaves rendering and
 sources running. **Development builds are available; this is not yet a qualified
 packaged release.**
 
@@ -19,9 +19,11 @@ Implemented software paths:
 - Metadata-only Claude helper and OpenCode V2 plugin, provider/session selection,
   context/activity widgets, heartbeat expiry and integration health.
 
-Panel behavior and interactive OS support remain explicitly unqualified. Windows
-stable bay identity is not implemented: unknown locations cannot be assigned.
-Quota sources, display/session policies, overlays, packaging/startup, migration
+Linux display/session policies are implemented; tested hardware scenarios and
+remaining limits are recorded below. Windows is post-v1:
+[development #42](https://github.com/jschraub/fw16-ledmatrix/issues/42) and
+[support qualification #43](https://github.com/jschraub/fw16-ledmatrix/issues/43).
+Quota sources, overlays, packaging/startup, migration
 and release qualification remain tracked work. See the
 [roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1),
 [support evidence](docs/SUPPORT.md), [widget behavior](docs/WIDGETS.md), and

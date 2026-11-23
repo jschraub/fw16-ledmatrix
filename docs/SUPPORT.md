@@ -1,6 +1,8 @@
 # Capability evidence and qualification
 
-Targets: Linux and Windows. A successful build is not a claim that all desktop,
+V1 targets Linux only. Windows rows record portability evidence, not v1 support
+or release requirements (post-v1 development #42, support qualification #43).
+A successful build is not a claim that all desktop,
 driver, or panel capabilities work. The daemon `--probe` and desktop capability
 screen distinguish available, unavailable, error, and not verified. Available
 means a prerequisite was observed; it does not mean a full adapter is qualified.

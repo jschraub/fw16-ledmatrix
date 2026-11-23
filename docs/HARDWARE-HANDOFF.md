@@ -3,7 +3,8 @@
 Updated **2026-11-23** after the attended #26 Linux lifecycle checks.
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 
-**Next for #26: Windows runtime and hardware qualification.** Linux optical
+**#26 is closed for Linux v1. Next: #27 feedback overlays.** Windows
+development (#42) and support qualification (#43) are post-v1. Linux optical
 lock, display-off and an attended system suspend/resume cycle passed. Details are in
 [SUPPORT.md](SUPPORT.md#initial-cachyos-hardware-session--2026-11-23).
 Physical module-removal testing is paused because it interrupted keyboard and
@@ -64,9 +65,9 @@ Rollback was not exercised; preserve settings and verify a single USB writer.
 1. Recheck the units and ownership above. If the daemon is still active, only
    relaunch the desktop (preserve any draft); use `target/debug/matrix-desktop`
    with the isolated environment. No persistent session policies are enabled.
-2. On Windows 11 check WMI selection, fallback, WTS lock, console power, and
-   suspend notifications separately. Windows physical routing also needs the bay
-   identity work in #35. Physical module removal on this laptop remains paused.
+2. Continue Linux development with #27, or the independent #22 lane. Windows
+   PnP identity and display/session qualification moved to #42/#43. Physical
+   module removal on this laptop remains paused.
 
 | Area | Evidence from this session |
 | --- | --- |
@@ -242,7 +243,7 @@ the resume checkpoint above so existing bindings and USB ownership are understoo
    export MATRIX_FEEDS="$HANDOFF_ROOT/feeds"
    ```
 
-   **Windows / PowerShell**
+   **Post-v1 Windows development / PowerShell**
 
    ```powershell
    $root = Join-Path $env:LOCALAPPDATA "fw16-matrix-handoff"
@@ -307,7 +308,7 @@ On this laptop, physical module-removal checks remain paused as described above.
 
 **Windows blocker:** discovery currently returns unknown physical locations.
 Assignment is deliberately disabled for unknown/ambiguous locations. Implement
-the native PnP location adapter in #35 using actual device properties. COM order
+the post-v1 native PnP location adapter in #42 using actual device properties. COM order
 and duplicate USB serial numbers are not substitutes for bay identity.
 
 **Recovery limit:** a write failure quarantines the connection because the
@@ -329,13 +330,13 @@ tickets.
 | --- | --- | --- |
 | 1 | [#31 Capability evidence](https://github.com/jschraub/fw16-ledmatrix/issues/31) | Probe the actual laptop and interactive OS; publish the tested environment and prerequisite gaps. |
 | 2 | [#34 Discovery and identification](https://github.com/jschraub/fw16-ledmatrix/issues/34) | Driver/access/exclusivity, actual firmware, port/wake settle timing, outline, cancel/disconnect and restoration. |
-| 3 | [#35 Persistent assignment](https://github.com/jschraub/fw16-ledmatrix/issues/35) | Finish Windows PnP location identity; verify Linux sysfs bay identity, restart/reorder safety, one/two-panel routing and ambiguity rejection. |
+| 3 | [#35 Persistent assignment](https://github.com/jschraub/fw16-ledmatrix/issues/35) | Verify Linux sysfs bay identity, restart/reorder safety, one/two-panel routing and ambiguity rejection. |
 | 4 | [#32 Layout/clock optics](https://github.com/jschraub/fw16-ledmatrix/issues/32) | Compare all three templates with POC and Rust frames; sparse digits, midnight, leading zero, independent intensity and overflow `XX`. |
 | 5 | [#37 Brightness/sleep](https://github.com/jschraub/fw16-ledmatrix/issues/37) | Calibrate each module; verify inheritance/overrides, min/max, explicit sleep, wake and identification restoration. |
 | 6 | [#33 Battery/power](https://github.com/jschraub/fw16-ledmatrix/issues/33) | Compare OS charge/AC/charging state; thresholds, missing/error/recovery, repeated widgets and resume. |
 | 7 | [#38 Temporary previews](https://github.com/jschraub/fw16-ledmatrix/issues/38) | Expiry/cancel/UI death/unplug; concurrent Apply restores latest saved state; second owner is busy; identification priority and restoration latency. |
 | 8 | [#39 OpenCode activation](https://github.com/jschraub/fw16-ledmatrix/issues/39) | Explicit V2 installation/reload, paths/ACLs, main/OpenAI filtering, model overrides, busy/idle, multiple instances and crash expiry. |
-| 9 | [#40 Claude activation](https://github.com/jschraub/fw16-ledmatrix/issues/40) | Wrap the existing status line unchanged; validate shell quoting, hook edges, 15-second refresh, expiry and Windows ACLs. |
+| 9 | [#40 Claude activation](https://github.com/jschraub/fw16-ledmatrix/issues/40) | Wrap the existing status line unchanged; validate shell quoting, hook edges, 15-second refresh, expiry and Linux permissions. |
 | 10 | [#36 Recovery/keepalive](https://github.com/jschraub/fw16-ledmatrix/issues/36) | Unplug/resume, fast re-enumeration, partial writes, competing owners, shutdown and the focused full-day static-content soak. |
 
 These checks can reveal unfinished adapter work, not only test failures. Record
@@ -347,14 +348,13 @@ Windows runner does not qualify physical Windows hardware.
 | Ticket | Outcome and prerequisites |
 | --- | --- |
 | [#22 Account-bound usage windows](https://github.com/jschraub/fw16-ledmatrix/issues/22) | Read-only supported credential discovery, independent Claude/OpenAI windows, correct durations, account changes, caching/expiry, 401/schema failures and redaction. Depends on closed #20/#21. Live requests require explicit opt-in; never paste tokens into config or take ownership of refresh. |
-| [#26 Display/session policy](https://github.com/jschraub/fw16-ledmatrix/issues/26) | Linux optical checks passed. Windows adapters implemented and cross-compiled; verify real Windows behavior before closure. |
 | [#27 Feedback overlays](https://github.com/jschraub/fw16-ledmatrix/issues/27) | Enabled/target/duration settings, latest-event replacement, ambient updates underneath, supervised real audio state and bounded charging indication. Depends on #26 and closed #18. Preserve identify/preview priority and complete serial commands. |
 | [#28 Packaging/startup](https://github.com/jschraub/fw16-ledmatrix/issues/28) | Choose installers/startup from platform evidence, install outside the checkout, narrow USB access, login startup, upgrade/uninstall and signing limits. Depends on closed #11/#14/#24. Do not confuse existing explicit desktop “Start daemon” with login startup. |
 | [#29 Migration/diagnostics](https://github.com/jschraub/fw16-ledmatrix/issues/29) | Explicit POC stop/disable, preserved settings, rollback without dual writers, keyboard workflows and redacted diagnostics. Depends on #22/#27/#28 and closed #15/#17. |
 | [#41 Desktop redesign](https://github.com/jschraub/fw16-ledmatrix/issues/41) | Iterate on the selected panel map, demonstrate everyday workflows and obtain owner sign-off before #30. |
 | [#30 Release qualification](https://github.com/jschraub/fw16-ledmatrix/issues/30) | Dated supported-environment evidence, POC parity, disruptive checks by approval, full-day product soak and green CI. Depends on #29. The device-focused #36 soak alone does not complete release qualification. |
 
-Suggested development lanes: #22 independently; #26 then #27; #28 after initial
+Suggested development lanes: #22 independently; #27 now that #26 is closed; #28 after initial
 platform evidence. Converge on #29, then #30. Keep each ticket's implementation,
 tests and commit separate. Use native GitHub parent/dependency relationships for
 new follow-ups, then verify them. Do not close parent specs while required

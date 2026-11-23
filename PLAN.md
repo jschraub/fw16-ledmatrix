@@ -4,17 +4,17 @@ Status: agreed v1 scope; implementation and qualification are in progress.
 
 ## Delivery checkpoint — 2026-11-23
 
-Through `3620592`, **16 of the original 22 delivery slices are closed**
-(#9–#21 and #23–#25). This measures software delivery, not release readiness.
+With #26 complete for Linux, **17 of the original 22 delivery slices are closed**
+(#9–#21 and #23–#26). This measures software delivery, not release readiness.
 The [live roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1) tracks
 the specs; the [handoff](docs/HARDWARE-HANDOFF.md) gives the next machine steps
 and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
 
-1. **Now — #26:** Linux display-follow with manual fallback has optical evidence.
+1. **Complete — #26:** Linux display-follow with manual fallback has optical evidence.
    Owner confirmed independent lock content, display-off sleep and restored
    roles after a real Linux suspend/resume. Linear/quadratic mapping and Windows
-   adapters are implemented. Windows runtime and hardware qualification remain
-   the next #26 gate; #35 is required for physical Windows routing.
+   adapters are implemented. Further Windows development (#42) and Windows
+   support qualification (#43) are post-v1 and do not gate Linux delivery.
 2. **Feature lanes:** #22 (account-bound usage) can proceed independently;
    #27 (feedback overlays) follows #26. #28 covers packaging and login startup.
 3. **Release UX — #41:** the panel-map design was selected and its first native
@@ -22,7 +22,7 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
    remain a release gate; the hardware-test UI is not the final design.
 4. **Qualification — #31–#40:** keep gathering evidence alongside development.
    Linux optics, preview ownership/restoration and diagnostics have passed
-   specific scenarios. Physical serial failure capture, safe reconnect, Windows
+   specific scenarios. Physical serial failure capture, safe reconnect, Linux
    bay identity, integration activation and the full-day soak remain open.
 5. **Converge:** #29 demonstrates migration and rollback; #30 requires packaging,
    qualified environments, hardware parity, full-day results, green CI and #41.
@@ -32,7 +32,7 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
 - Target the Framework Laptop 16 LED Matrix modules first, supporting one or two
   panels. Leave room for later hardware expansion without building a generic
   display platform now.
-- Support Linux and Windows for both the background daemon and desktop UI.
+- Target Linux only for v1, for both the background daemon and desktop UI.
 - Use Rust for the daemon and shared rendering/configuration logic.
 - Use Tauri with React and TypeScript for the desktop UI.
 - Use guided layout templates with configurable widget slots, not a freeform
@@ -221,7 +221,7 @@ released format.
 
 ## 5. Cross-platform strategy
 
-| Concern | Linux | Windows |
+| Concern | Linux (v1) | Windows (post-v1, #42/#43) |
 | --- | --- | --- |
 | Startup | systemd user unit on supported desktops | Per-user login startup mechanism, selected during packaging |
 | Device access | Narrow udev rule and active-user access | Supported CDC serial driver and per-user port access, verified on hardware |
@@ -233,7 +233,7 @@ released format.
 
 Do not promise identical capability coverage for every desktop, display, or
 driver. Report supported/unsupported/error states with actionable fallback
-behavior. Scope supported Linux distributions/desktops and Windows versions in
+behavior. Scope supported Linux distributions/desktops in
 the platform spike and publish the tested matrix before release.
 
 The daemon is a background user-session process, not a privileged machine-wide
@@ -297,13 +297,13 @@ Exit: working reference preserved; architecture and open scope decisions reviewe
 ### Milestone 1 — portability and lifecycle spike
 
 - Establish a minimal Rust workspace with simulated output and a device probe.
-- On Linux and Windows, enumerate/identify both panels, send representative
+- On Linux, enumerate/identify both panels, send representative
   frames, and test reconnect plus stable assignment across suspend/resume.
 - Exercise same-user local control, user-session startup, brightness/power/audio
-  capability discovery, and credential/snapshot path discovery on both OSes.
+  capability discovery, and credential/snapshot path discovery on Linux.
 - Select dependencies and record supported environments and measured limitations.
 
-Exit: demonstrated Windows/Linux feasibility, or explicit reviewed limitations.
+Exit: demonstrated Linux feasibility, or explicit reviewed limitations.
 Do this before investing in a polished UI or claiming platform parity.
 
 ### Milestone 2 — headless Rust parity
@@ -313,7 +313,7 @@ Do this before investing in a polished UI or claiming platform parity.
   charging indication, overlays, and source freshness behavior.
 - Add serial scheduling, keepalives, reconnect, single-instance handling, and
   independent source supervision.
-- Port integrations with cross-platform helpers and validate on both OSes.
+- Port integrations with portable helpers and validate on Linux for v1.
 
 Exit: the Rust daemon can run the current experience without a UI; golden frames,
 source fixtures, and lifecycle tests pass. POC remains available for comparison.
@@ -351,7 +351,7 @@ preview changes, and save them without editing files or using a terminal.
   both against the same ports. Do not treat this plan's file move as migration.
 - Complete a full-day soak and the hardware/platform qualification matrix.
 
-Exit: both supported OS targets pass the documented release checks; outstanding
+Exit: the supported Linux environments pass the documented release checks; outstanding
 capability gaps and integration limitations are visible to users.
 
 ## 8. Validation strategy
@@ -365,11 +365,12 @@ capability gaps and integration limitations are visible to users.
   mismatch, multi-client conflicts, preview expiry and restoration.
 - **Integrations:** metadata-only fixtures, account changes, token expiry,
   endpoint/schema failures, heartbeat expiry, main-session selection, path safety,
-  producer-to-consumer tests on Linux and Windows.
+  producer-to-consumer tests on Linux for v1.
 - **UI:** guided-slot validation feedback, unsaved drafts, Apply/Cancel,
   daemon reconnect/version errors, unavailable capabilities, accessible controls.
 - **CI:** Rust formatting/lint/tests and desktop/type/build checks on Linux and
-  Windows. Separate simulated coverage from real-hardware coverage.
+  Windows. Windows CI is portability evidence, not a v1 support commitment.
+  Separate simulated coverage from real-hardware coverage.
 - **Hardware:** identify each bay, validate orientation and sparse-content floor,
   suspend/resume, device loss, display off/lock, audio restart, screen tracking,
   provider expiry/recovery, single-panel use, and a full-day idle/static-content
@@ -382,7 +383,7 @@ the standard automated suite. Run disruptive hardware tests only explicitly.
 
 These need not block preserving the POC or reviewing the architecture:
 
-1. **Supported environments:** proposed Windows 11 and a small named Linux
+1. **Supported environments:** a small named Linux
    desktop/distribution matrix; verify actual hardware and desktop access first.
 2. **Clock options:** offer 24-hour and 12-hour variants, but decide on an honest
    AM/PM treatment that fits before promising parity between them.
@@ -393,7 +394,7 @@ These need not block preserving the POC or reviewing the architecture:
    the additional validation/UI complexity.
 5. **Profiles:** proposed one active saved configuration in v1; named profiles can
    follow without changing the separation of settings, layout, and runtime state.
-6. **Distribution:** choose Linux package formats, Windows installer/startup
+6. **Distribution:** choose Linux package formats, Linux login startup
    mechanism, signing, and supported upgrades after the platform spike.
 
 ## 10. Risks and mitigations

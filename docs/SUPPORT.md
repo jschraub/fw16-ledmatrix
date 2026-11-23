@@ -25,6 +25,17 @@ identity persistence across USB reordering, reconnect or suspend.
 
 ## Initial CachyOS hardware session — 2026-11-23
 
+**Linux inventory follow-up (#31, `74a7a0c`, 2026-11-23).** The interactive
+session ran CachyOS rolling, kernel `7.3.5-2-cachyos` (x86_64), and Hyprland
+`v0.57.2` on Wayland. Hyprland reported one display: internal `eDP-2`, BOE
+NE160QDM-NZ6, 2560×1600 at 165 Hz, scale 1. Both Framework USB interfaces
+(`32ac:0020`) used `cdc_acm`. With the qualification daemon active and the POC
+service inactive, a separate `--probe` run detected two panels, a sysfs
+backlight and battery, a reachable audio server and a reachable user systemd
+manager. Both credential presence checks reported available (existence only).
+The probe reported bay identity, lock/display-off/suspend events and snapshot
+storage as not verified. No suspend or module removal was performed.
+
 Related tickets: #31 (capability evidence), #32 (clock optics/latency),
 #33 (battery/power), #34 (discovery/identification), #35 (persistent assignment),
 #36 (recovery), #37 (brightness/sleep), #38 (temporary previews).

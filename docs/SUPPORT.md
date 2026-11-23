@@ -46,7 +46,15 @@ After clicking **Probe this machine**, the user confirmed the message
 “Capability probe failed. Check the daemon connection and retry.” The test
 desktop was then closed; the original daemon and desktop remained active.
 This verifies an unreachable daemon, not an absent-panel report from a
-reachable daemon. The absent-panel view remains untested.
+reachable daemon.
+
+At `6be04ff`, a separate native desktop connected to a reachable daemon with
+an empty `/sys/class/tty` and a private `/dev`. The user confirmed that the
+probe succeeded, reported `0 physical panels detected`, and showed
+`panels: unavailable` with “No Framework LED panels detected. Simulated
+development remains available.” Both modules stayed installed and under the
+original daemon's ownership. This verifies the zero-panel screen without
+testing physical removal or reconnect.
 
 Related tickets: #31 (capability evidence), #32 (clock optics/latency),
 #33 (battery/power), #34 (discovery/identification), #35 (persistent assignment),

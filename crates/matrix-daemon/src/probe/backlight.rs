@@ -8,7 +8,7 @@ fn number(path: &Path) -> io::Result<u32> {
         .map_err(|_| io::ErrorKind::InvalidData.into())
 }
 
-fn reading(path: &Path) -> io::Result<(u32, u32)> {
+pub(crate) fn reading(path: &Path) -> io::Result<(u32, u32)> {
     let level = number(&path.join("actual_brightness"))?;
     let maximum = number(&path.join("max_brightness"))?;
     if maximum == 0 || level > maximum {
@@ -54,9 +54,7 @@ pub(super) fn capability(root: &Path) -> Capability {
     item(
         "screen_brightness",
         State::Available,
-        &format!(
-            "{detail} Display association is not verified; manual panel brightness remains active."
-        ),
+        &format!("{detail} Select a connector and its backlight explicitly to follow brightness."),
     )
 }
 

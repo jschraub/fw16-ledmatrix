@@ -36,6 +36,8 @@ async fn run() -> std::io::Result<()> {
     let listener = local::Listener::bind(&endpoint).await?;
     let config = std::sync::Arc::new(std::sync::Mutex::new(Store::load(Store::default_path()?)?));
     let render_config = config.clone();
+    let (display_tx, display_rx) = tokio::sync::watch::channel(None);
+    tokio::spawn(matrix_daemon::display::poll(display_tx));
     let (power_tx, power_rx) = tokio::sync::watch::channel(matrix_daemon::power::unavailable(
         matrix_core::power::PowerStatus::Unavailable,
     ));
@@ -69,6 +71,13 @@ async fn run() -> std::io::Result<()> {
                 (config, store.preview_active(std::time::Instant::now()))
             };
             frame.preview = preview;
+            frame.display_sources = display_rx.borrow().clone();
+            let config = frame
+                .display_sources
+                .as_ref()
+                .cloned()
+                .unwrap_or_default()
+                .resolve(config);
             let readings = matrix_core::layout::Readings {
                 hour: now.hour() as u8,
                 minute: now.minute() as u8,

@@ -1,6 +1,7 @@
 import { useState, useImperativeHandle, type Ref } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Config } from "./bindings/Config";
+import type { DisplaySources } from "./bindings/DisplaySources";
 import type { SavedConfig } from "./bindings/SavedConfig";
 import type { ConfigReply } from "./bindings/ConfigReply";
 import type { Request } from "./bindings/Request";
@@ -12,7 +13,7 @@ import { ViewNav } from "./ViewNav";
 
 const tasks = ["Layout", "Brightness", "Assignments", "Preview"] as const;
 
-export function ConfigEditor({ panelName = null, ref }: { panelName?: string | null; ref?: Ref<{ loadIfNeeded(): void }> }) {
+export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: string | null; ref?: Ref<{ loadIfNeeded(): void }>; sources?: DisplaySources }) {
   const [task, setTask] = useState<typeof tasks[number]>("Layout");
   const [saved, setSaved] = useState<SavedConfig | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
@@ -64,7 +65,7 @@ export function ConfigEditor({ panelName = null, ref }: { panelName?: string | n
         onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>}
       <Layouts config={draft} change={setDraft} panelName={panelName} /></div>
       <div hidden={!!panelName}>
-      <div hidden={task !== "Brightness"}><BrightnessEditor config={draft} change={setDraft} /></div>
+      <div hidden={task !== "Brightness"}><BrightnessEditor config={draft} change={setDraft} sources={sources} /></div>
       <div hidden={task !== "Assignments"}><Bindings config={draft} change={setDraft} /></div>
       <div hidden={task !== "Preview"}>
       {draft.panels && <DraftPreview config={draft} />}

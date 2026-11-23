@@ -77,7 +77,7 @@ export function App() {
       </section>
       <footer>Closing this window leaves the daemon running.</footer>
       </div>
-      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}><ConfigEditor ref={editor} panelName={selected} /></div>
+      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}><ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} /></div>
       <div hidden={view !== "Devices"}><Devices /></div>
       <div hidden={view !== "Integrations"}>{snapshot ? <Integrations state={snapshot.assistants} /> : <p>Connect to the daemon to view assistant integrations.</p>}</div>
       <div hidden={view !== "Diagnostics"}>

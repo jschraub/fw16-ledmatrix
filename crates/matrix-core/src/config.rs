@@ -6,6 +6,9 @@ use ts_rs::TS;
 pub struct Config {
     pub schema_version: u16,
     pub clock_intensity: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub follow_display: Option<crate::display::DisplaySelection>,
     #[serde(default)]
     pub brightness: crate::brightness::Brightness,
     #[serde(default = "crate::layout::defaults")]
@@ -16,6 +19,7 @@ impl Default for Config {
         Self {
             schema_version: 2,
             clock_intensity: 180,
+            follow_display: None,
             brightness: Default::default(),
             panels: crate::layout::defaults(),
         }
@@ -29,6 +33,14 @@ pub struct FieldError {
 impl Config {
     pub fn validate(&self) -> Vec<FieldError> {
         let mut errors = vec![];
+        if self.follow_display.as_ref().is_some_and(|s| {
+            !crate::display::valid_id(&s.connector) || !crate::display::valid_id(&s.backlight)
+        }) {
+            errors.push(FieldError {
+                field: "follow_display".into(),
+                message: "Choose a display connector and brightness source.".into(),
+            });
+        }
         if !self.brightness.valid() {
             errors.push(FieldError { field: "brightness".into(), message: "Require 1 <= minimum <= manual <= maximum <= 255. Use explicit off, not zero brightness.".into() });
         }

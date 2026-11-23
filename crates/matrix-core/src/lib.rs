@@ -2,6 +2,7 @@
 pub mod assistant;
 pub mod brightness;
 pub mod config;
+pub mod display;
 pub mod layout;
 pub mod power;
 pub mod preview;

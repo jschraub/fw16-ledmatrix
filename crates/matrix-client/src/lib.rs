@@ -76,6 +76,9 @@ pub struct Hello {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct Snapshot {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub display_sources: Option<matrix_core::display::DisplaySources>,
     #[serde(default)]
     pub assistants: matrix_core::assistant::AssistantState,
     #[serde(default)]

@@ -18,6 +18,21 @@ guarantee. Real cancellation/unplug/priority observations require panels.
 
 ## Brightness
 
+On Linux, open **Configuration → Brightness → Display and backlight** to
+explicitly pair a connected DRM connector with a sysfs backlight. The app
+reads the source; it does not change the display's brightness or verify that
+the selected backlight controls it. The connector key includes the GPU device
+name instead of the card enumeration index. This identifies a port, not the
+individual monitor plugged into it.
+
+Inherited panel brightness maps the source percentage linearly between the
+configured minimum and maximum (zero means minimum, not sleep). Explicit sleep
+and per-panel overrides keep precedence. If the connector disappears, the
+reading is invalid, or sampling times out, output returns to the saved manual
+level; recovery resumes following the same pair. Polling is nominally every
+two seconds, in addition to rendering and routing delays. Other curves, Windows
+sources and lock/display-off/suspend policies are not implemented here.
+
 Application defaults and explicit per-panel overrides define ordered 1–255
 minimum/manual/maximum levels. Manual output is sent through the hardware's
 global-brightness command, separately from widget greyscale. Explicit off/sleep

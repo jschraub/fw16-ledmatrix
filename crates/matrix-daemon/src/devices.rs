@@ -215,6 +215,12 @@ impl Manager {
                 flash,
             )?;
             let saved = config.lock().expect("configuration").read().config;
+            let saved = frames
+                .borrow()
+                .display_sources
+                .clone()
+                .unwrap_or_default()
+                .resolve(saved);
             let devices = enumerate().unwrap_or_default();
             let role = resolve(&saved, &devices)
                 .into_iter()
@@ -528,6 +534,11 @@ pub async fn route_loop(
         timer.tick().await;
         let snapshot = frames.borrow().clone();
         let config = config.lock().expect("configuration").output();
+        let config = snapshot
+            .display_sources
+            .clone()
+            .unwrap_or_default()
+            .resolve(config);
         let _ = tokio::task::spawn_blocking(move || manager().route(config, snapshot)).await;
     }
 }

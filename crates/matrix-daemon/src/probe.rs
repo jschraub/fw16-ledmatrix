@@ -5,7 +5,7 @@ use std::{
 };
 use tokio::io::AsyncReadExt;
 #[cfg(target_os = "linux")]
-mod backlight;
+pub(crate) mod backlight;
 
 fn item(name: &str, state: State, detail: &str) -> Capability {
     Capability {

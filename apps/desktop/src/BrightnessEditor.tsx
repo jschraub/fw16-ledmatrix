@@ -1,5 +1,7 @@
 import type { Brightness } from "./bindings/Brightness";
 import type { Config } from "./bindings/Config";
+import type { DisplaySources } from "./bindings/DisplaySources";
+import { DisplayFollow } from "./DisplayFollow";
 
 export const defaultBrightness: Brightness = { minimum: 3, maximum: 255, manual: 32, off: false };
 function Controls({ name, value, change }: { name: string; value: Brightness; change: (value: Brightness) => void }) {
@@ -8,11 +10,12 @@ function Controls({ name, value, change }: { name: string; value: Brightness; ch
     <label><input type="checkbox" checked={value.off} onChange={(e) => change({ ...value, off: e.target.checked })} /> {name} off / sleep</label>
   </fieldset>;
 }
-export function BrightnessEditor({ config, change }: { config: Config; change: (config: Config) => void }) {
+export function BrightnessEditor({ config, change, sources }: { config: Config; change: (config: Config) => void; sources?: DisplaySources }) {
   const global = config.brightness ?? defaultBrightness;
   return <fieldset><legend>Panel brightness</legend>
     <p>Global panel brightness multiplies widget greyscale; it is not the same as relative intensity. Require minimum ≤ manual ≤ maximum. Explicit off sleeps the device instead of clamping back to the minimum.</p>
     <Controls name="Default brightness" value={global} change={(brightness) => change({ ...config, brightness })} />
+    <DisplayFollow config={config} change={change} sources={sources} />
     {(config.panels ?? []).map((panel, i) => <div key={panel.name}>
       <label><input type="checkbox" checked={panel.brightness_override != null} onChange={(e) => change({ ...config, panels: config.panels.map((p, n) => n === i ? { ...p, brightness_override: e.target.checked ? { ...global } : null } : p) })} /> Override brightness for {panel.name}</label>
       {panel.brightness_override && <Controls name={`${panel.name} brightness`} value={panel.brightness_override} change={(brightness_override) => change({ ...config, panels: config.panels.map((p, n) => n === i ? { ...p, brightness_override } : p) })} />}

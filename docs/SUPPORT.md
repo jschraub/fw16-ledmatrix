@@ -236,8 +236,8 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   left clock 1.99 s after the lease-end reply (10.03 s from start to reply).
   The 1.99 s includes human reaction and dialog handling, not just LED latency.
   The client then restored the original configuration at revision 6 and checked
-  its contents against revision 4. That check alone does not verify the final
-  visible battery gauge or uninterrupted right-clock output.
+  its contents against revision 4. The observer confirmed the left battery
+  gauge returned after rollback and the right clock stayed visible throughout.
 - Closing the native window during a left-sleep preview restored the battery
   gauge immediately according to the user. Systemd confirmed the desktop exited,
   the same daemon process remained active, and the POC remained stopped. This

@@ -5,7 +5,7 @@ use matrix_client::{
 use matrix_core::{Frame, HEIGHT, WIDTH, protocol};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io::{self, Read, Write},
+    io::{self, Write},
     sync::{
         Arc, Mutex, OnceLock,
         atomic::{AtomicBool, Ordering},
@@ -392,11 +392,7 @@ impl Panel {
         std::thread::sleep(Duration::from_millis(200));
         port.write_all(&protocol::command(0x03, &[0]))?;
         std::thread::sleep(Duration::from_secs(1));
-        port.write_all(&protocol::command(0x20, &[]))?;
-        let mut version = [0; 3];
-        port.read_exact(&mut version)?;
-        self.firmware =
-            Some(protocol::firmware(version).ok_or_else(|| io::Error::other("invalid firmware"))?);
+        self.firmware = Some(crate::firmware::query(&mut *port)?);
         self.port = Some(port);
         self.confirmed_off = false;
         self.brightness = None;

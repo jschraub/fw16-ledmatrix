@@ -8,6 +8,7 @@ use tokio::sync::{Semaphore, watch};
 pub mod config;
 pub mod devices;
 pub mod feeds;
+mod firmware;
 pub mod power;
 pub mod probe;
 pub type Configuration = Arc<std::sync::Mutex<config::Store>>;

@@ -57,6 +57,16 @@ also checks readable process file descriptors for a competing owner; restricted
 proc visibility can limit this check, so stop the POC explicitly. Windows uses
 exclusive COM access. Serial errors on one panel do not stop the other.
 
+After open/wake settling, firmware identification allows up to three version
+queries, each with a two-second reply window and a 300 ms gap between unanswered
+queries. The serial read timeout remains 250 ms; timeouts within a reply window
+do not discard bytes already received. An incomplete or invalid reply ends the
+exchange rather than starting another query. A failed write is never followed
+by another query in that exchange. The visible identification outline still
+lasts at most two seconds; opening and firmware queries add preparation time.
+This bounded retry addresses a missing first query after wake seen in the POC;
+physical cold-start and recovery qualification remain required.
+
 Ctrl-C/SIGTERM cancel identification, stop new routing jobs, wait for bounded
 in-flight work, and send sleep where possible. Runtime shutdown has a timeout for
 wedged blocking OS calls. A hard crash cannot guarantee hardware sleep. Device

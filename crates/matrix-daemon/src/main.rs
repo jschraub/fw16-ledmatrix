@@ -42,8 +42,9 @@ async fn run() -> std::io::Result<()> {
     tokio::spawn(matrix_daemon::audio::poll(enabled, audio_tx));
     let feedback_start = std::time::Instant::now();
     let mut feedback = matrix_daemon::feedback::Runtime::default();
-    let (display_tx, display_rx) = tokio::sync::watch::channel(None);
-    tokio::spawn(matrix_daemon::display::poll(display_tx));
+    let (display_tx, mut display_rx) = tokio::sync::watch::channel(None);
+    let (fast_light, fast_light_rx) = tokio::sync::watch::channel(false);
+    tokio::spawn(matrix_daemon::display::poll(display_tx, fast_light_rx));
     let (lock_tx, lock_rx) = tokio::sync::watch::channel(None);
     tokio::spawn(matrix_daemon::session_lock::poll(lock_tx));
     let (power_tx, power_rx) = tokio::sync::watch::channel(matrix_daemon::power::unavailable(
@@ -65,6 +66,7 @@ async fn run() -> std::io::Result<()> {
             tokio::select! {
                 _ = timer.tick() => {},
                 Ok(()) = audio_rx.changed() => {},
+                Ok(()) = display_rx.changed() => {},
             }
             let now = chrono::Local::now();
             sequence = sequence.wrapping_add(1);
@@ -81,7 +83,7 @@ async fn run() -> std::io::Result<()> {
             frame.preview = preview;
             frame.session_locked = *lock_rx.borrow();
             frame.suspend_epoch = matrix_daemon::suspend::epoch();
-            frame.display_sources = display_rx.borrow().clone();
+            frame.display_sources = display_rx.borrow_and_update().clone();
             let config = frame
                 .display_sources
                 .as_ref()
@@ -123,6 +125,15 @@ async fn run() -> std::io::Result<()> {
                 .iter()
                 .any(|p| p.feedback.as_ref().is_some_and(|s| s.volume > 0));
             audio_enable.send_if_modified(|v| {
+                let changed = *v != needed;
+                *v = needed;
+                changed
+            });
+            let needed = config
+                .panels
+                .iter()
+                .any(|p| p.feedback.as_ref().is_some_and(|s| s.brightness > 0));
+            fast_light.send_if_modified(|v| {
                 let changed = *v != needed;
                 *v = needed;
                 changed

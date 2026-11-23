@@ -4,22 +4,35 @@ use tokio::sync::watch;
 mod windows;
 
 #[cfg(target_os = "linux")]
-fn scan(drm: &std::path::Path, lights: &std::path::Path) -> DisplaySources {
-    use matrix_core::display::valid_id;
-    use std::fs;
-    let entries = |dir: &std::path::Path| fs::read_dir(dir).into_iter().flatten().flatten();
-    let automatic_dim = std::env::var_os("XDG_RUNTIME_DIR")
+fn automatic_dim() -> Option<bool> {
+    std::env::var_os("XDG_RUNTIME_DIR")
         .and_then(|dir| {
-            fs::metadata(std::path::PathBuf::from(dir).join("matrixd/brightness-auto"))
+            std::fs::metadata(std::path::PathBuf::from(dir).join("matrixd/brightness-auto"))
                 .ok()?
                 .modified()
                 .ok()?
                 .elapsed()
                 .ok()
         })
-        .map(|age| age <= std::time::Duration::from_secs(4));
+        .map(|age| age <= std::time::Duration::from_secs(4))
+}
+
+#[cfg(target_os = "linux")]
+fn percent(path: &std::path::Path) -> Option<u8> {
+    crate::probe::backlight::reading(path)
+        .ok()
+        .map(|(actual, max)| {
+            ((u64::from(actual) * 100 + u64::from(max) / 2) / u64::from(max)) as u8
+        })
+}
+
+#[cfg(target_os = "linux")]
+fn scan(drm: &std::path::Path, lights: &std::path::Path) -> DisplaySources {
+    use matrix_core::display::valid_id;
+    use std::fs;
+    let entries = |dir: &std::path::Path| fs::read_dir(dir).into_iter().flatten().flatten();
     let mut result = DisplaySources {
-        automatic_dim,
+        automatic_dim: automatic_dim(),
         ..Default::default()
     };
     for entry in entries(drm) {
@@ -56,17 +69,14 @@ fn scan(drm: &std::path::Path, lights: &std::path::Path) -> DisplaySources {
         let Some(id) = name.to_str().filter(|s| valid_id(s)) else {
             continue;
         };
-        let level = crate::probe::backlight::reading(&entry.path())
-            .ok()
-            .map(|(actual, max)| {
-                ((u64::from(actual) * 100 + u64::from(max) / 2) / u64::from(max)) as u8
-            });
-        result.backlights.insert(id.into(), level);
+        result.backlights.insert(id.into(), percent(&entry.path()));
     }
     result
 }
 
-pub async fn poll(tx: watch::Sender<Option<DisplaySources>>) {
+pub async fn poll(tx: watch::Sender<Option<DisplaySources>>, mut feedback: watch::Receiver<bool>) {
+    #[cfg(not(target_os = "linux"))]
+    let _ = &mut feedback;
     #[cfg(not(any(target_os = "linux", windows)))]
     drop(tx);
     #[cfg(windows)]
@@ -85,8 +95,23 @@ pub async fn poll(tx: watch::Sender<Option<DisplaySources>>) {
     #[cfg(target_os = "linux")]
     {
         use std::{path::Path, time::Duration};
+        let mut discovered = None::<std::time::Instant>;
         loop {
-            let mut task = tokio::task::spawn_blocking(|| {
+            let cached = tx
+                .borrow()
+                .clone()
+                .filter(|_| discovered.is_some_and(|t| t.elapsed() < Duration::from_secs(2)));
+            if cached.is_none() {
+                discovered = Some(std::time::Instant::now());
+            }
+            let mut task = tokio::task::spawn_blocking(move || {
+                if let Some(mut sources) = cached {
+                    for (id, level) in &mut sources.backlights {
+                        *level = percent(&Path::new("/sys/class/backlight").join(id));
+                    }
+                    sources.automatic_dim = automatic_dim();
+                    return sources;
+                }
                 scan(
                     Path::new("/sys/class/drm"),
                     Path::new("/sys/class/backlight"),
@@ -94,14 +119,30 @@ pub async fn poll(tx: watch::Sender<Option<DisplaySources>>) {
             });
             match tokio::time::timeout(Duration::from_secs(2), &mut task).await {
                 Ok(result) => {
-                    tx.send_replace(result.ok());
+                    let next = result.ok();
+                    tx.send_if_modified(|prev| {
+                        if *prev != next {
+                            *prev = next;
+                            true
+                        } else {
+                            false
+                        }
+                    });
                 }
                 Err(_) => {
                     tx.send_replace(None);
                     let _ = task.await; // Only one outstanding scan. Discard stale results.
                 }
             }
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            let delay = if *feedback.borrow_and_update() {
+                Duration::from_millis(75)
+            } else {
+                Duration::from_secs(2)
+            };
+            tokio::select! {
+                _=tokio::time::sleep(delay)=>{},
+                r=feedback.changed()=>if r.is_err(){return;}
+            }
         }
     }
 }

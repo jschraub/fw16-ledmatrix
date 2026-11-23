@@ -45,14 +45,14 @@ def request(endpoint, kind, **fields):
 
 
 @contextlib.contextmanager
-def daemon(root):
+def daemon(root, mounts=()):
     endpoint = root / "ipc/daemon.sock"
     binary = Path(__file__).resolve().parents[1] / "target/debug/matrix-daemon"
     env = dict(os.environ, MATRIX_ENDPOINT=str(endpoint), MATRIX_CONFIG=str(root / "config.json"),
                MATRIX_FEEDS=str(root / "feeds"))
     proc = subprocess.Popen(["bwrap", "--die-with-parent", "--ro-bind", "/", "/",
                              "--dev", "/dev", "--tmpfs", "/sys/class/tty",
-                             "--bind", root, root, "--", binary], env=env)
+                             "--bind", root, root, *mounts, "--", binary], env=env)
     try:
         deadline = time.monotonic() + 5
         while True:

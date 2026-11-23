@@ -36,7 +36,9 @@ observed change. Simultaneous samples use volume before brightness before AC.
 The optional eight-second charging pulse changes **whole-panel brightness**,
 never outside its configured limits. Hardware previews, identification, sleep
 and locked layouts take priority. Expiry returns to current ambient output.
-Volume changes wake rendering and changed panel output wakes routing. The
+Volume and backlight changes wake rendering and changed panel output wakes routing.
+With brightness feedback enabled, Linux samples known backlights roughly every
+75 ms; connector discovery stays on the slower two-second cadence. The
 one-second ambient tick and two-second device discovery remain fallbacks.
 Physical presentation still includes in-flight commands and serial write time;
 duration is a desired-output timer.

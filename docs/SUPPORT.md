@@ -157,9 +157,10 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
 - Number/two-gauges optical follow-up (#32, `982462b`): with the OS reporting
   100% battery, the user previewed battery / empty / battery on the left panel
   and confirmed the `XX` overflow marker was readable and the gauge bar was on
-  the right side. The saved configuration still showed revision 4 and left
-  `full_gauge`; that on-disk check does not establish visual restoration after
-  expiry or right-panel clock continuity.
+  the right side. The user also confirmed the left panel returned to its usual
+  battery gauge after preview expiry. The saved configuration remained at
+  revision 4 with left `full_gauge`. Restoration latency was not measured, and
+  right-panel clock continuity was not separately confirmed for this run.
 - Initial two-panel routing check passed: after adding logical `left` with a
   full-gauge battery source, binding it explicitly to the observed left-bay
   location, and applying with manual brightness 32, the user confirmed a battery

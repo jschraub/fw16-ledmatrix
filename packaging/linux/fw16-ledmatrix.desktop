@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Framework LED Matrix
+Comment=Configure and preview your Framework Laptop 16 LED panels
+Exec=/usr/bin/matrix-desktop
+Icon=fw16-ledmatrix
+Terminal=false
+Categories=Settings;HardwareSettings;

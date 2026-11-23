@@ -1,0 +1,18 @@
+# Binary package assembled from the checkout's locked release builds.
+pkgname=fw16-ledmatrix
+pkgver=@VERSION@
+pkgrel=@RELEASE@
+pkgdesc='Framework Laptop 16 LED Matrix desktop and user daemon'
+arch=('x86_64')
+url='https://github.com/jschraub/fw16-ledmatrix'
+license=('MIT')
+depends=('glibc' 'gcc-libs' 'gtk3' 'webkit2gtk-4.1' 'systemd')
+optdepends=('libpulse: volume feedback via pactl'
+            'glib2: Linux session sleep notifications via gdbus')
+options=('!debug' '!strip')
+source=('payload.tar')
+sha256sums=('@SHA256@')
+
+package() {
+    cp -a "$srcdir/payload/usr" "$pkgdir/"
+}

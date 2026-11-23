@@ -1,0 +1,12 @@
+[Unit]
+Description=Framework LED Matrix user daemon
+PartOf=graphical-session.target
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/matrix-daemon
+Restart=on-abnormal
+UMask=0077
+
+[Install]
+WantedBy=graphical-session.target

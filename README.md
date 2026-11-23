@@ -32,6 +32,8 @@ than treating simulated tests as physical evidence.
 
 ## Develop without panels
 
+For the native Arch/CachyOS package candidate, see [Linux packaging](docs/PACKAGING.md).
+
 Continuing on a laptop with panels? Start with the
 [hardware-machine handoff](docs/HARDWARE-HANDOFF.md), including open tickets,
 safe first-run steps and the recorded CI blocker.

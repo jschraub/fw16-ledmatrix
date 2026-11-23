@@ -6,6 +6,8 @@ use std::{
 use tokio::io::AsyncReadExt;
 #[cfg(target_os = "linux")]
 pub(crate) mod backlight;
+#[cfg(target_os = "linux")]
+mod lifecycle;
 
 fn item(name: &str, state: State, detail: &str) -> Capability {
     Capability {
@@ -129,7 +131,7 @@ pub async fn report() -> CapabilityReport {
             },
             "User systemd manager reachability, not service installation.",
         ));
-        capabilities.push(item("display_lock_suspend", State::NotVerified, "Session-bus/desktop event coverage needs an interactive session test. No listener is claimed active."));
+        capabilities.extend(lifecycle::report().await);
     }
     #[cfg(windows)]
     {

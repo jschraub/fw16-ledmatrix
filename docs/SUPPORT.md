@@ -25,6 +25,14 @@ identity persistence across USB reordering, reconnect or suspend.
 
 ## Initial CachyOS hardware session — 2026-11-23
 
+**Linux lifecycle probes (#26):** A read-only CLI sample reported internal
+connector `card1-eDP-2` DPMS On, logind's session lock hint clear, and system
+sleep preparation false. `tools/check-lifecycle-signals.py` exercised the same
+binary with synthetic DRM and logind responses: independent changes, overlap,
+display-only DPMS Suspend, unknown responses, and recovery. These are point-in-time
+capability samples; they do not establish delivery of a real lock, display-off,
+suspend, or resume event, or trigger panel policy.
+
 **Linux inventory follow-up (#31, `74a7a0c`, 2026-11-23).** The interactive
 session ran CachyOS rolling, kernel `7.3.5-2-cachyos` (x86_64), and Hyprland
 `v0.57.2` on Wayland. Hyprland reported one display: internal `eDP-2`, BOE

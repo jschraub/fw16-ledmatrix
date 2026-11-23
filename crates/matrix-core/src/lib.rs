@@ -8,6 +8,7 @@ pub mod layout;
 pub mod power;
 pub mod preview;
 pub mod protocol;
+pub mod pulse;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

@@ -1,7 +1,7 @@
 use matrix_client::Snapshot;
 use matrix_core::{
     config::Config,
-    feedback::{Feedback, Signals, Slot, charging_level, gauge},
+    feedback::{Feedback, Signals, Slot, gauge},
 };
 use std::{collections::BTreeMap, time::Duration};
 
@@ -72,7 +72,7 @@ impl Runtime {
                 out.frame = gauge(level);
             }
             if settings.charging && power.and_then(|p| p.charging) == Some(true) {
-                out.brightness = charging_level(
+                out.brightness = settings.pulse.unwrap_or_default().level(
                     matrix_core::brightness::effective(&config.brightness, panel),
                     now,
                 );

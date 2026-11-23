@@ -80,7 +80,7 @@ impl Config {
             if panel.feedback.as_ref().is_some_and(|f| !f.valid()) {
                 errors.push(FieldError {
                     field: format!("panels.{p}.feedback"),
-                    message: "Feedback duration must be off or 3–15 seconds.".into(),
+                    message: "Gauge duration must be off or 3–15 seconds; custom pulse spread must be 1–254 levels and cycle time 4–60 seconds.".into(),
                 });
             }
             if panel

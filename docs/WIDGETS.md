@@ -33,8 +33,11 @@ distinguish an unmarked automatic change from a user adjustment.
 
 One gauge replaces another on the same panel; it expires from the latest
 observed change. Simultaneous samples use volume before brightness before AC.
-The optional eight-second charging pulse changes **whole-panel brightness**.
-At manual level 32 it rises to 64 over four seconds and returns over four.
+The charging pulse changes **whole-panel brightness**. Each panel has its own
+strength. At level 32, Subtle rises to 40, Default to 64, and Extreme to 128
+over four seconds, returning over the next four. Existing configurations use
+Default. Custom takes the requested peak-to-trough spread (1–254 brightness
+levels) and the duration of one complete rise and fall (4–60 seconds).
 Near the ceiling the range shifts down; the configured minimum can limit contrast.
 Hardware previews, identification, sleep
 and locked layouts take priority. Expiry returns to current ambient output.

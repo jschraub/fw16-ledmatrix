@@ -1,5 +1,5 @@
 //! One transient gauge per logical panel. Time and source readings are inputs.
-use crate::{Frame, HEIGHT, WIDTH, brightness::Brightness};
+use crate::{Frame, HEIGHT, WIDTH, pulse::Pulse};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use ts_rs::TS;
@@ -12,12 +12,16 @@ pub struct Feedback {
     pub brightness: u8,
     pub ac: u8,
     pub charging: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pulse: Option<Pulse>,
 }
 impl Feedback {
     pub fn valid(&self) -> bool {
         [self.volume, self.brightness, self.ac]
             .iter()
             .all(|&s| s == 0 || (3..=15).contains(&s))
+            && self.pulse.is_none_or(Pulse::valid)
     }
 }
 
@@ -74,21 +78,10 @@ pub fn gauge(level: u8) -> Frame {
     }
 }
 
-pub fn charging_level(policy: &Brightness, now: Duration) -> Option<u8> {
-    let base = policy.level()?;
-    // Aim for a 2:1 peak-to-trough ratio, shifting down near the ceiling
-    // rather than flattening the pulse or crossing the visibility floor.
-    let high = base.saturating_mul(2).min(policy.maximum);
-    let low = high.div_ceil(2).max(policy.minimum);
-    let span = high - low;
-    let phase = (now.as_millis() % 8000) as u32;
-    let ramp = phase.min(8000 - phase);
-    Some(low + (u32::from(span) * ramp / 4000) as u8)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::brightness::Brightness;
     #[test]
     fn edges_replace_and_extend_without_startup_or_recovery_events() {
         let settings = Feedback {
@@ -96,6 +89,7 @@ mod tests {
             ac: 4,
             brightness: 5,
             charging: false,
+            pulse: None,
         };
         let mut slot = Slot::default();
         let mut s = Signals {
@@ -129,18 +123,18 @@ mod tests {
                 manual: base,
                 off: false,
             };
-            let low = charging_level(&p, Duration::ZERO).unwrap();
-            let high = charging_level(&p, Duration::from_secs(4)).unwrap();
+            let low = Pulse::Default.level(&p, Duration::ZERO).unwrap();
+            let high = Pulse::Default.level(&p, Duration::from_secs(4)).unwrap();
             assert!(low >= 3 && high <= 100 && high > low);
             p.off = true;
-            assert_eq!(charging_level(&p, Duration::ZERO), None);
+            assert_eq!(Pulse::Default.level(&p, Duration::ZERO), None);
         }
     }
 
     #[test]
     fn pulse_doubles_normal_brightness_and_returns_to_base() {
         let policy = Brightness::default();
-        let levels = [0, 2, 4, 6, 8].map(|s| charging_level(&policy, Duration::from_secs(s)));
+        let levels = [0, 2, 4, 6, 8].map(|s| Pulse::Default.level(&policy, Duration::from_secs(s)));
         assert_eq!(levels, [Some(32), Some(48), Some(64), Some(48), Some(32)]);
     }
 }

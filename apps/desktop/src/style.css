@@ -27,4 +27,17 @@ input, select { font: inherit; padding: 5px; margin-inline: 8px; max-width: 100%
 button { margin: 4px; }
 .draft-panels { display: flex; flex-wrap: wrap; gap: 16px; }
 .draft-panels figure { margin: 8px; }
+.overview-panels { display: flex; flex-wrap: wrap; gap: 16px; }
+.bay-tile { margin: 0; display: grid; justify-items: center; gap: 8px; }
+.bay-tile strong { text-transform: capitalize; }
+.bay-tile[aria-pressed=true] { border-color: #91e8bc; }
+.preview { flex-wrap: wrap; }
+.view-nav { display: flex; gap: 4px; flex-wrap: wrap; padding: 5px; margin: 16px 0; border-radius: 10px; background: #1b222c; }
+.view-nav button { font: inherit; font-size: .94rem; margin: 0; color: #bec9d7; background: transparent; border-color: transparent; }
+.view-nav button[aria-current] { color: #e3ffef; background: #274437; border-color: #578569; }
+.view-nav button:hover { background: #303c48; }
+summary { cursor: pointer; padding-block: 8px; }
+.slot { border-top: 1px solid #353d49; padding: 3px 6px; }
+.draft-actions { border-top: 1px solid #414956; background: #191e27; padding: 8px; margin-top: 16px; border-radius: 6px; }
+button:disabled { opacity: .55; cursor: default; }
 @media (max-width: 550px) { main { padding: 18px; } .preview { padding: 14px; gap: 12px; } }

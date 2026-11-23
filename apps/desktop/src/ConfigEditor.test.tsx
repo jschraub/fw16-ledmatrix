@@ -5,6 +5,21 @@ import { ConfigEditor } from "./ConfigEditor";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 const saved = { revision: 0, config: { schema_version: 1, clock_intensity: 180 } };
+test("editing the second panel from the map preserves the first panel and its binding", async () => {
+  const brightness = { manual: 32, minimum: 3, maximum: 255, off: false };
+  const left = { name: "left", template: "full_gauge", slots: [null], binding: "left-bay", brightness_override: null };
+  const right = { ...left, name: "right", binding: "right-bay" };
+  const config = { ...saved.config, brightness, panels: [left, right] };
+  vi.mocked(invoke).mockResolvedValue({ status: "read", saved: { revision: 4, config }, errors: [] });
+  render(<ConfigEditor panelName="right" />);
+  fireEvent.click(screen.getByRole("button", { name: "Load saved configuration" }));
+  fireEvent.change(await screen.findByLabelText("Template for right"), { target: { value: "clock_gauge" } });
+  expect(screen.queryByLabelText("Template for left")).toBeNull();
+  expect(invoke).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(invoke).toHaveBeenLastCalledWith("configuration", { request: { type: "apply_config", expected_revision: 4,
+    config: { ...config, panels: [left, { ...right, template: "clock_gauge", slots: [expect.objectContaining({ source: "clock" }), expect.objectContaining({ source: "battery" })] }] } } });
+});
 test("loads a draft, applies through daemon validation and cancels local changes", async () => {
   vi.mocked(invoke).mockResolvedValue({ status: "read", saved, errors: [] });
   render(<ConfigEditor />); fireEvent.click(screen.getByRole("button", { name: "Load saved configuration" }));

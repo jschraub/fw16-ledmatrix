@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useImperativeHandle, type Ref } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Config } from "./bindings/Config";
 import type { SavedConfig } from "./bindings/SavedConfig";
@@ -8,8 +8,12 @@ import { Layouts, DraftPreview } from "./Layouts";
 import { Bindings } from "./Bindings";
 import { BrightnessEditor } from "./BrightnessEditor";
 import { HardwarePreview } from "./HardwarePreview";
+import { ViewNav } from "./ViewNav";
 
-export function ConfigEditor() {
+const tasks = ["Layout", "Brightness", "Assignments", "Preview"] as const;
+
+export function ConfigEditor({ panelName = null, ref }: { panelName?: string | null; ref?: Ref<{ loadIfNeeded(): void }> }) {
+  const [task, setTask] = useState<typeof tasks[number]>("Layout");
   const [saved, setSaved] = useState<SavedConfig | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,30 +39,45 @@ export function ConfigEditor() {
     } catch { setMessage("Configuration unavailable. Reconnect and retry; your draft is retained."); }
     finally { setBusy(false); }
   }
+  useImperativeHandle(ref, () => ({ loadIfNeeded() { if (!draft && !busy) void command({ type: "read_config" }); } }));
+  const panel = draft?.panels?.find(p => p.name === panelName);
   return <section aria-label="Configuration">
-    <h2>Configuration</h2>
+    <h2>{panelName ? `Customize ${panelName} panel` : "Configuration"}</h2>
     <button disabled={busy} onClick={() => void command({ type: "read_config" })}>Load saved configuration</button>
     {draft && saved && <>
-      <p>Saved revision {saved.revision}. Changes remain a local draft until Apply.</p>
-      <p>Saved configuration is desired state, not proof that a disconnected physical panel has rendered it.</p>
+      <p>Saved revision {saved.revision} · {JSON.stringify(draft) === JSON.stringify(saved.config) ? "No draft changes" : "Unsaved draft"}</p>
+      <details open={conflict ? true : undefined}><summary>Revision options</summary>
       <button disabled={busy} onClick={() => void command({ type: "read_config" }, true)}>Refresh saved state (keep draft)</button>
+      </details>
       {conflict && <div role="alert">
         Another client saved revision {conflict.revision}. Your draft and original base revision are unchanged.
         <p>Current saved clock intensity: {conflict.config.clock_intensity}. Draft clock intensity: {draft.clock_intensity}.</p>
         <p>Refresh to adopt the current revision while keeping your draft, review it, then Apply explicitly; or load saved configuration to discard your draft.</p>
       </div>}
-      <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
-        onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>
-      <Layouts config={draft} change={setDraft} />
-      <BrightnessEditor config={draft} change={setDraft} />
-      <Bindings config={draft} change={setDraft} />
+      {panelName ? panel && <label>Panel brightness <input type="number" min={1} max={255}
+        value={(panel.brightness_override ?? draft.brightness).manual}
+        onChange={e => setDraft({ ...draft, panels: draft.panels.map(p => p !== panel ? p : {
+          ...p, brightness_override: { ...(p.brightness_override ?? draft.brightness), manual: Number(e.target.value) },
+        }) })} /></label> : null}
+      {!panelName && <ViewNav label="Configuration tasks" items={tasks} current={task} select={setTask} />}
+      <div hidden={!panelName && task !== "Layout"}>{!panelName && <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
+        onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>}
+      <Layouts config={draft} change={setDraft} panelName={panelName} /></div>
+      <div hidden={!!panelName}>
+      <div hidden={task !== "Brightness"}><BrightnessEditor config={draft} change={setDraft} /></div>
+      <div hidden={task !== "Assignments"}><Bindings config={draft} change={setDraft} /></div>
+      <div hidden={task !== "Preview"}>
       {draft.panels && <DraftPreview config={draft} />}
-      <HardwarePreview config={draft} />
+      </div></div>
+      <div hidden={!panelName && task !== "Preview"}><HardwarePreview config={draft} /></div>
+      <div className="draft-actions">
+      {panelName && <p>Preview, Apply, and Cancel draft include all unsaved panel changes.</p>}
       {!numericSettingsValid && <p role="alert">Numeric settings must be whole values in the 0–255 wire range; use the narrower limits shown by each control.</p>}
       <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>
       <button disabled={busy || !numericSettingsValid || draft.clock_intensity < 1}
         onClick={() => void command({ type: "apply_config", expected_revision: saved.revision, config: draft })}>Apply</button>
       <button disabled={busy} onClick={() => { setDraft(saved.config); setMessage("Draft cancelled"); }}>Cancel draft</button>
+      </div>
     </>}
     <p aria-live="polite">{message}</p>
   </section>;

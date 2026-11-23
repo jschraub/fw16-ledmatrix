@@ -12,17 +12,17 @@ const templates: Record<Template, Presentation[]> = { clock_gauge: ["clock", "ga
 const sources: Source[] = ["battery", "context", "activity", "five_hour", "weekly"];
 function widget(presentation: Presentation): Widget { return { source: presentation === "clock" ? "clock" : "battery", provider: "claude", session_id: null, presentation, intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null }; }
 
-export function Layouts({ config, change }: { config: Config; change: (config: Config) => void }) {
+export function Layouts({ config, change, panelName }: { config: Config; change: (config: Config) => void; panelName?: string | null }) {
   const panels = config.panels ?? [];
   function update(index: number, panel: PanelLayout) { change({ ...config, panels: panels.map((p, i) => i === index ? panel : p) }); }
   function slot(p: number, s: number, value: Widget | null) { update(p, { ...panels[p], slots: panels[p].slots.map((old, i) => i === s ? value : old) }); }
-  return <fieldset><legend>Guided layouts</legend>
-    <p>Templates fix geometry to 9 × 34. Changing a template resets its slots. Missing readings leave slots blank.</p>
-    {panels.map((panel, p) => <fieldset key={panel.name}><legend>{panel.name}</legend>
+  return <fieldset><legend>{panelName ? "Panel content" : "Guided layouts"}</legend>
+    <p>Changing a template replaces that panel’s draft widgets. Expand a slot to edit it.</p>
+    {panels.map((panel, p) => (!panelName || panelName === panel.name) && <fieldset key={panel.name}><legend>{panel.name}</legend>
       <label>Template for {panel.name} <select value={panel.template} onChange={(e) => { const template = e.target.value as Template; update(p, { ...panel, template, slots: templates[template].map(widget) }); }}>
         {Object.keys(templates).map((t) => <option key={t} value={t}>{t.replaceAll("_", " ")}</option>)}
       </select></label>
-      {panel.slots.map((value, s) => <fieldset key={s}><legend>Slot {s + 1} · {templates[panel.template][s]}</legend>
+      {panel.slots.map((value, s) => <details key={s} className="slot"><summary>Slot {s + 1} · {templates[panel.template][s]} · {value?.source ?? "Empty"}</summary>
         <label>Source for {panel.name} slot {s + 1} <select value={value?.source ?? "empty"} onChange={(e) => slot(p, s, e.target.value === "empty" ? null : { ...(value ?? widget(templates[panel.template][s])), source: e.target.value as Source })}>
           <option value="empty">Empty</option>
           {(templates[panel.template][s] === "clock" ? ["clock"] : sources).map((source) => <option key={source} value={source}>{source}</option>)}
@@ -43,10 +43,10 @@ export function Layouts({ config, change }: { config: Config; change: (config: C
           {value.presentation === "clock" && <><p>24-hour local clock. AM/PM formats are deferred until a legible 9-pixel design is agreed.</p>
             <label><input type="checkbox" checked={value.hide_leading_hour_zero ?? false} onChange={(e) => slot(p, s, { ...value, hide_leading_hour_zero: e.target.checked })} /> Hide leading hour zero</label></>}
         </>}
-      </fieldset>)}
-      {panels.length === 2 && <button type="button" onClick={() => change({ ...config, panels: panels.filter((_, i) => i !== p) })}>Remove {panel.name}</button>}
+      </details>)}
+      {!panelName && panels.length === 2 && <button type="button" onClick={() => change({ ...config, panels: panels.filter((_, i) => i !== p) })}>Remove {panel.name}</button>}
     </fieldset>)}
-    {panels.length === 1 && <button type="button" onClick={() => change({ ...config, panels: [...panels, { name: panels[0].name === "left" ? "right" : "left", binding: null, brightness_override: null, template: "clock_gauge", slots: templates.clock_gauge.map(widget) }] })}>Add second panel</button>}
+    {!panelName && panels.length === 1 && <button type="button" onClick={() => change({ ...config, panels: [...panels, { name: panels[0].name === "left" ? "right" : "left", binding: null, brightness_override: null, template: "clock_gauge", slots: templates.clock_gauge.map(widget) }] })}>Add second panel</button>}
   </fieldset>;
 }
 

@@ -3,9 +3,16 @@ import { Capabilities } from "./Capabilities";
 import { ConfigEditor } from "./ConfigEditor";
 import { Devices } from "./Devices";
 import { Integrations } from "./Integrations";
+import { useState, useRef } from "react";
+import { ViewNav } from "./ViewNav";
+
+const views = ["Overview", "Configuration", "Devices", "Integrations", "Diagnostics"] as const;
 
 export function App() {
   const { hello, snapshot, error, connecting, starting, connect, start } = useDaemon();
+  const [view, setView] = useState<typeof views[number]>("Overview");
+  const [selected, setSelected] = useState<string | null>(null);
+  const editor = useRef<{ loadIfNeeded(): void }>(null);
 
   const time = snapshot
     ? `${String(snapshot.hour).padStart(2, "0")}:${String(snapshot.minute).padStart(2, "0")}`
@@ -16,7 +23,6 @@ export function App() {
       <header>
         <p className="eyebrow">FRAMEWORK LAPTOP 16</p>
         <h1>LED Matrix</h1>
-        <p className="subtitle">Independent daemon · desktop preview</p>
       </header>
       <section className="status" aria-label="Daemon connection">
         <span className={`dot ${hello ? "online" : ""}`} aria-hidden="true" />
@@ -33,24 +39,33 @@ export function App() {
           <p>Diagnostics exclude endpoint paths, usernames, credentials, and message payloads. No running process will be stopped or replaced.</p>
         </details>
       </div>}
+      <ViewNav label="Main navigation" items={views} current={view} select={item => { setView(item); setSelected(null); }} />
+      <div hidden={view !== "Overview"}>
       <section className="preview" aria-labelledby="preview-heading">
         {snapshot?.preview && <p role="status">TEMPORARY HARDWARE PREVIEW · not saved</p>}
         <div>
           <span className="badge">{snapshot?.panels.some((p) => p.binding !== null) ? "PANEL PREVIEW · CHECK DEVICE STATUS" : "SIMULATED PANEL · NO HARDWARE"}</span>
-          <h2 id="preview-heading">Clock</h2>
+          <h2 id="preview-heading">Your panels</h2>
+          {snapshot?.panels.length ? <p>Select a panel to edit its widgets or brightness.</p> : null}
           <p className="time">{time}</p>
-          <p>Live local time. Pixels rendered by Rust, not React.</p>
-          <p className="muted">9 × 34 · 8-bit greyscale<br />Screen brightness is not calibrated to physical LEDs.</p>
-          {hello && <p className="muted">Daemon {hello.daemon_version} · protocol {hello.protocol_version}<br />Capabilities: {hello.capabilities.join(", ")}</p>}
-          {snapshot && <p className="muted">Update {snapshot.sequence}</p>}
-          {snapshot?.panels[0] && <p className="muted">Effective panel brightness: {snapshot.panels[0].brightness ?? "off / sleep"}. Preview pixels show relative greyscale, not calibrated luminance.</p>}
           {snapshot?.power && <p className="muted">Battery source: {snapshot.power.status}
             {snapshot.power.percent !== null && <> · {snapshot.power.percent}%</>}
             {snapshot.power.charging !== null && <> · {snapshot.power.charging ? "charging" : "not charging"}</>}
             {snapshot.power.ac !== null && <> · AC {snapshot.power.ac ? "connected" : "disconnected"}</>}
-            <br />Observed: {snapshot.power.updated_at}. Unavailable/error data stays blank.</p>}
+            </p>}
         </div>
-        {snapshot ? (
+        {snapshot?.panels.length ? <div className="overview-panels">
+          {[...snapshot.panels].sort((a, b) => a.name.localeCompare(b.name)).map(panel =>
+            <button key={panel.name} className="bay-tile" aria-label={`Customize ${panel.name} panel`} aria-pressed={selected === panel.name}
+              onClick={() => { setSelected(panel.name); editor.current?.loadIfNeeded(); }}>
+              <strong>{panel.name} panel</strong><small>{panel.binding ? "Assigned" : "Simulated"}</small>
+              <span className="panel" role="img" aria-label={`Live logical panel ${panel.name}`}>
+                <span className="pixels" aria-hidden="true">{panel.frame.pixels.map((value, index) =>
+                  <span key={index} className="pixel" style={{ opacity: value ? value / 255 : 0.06 }} />)}</span>
+              </span>
+              <small>Brightness: {panel.brightness ?? "off / sleep"}</small>
+            </button>)}
+        </div> : snapshot ? (
           <div className="panel" role="img" aria-label={`Simulated LED panel showing ${time}`}>
             <div className="pixels" aria-hidden="true">
               {snapshot.frame.pixels.map((value, index) => (
@@ -60,16 +75,18 @@ export function App() {
           </div>
         ) : <div className="placeholder">{hello ? "Waiting for first frame…" : "Connect to view the panel"}</div>}
       </section>
-      <footer>Closing this window leaves the daemon running. Reopen to see its latest frame.</footer>
-      {snapshot && snapshot.panels.length > 1 && <section aria-label="Other logical panels" className="draft-panels">
-        {snapshot.panels.slice(1).map((panel) => <figure key={panel.name}><figcaption>{panel.name} · {panel.binding ? "physical assignment configured (see Devices for health)" : "simulated"}</figcaption>
-          <div className="panel" role="img" aria-label={`Live logical panel ${panel.name}`}><div className="pixels" aria-hidden="true">{panel.frame.pixels.map((pixel, n) => <span key={n} className="pixel" style={{ opacity: pixel ? pixel / 255 : 0.06 }} />)}</div></div>
-        </figure>)}
-      </section>}
-      <Capabilities />
-      <Devices />
-      {snapshot && <Integrations state={snapshot.assistants} />}
-      <ConfigEditor />
+      <footer>Closing this window leaves the daemon running.</footer>
+      </div>
+      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}><ConfigEditor ref={editor} panelName={selected} /></div>
+      <div hidden={view !== "Devices"}><Devices /></div>
+      <div hidden={view !== "Integrations"}>{snapshot ? <Integrations state={snapshot.assistants} /> : <p>Connect to the daemon to view assistant integrations.</p>}</div>
+      <div hidden={view !== "Diagnostics"}>
+        <Capabilities />
+        {hello && <details><summary>Connection details</summary>
+          <p>Daemon {hello.daemon_version} · protocol {hello.protocol_version}<br />Capabilities: {hello.capabilities.join(", ")}</p>
+          {snapshot && <p>Update {snapshot.sequence} · Screen brightness is not calibrated to physical LEDs.</p>}
+        </details>}
+      </div>
     </main>
   );
 }

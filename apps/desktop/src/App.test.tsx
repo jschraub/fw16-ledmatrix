@@ -3,6 +3,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { Event } from "./bindings/Event";
 import { subscribe, startDaemon } from "./connection";
 import { App } from "./App";
+import { invoke } from "@tauri-apps/api/core";
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 vi.mock("./connection", async (original) => ({ ...await original<typeof import("./connection")>(), subscribe: vi.fn(), startDaemon: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
@@ -21,6 +23,25 @@ test("shows daemon pixels and handshake without inventing a clock in React", asy
   expect(container.querySelectorAll(".pixel")).toHaveLength(306);
   expect((container.querySelectorAll(".pixel")[10] as HTMLElement).style.opacity).toBe(String(180 / 255));
   expect(screen.getByText(/Daemon 0.1.0/)).toBeInTheDocument();
+});
+
+test("navigation reveals one task at a time and keeps unsaved configuration", async () => {
+  vi.mocked(subscribe).mockImplementation(async receive => { receive(hello); receive(frame); });
+  vi.mocked(invoke).mockResolvedValue({ status: "read", errors: [], saved: {
+    revision: 4, config: { schema_version: 2, clock_intensity: 180, panels: [] },
+  } });
+  render(<App />);
+  const go = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
+  expect(screen.queryByRole("button", { name: "Load saved configuration" })).toBeNull();
+  go("Configuration"); go("Load saved configuration");
+  fireEvent.change(await screen.findByLabelText("Clock intensity"), { target: { value: "160" } });
+  go("Brightness");
+  expect(screen.getByLabelText("Clock intensity")).not.toBeVisible();
+  go("Diagnostics");
+  expect(screen.getByRole("button", { name: "Probe this machine" })).toBeVisible();
+  go("Configuration"); go("Layout");
+  expect(screen.getByLabelText("Clock intensity")).toHaveValue(160);
+  expect(invoke).toHaveBeenCalledTimes(1);
 });
 
 test("reports a missing daemon and retries without starting or stopping it", async () => {

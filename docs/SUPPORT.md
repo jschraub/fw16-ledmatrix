@@ -33,6 +33,14 @@ display-only DPMS Suspend, unknown responses, and recovery. These are point-in-t
 capability samples; they do not establish delivery of a real lock, display-off,
 suspend, or resume event, or trigger panel policy.
 
+**Live DPMS cycle (#26, `07e7938`):** With only `eDP-2` active, a Hyprland
+display-off request followed by an automatic display-on request produced
+On → Off → On in both compositor status and the daemon CLI's DRM probe.
+The logind lock hint was clear, `PreparingForSleep` was false, and actual
+backlight brightness was 55/100 in all three samples. A separate user timer
+was armed for backup wake before blanking. This verifies detection of a real
+display-power transition on this setup, not panel sleep or lock/suspend policy.
+
 **Linux inventory follow-up (#31, `74a7a0c`, 2026-11-23).** The interactive
 session ran CachyOS rolling, kernel `7.3.5-2-cachyos` (x86_64), and Hyprland
 `v0.57.2` on Wayland. Hyprland reported one display: internal `eDP-2`, BOE

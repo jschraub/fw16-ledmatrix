@@ -230,6 +230,14 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   newly saved output, including its changed binding; the cancellation case
   restored explicit off and blank pixels. Each result survived daemon restart.
   No physical routing, native UI crash, or optical latency was tested.
+- Physical concurrent Apply (#38): starting at revision 4, the daemon reported
+  a blank left preview frame during a ten-second lease. A second client saved a
+  left clock while the lease was active. The observer acknowledged seeing the
+  left clock 1.99 s after the lease-end reply (10.03 s from start to reply).
+  The 1.99 s includes human reaction and dialog handling, not just LED latency.
+  The client then restored the original configuration at revision 6 and checked
+  its contents against revision 4. That check alone does not verify the final
+  visible battery gauge or uninterrupted right-clock output.
 - Closing the native window during a left-sleep preview restored the battery
   gauge immediately according to the user. Systemd confirmed the desktop exited,
   the same daemon process remained active, and the POC remained stopped. This

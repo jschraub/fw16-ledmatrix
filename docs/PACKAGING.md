@@ -40,6 +40,11 @@ installing. This is an unsigned candidate, not a signed pacman repository.
 The Arch base and system libraries are rolling; pinned app toolchains and
 version metadata do not imply byte-identical rebuilds.
 
+[Run 45287031083](https://github.com/jschraub/fw16-ledmatrix/actions/runs/45287031083)
+built and transaction-tested the unsigned `0.1.0-1004` x86-64 candidate from
+`ace4452`. After download, `sha256sum -c SHA256SUMS` passed and `pacman -Qp`
+reported `fw16-ledmatrix 0.1.0-1004`.
+
 **2026-11-23, CachyOS x86-64:** built `0.1.0-1` and `0.1.0-2` from release
 binaries. The scratch-root check passed install, upgrade (`pacman -Qk`: zero
 missing files), desktop-entry validation, installed daemon probe with zero
@@ -81,5 +86,4 @@ paths. Do not remove assistant settings or the POC backup.
 For public distribution, sign release packages with a published, verifiable
 maintainer key and document trust/upgrade policy. An unsigned local build or
 checksum alone does not establish publisher identity. Clean-user login,
-CI publication and signing remain #28
-qualification/delivery work.
+and release signing remain #28 qualification/delivery work.

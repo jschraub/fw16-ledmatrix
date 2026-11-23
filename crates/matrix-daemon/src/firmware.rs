@@ -18,18 +18,32 @@ fn query_with(
     // Retry only a completely unanswered query; never discard partial replies
     // or append another command after a failed (possibly partial) write.
     for attempt in 0..3 {
-        port.write_all(&protocol::command(0x20, &[]))?;
-        let deadline = Instant::now() + response_timeout;
+        crate::serial_io::send(port, "firmware-query", &protocol::command(0x20, &[]))?;
+        let started = Instant::now();
+        let deadline = started + response_timeout;
         let mut version = [0; 3];
         let mut received = 0;
         while Instant::now() < deadline {
             match port.read(&mut version[received..]) {
-                Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()),
+                Ok(0) => {
+                    return Err(reply_error(
+                        io::ErrorKind::UnexpectedEof.into(),
+                        attempt,
+                        received,
+                        started,
+                    ));
+                }
                 Ok(count) => {
                     received += count;
                     if received == version.len() {
-                        return protocol::firmware(version)
-                            .ok_or_else(|| io::Error::other("invalid firmware"));
+                        return protocol::firmware(version).ok_or_else(|| {
+                            reply_error(
+                                io::Error::other("invalid firmware"),
+                                attempt,
+                                received,
+                                started,
+                            )
+                        });
                     }
                 }
                 Err(error)
@@ -39,23 +53,42 @@ fn query_with(
                             | io::ErrorKind::WouldBlock
                             | io::ErrorKind::Interrupted
                     ) => {}
-                Err(error) => return Err(error),
+                Err(error) => return Err(reply_error(error, attempt, received, started)),
             }
         }
         if received > 0 {
-            return Err(io::Error::new(
-                io::ErrorKind::TimedOut,
-                "incomplete firmware reply",
+            return Err(reply_error(
+                io::Error::new(io::ErrorKind::TimedOut, "incomplete firmware reply"),
+                attempt,
+                received,
+                started,
             ));
         }
         if attempt < 2 {
             std::thread::sleep(retry_delay);
+        } else {
+            return Err(reply_error(
+                io::Error::new(io::ErrorKind::TimedOut, "firmware did not reply"),
+                attempt,
+                received,
+                started,
+            ));
         }
     }
-    Err(io::Error::new(
-        io::ErrorKind::TimedOut,
-        "firmware did not reply",
-    ))
+    unreachable!("three attempts return a version or a failure")
+}
+
+// Only terminal reply failures are logged, not expected short read timeouts.
+fn reply_error(error: io::Error, attempt: usize, received: usize, started: Instant) -> io::Error {
+    eprintln!(
+        "matrix-daemon: serial failure: operation=read stage=firmware-reply attempt={} received={}/3 elapsed_ms={} kind={:?} os_error={:?}",
+        attempt + 1,
+        received,
+        started.elapsed().as_millis(),
+        error.kind(),
+        error.raw_os_error()
+    );
+    error
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use crate::serial_io::send;
 use matrix_client::{
     Snapshot,
     devices::{Device, DeviceReply},
@@ -134,10 +135,11 @@ impl Manager {
             .lock()
             .map_err(|_| io::Error::other("device registry"))?;
         // Bound retained ports and never evict a port while it is in use.
-        let present = enumerate().unwrap_or_default();
-        panels.retain(|name, panel| {
-            present.iter().any(|d| &d.port == name) || Arc::strong_count(panel) > 1
-        });
+        if let Ok(present) = enumerate() {
+            panels.retain(|name, panel| {
+                present.iter().any(|d| &d.port == name) || Arc::strong_count(panel) > 1
+            });
+        }
         if !panels.contains_key(port) && panels.len() >= 2 {
             return Err(io::Error::other("one/two panels supported"));
         }
@@ -177,11 +179,11 @@ impl Manager {
         }
         let result = (|| {
             if panel.port.is_some() {
-                panel
-                    .port
-                    .as_mut()
-                    .expect("open port")
-                    .write_all(&protocol::command(0x03, &[0]))?;
+                send(
+                    panel.port.as_mut().expect("open port"),
+                    "identify-wake",
+                    &protocol::command(0x03, &[0]),
+                )?;
                 std::thread::sleep(Duration::from_secs(1));
             }
             panel.open(port_name)?;
@@ -221,11 +223,11 @@ impl Manager {
             if let Some(level) = role.and_then(|panel| {
                 matrix_core::brightness::effective(&saved.brightness, panel).level()
             }) {
-                panel
-                    .port
-                    .as_mut()
-                    .expect("open port")
-                    .write_all(&protocol::command(0x00, &[level]))?;
+                send(
+                    panel.port.as_mut().expect("open port"),
+                    "identify-restore-brightness",
+                    &protocol::command(0x00, &[level]),
+                )?;
                 panel.brightness = Some(level);
             } else {
                 panel.sleep();
@@ -234,8 +236,8 @@ impl Manager {
         })();
         active.store(false, Ordering::Release);
         panel.frame = None;
-        if result.is_err() {
-            panel.failed(Instant::now());
+        if let Err(error) = &result {
+            panel.failed(Instant::now(), error);
         }
         if self.stopping.load(Ordering::Acquire) {
             panel.sleep();
@@ -247,7 +249,9 @@ impl Manager {
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
-        let devices = enumerate().unwrap_or_default();
+        let Ok(devices) = enumerate() else {
+            return; // A failed scan does not establish absence or release quarantine.
+        };
         let routes = resolve(&config, &devices);
         self.panels.lock().expect("panels").retain(|name, handle| {
             if routes.iter().any(|(_, port)| port == name) {
@@ -304,25 +308,29 @@ impl Manager {
                             || panel.brightness != Some(brightness)
                         {
                             let port = panel.port.as_mut().expect("open port");
-                            port.write_all(&protocol::command(0x00, &[brightness]))?;
+                            send(
+                                port,
+                                "output-brightness",
+                                &protocol::command(0x00, &[brightness]),
+                            )?;
                             for command in protocol::greyscale(&frame).expect("valid frame") {
-                                port.write_all(&command)?;
+                                send(port, "output-frame", &command)?;
                             }
                             panel.frame = Some(frame);
                             panel.brightness = Some(brightness);
                             panel.last_write = Instant::now();
                         } else if panel.last_write.elapsed() >= Duration::from_secs(25) {
-                            panel
-                                .port
-                                .as_mut()
-                                .expect("open port")
-                                .write_all(&protocol::command(0x00, &[brightness]))?;
+                            send(
+                                panel.port.as_mut().expect("open port"),
+                                "keepalive",
+                                &protocol::command(0x00, &[brightness]),
+                            )?;
                             panel.last_write = Instant::now();
                         }
                         Ok::<_, io::Error>(())
                     })();
-                    if result.is_err() {
-                        panel.failed(Instant::now());
+                    if let Err(error) = &result {
+                        panel.failed(Instant::now(), error);
                     }
                     if self.stopping.load(Ordering::Acquire) {
                         panel.sleep();
@@ -338,8 +346,8 @@ impl Panel {
     fn ready(&self, now: Instant) -> bool {
         !self.needs_replug && now >= self.retry_at
     }
-    fn failed(&mut self, now: Instant) {
-        self.needs_replug = self.port.is_some();
+    fn failed(&mut self, now: Instant, error: &io::Error) {
+        self.needs_replug |= self.port.is_some() || crate::serial_io::is_command_failure(error);
         self.port = None;
         self.firmware = None;
         self.frame = None;
@@ -352,8 +360,7 @@ impl Panel {
     }
     fn sleep(&mut self) {
         if let Some(port) = self.port.as_mut() {
-            self.confirmed_off = port
-                .write_all(&protocol::command(0x03, &[1]))
+            self.confirmed_off = send(port, "sleep", &protocol::command(0x03, &[1]))
                 .and_then(|_| port.flush())
                 .is_ok();
             if !self.confirmed_off {
@@ -390,9 +397,7 @@ impl Panel {
         #[cfg(windows)]
         let mut port = builder.open()?;
         std::thread::sleep(Duration::from_millis(200));
-        port.write_all(&protocol::command(0x03, &[0]))?;
-        std::thread::sleep(Duration::from_secs(1));
-        self.firmware = Some(crate::firmware::query(&mut *port)?);
+        self.firmware = Some(startup(&mut *port, Duration::from_secs(1))?);
         self.port = Some(port);
         self.confirmed_off = false;
         self.brightness = None;
@@ -400,6 +405,12 @@ impl Panel {
         self.frame = None;
         Ok(())
     }
+}
+
+fn startup(port: &mut (impl io::Read + Write + ?Sized), settle: Duration) -> io::Result<String> {
+    send(port, "open-wake", &protocol::command(0x03, &[0]))?;
+    std::thread::sleep(settle);
+    crate::firmware::query(port)
 }
 
 #[cfg(target_os = "linux")]
@@ -542,8 +553,16 @@ fn identify_on<W: Write + ?Sized>(
     }
     let result = (|| {
         if active.load(Ordering::Acquire) {
-            writer.write_all(&protocol::command(0x00, &[brightness]))?;
-            writer.write_all(&protocol::bw(&pattern).expect("valid pattern"))?;
+            send(
+                writer,
+                "identify-brightness",
+                &protocol::command(0x00, &[brightness]),
+            )?;
+            send(
+                writer,
+                "identify-outline",
+                &protocol::bw(&pattern).expect("valid pattern"),
+            )?;
         }
         let until = Instant::now() + duration;
         while active.load(Ordering::Acquire) && Instant::now() < until {
@@ -558,7 +577,7 @@ fn identify_on<W: Write + ?Sized>(
     protocol::greyscale(&latest())
         .ok_or_else(|| io::Error::other("invalid normal frame"))?
         .iter()
-        .try_for_each(|command| writer.write_all(command))
+        .try_for_each(|command| send(writer, "identify-restore-frame", command))
 }
 
 pub struct CancelOnDrop(pub Arc<AtomicBool>);
@@ -567,6 +586,9 @@ impl Drop for CancelOnDrop {
         self.0.store(false, Ordering::Release);
     }
 }
+
+#[cfg(all(test, target_os = "linux"))]
+mod serial_fault_tests;
 
 #[cfg(test)]
 mod tests {
@@ -629,6 +651,63 @@ mod tests {
         );
     }
     #[test]
+    fn partial_startup_commands_block_later_writes() {
+        struct Fault {
+            accepted: Vec<u8>,
+            limit: usize,
+        }
+        impl Write for Fault {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                let n = bytes.len().min(self.limit - self.accepted.len());
+                if n == 0 {
+                    return Err(io::ErrorKind::TimedOut.into());
+                }
+                self.accepted.extend_from_slice(&bytes[..n]);
+                Ok(n)
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                unreachable!()
+            }
+        }
+        impl io::Read for Fault {
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                unreachable!()
+            }
+        }
+        for limit in [1, 5] {
+            // one byte into wake or firmware query
+            let now = Instant::now();
+            let mut panel = Panel {
+                port: None,
+                firmware: None,
+                frame: None,
+                last_write: now,
+                retry_at: now,
+                error: None,
+                needs_replug: false,
+                confirmed_off: false,
+                brightness: None,
+            };
+            let mut port = Fault {
+                accepted: vec![],
+                limit,
+            };
+            let error = startup(&mut port, Duration::ZERO).unwrap_err();
+            panel.failed(now, &error);
+            // The same eligibility gate precedes both open/identify and routed output.
+            port.limit = usize::MAX;
+            if panel.ready(now + Duration::from_secs(6)) {
+                send(&mut port, "open-wake", &protocol::command(0x03, &[0])).unwrap();
+            }
+            assert_eq!(
+                port.accepted.len(),
+                limit,
+                "retried a partial startup command"
+            );
+        }
+    }
+
+    #[test]
     fn retry_deadlines_are_bounded_and_quarantine_requires_replug() {
         let now = Instant::now();
         let mut panel = Panel {
@@ -643,7 +722,7 @@ mod tests {
             brightness: None,
         };
         assert!(panel.ready(now));
-        panel.failed(now);
+        panel.failed(now, &io::ErrorKind::PermissionDenied.into());
         assert!(!panel.ready(now + Duration::from_secs(4)));
         assert!(panel.ready(now + Duration::from_secs(5)));
         panel.needs_replug = true;

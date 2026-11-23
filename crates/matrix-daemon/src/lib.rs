@@ -11,6 +11,7 @@ pub mod feeds;
 mod firmware;
 pub mod power;
 pub mod probe;
+mod serial_io;
 pub type Configuration = Arc<std::sync::Mutex<config::Store>>;
 
 pub const MAX_CLIENTS: usize = 32;

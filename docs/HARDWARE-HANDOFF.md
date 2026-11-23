@@ -13,6 +13,14 @@ touchpad input. Full-day soak and Windows bay qualification remain pending.
 
 ## Resume this machine
 
+Resume inspection on **2026-11-23**, at `b3c0415`: the working tree was clean and
+all three services below were inactive. After the startup-quarantine fix, the
+instrumented daemon alone was started on revision 4. Both panels opened; a
+left-panel IPC identification succeeded without a failure trace. See
+[the investigation](SERIAL-FAILURE-INVESTIGATION.md#startup-quarantine-follow-up-36).
+The following describes the earlier pause,
+not the current running state.
+
 At pause, both panels showed their saved roles and laptop input worked:
 
 - `fw16-matrix-handoff-daemon.service` and
@@ -69,6 +77,9 @@ Rollback was not exercised; preserve settings and verify a single USB writer.
    operation fails, its error kind and elapsed time. Successful traces alone do
    not explain the failures. Temporary stage logging and probe scripts from this
    session were removed. The `diagnosing-bugs` skill fits this work.
+   The resumed investigation now has Linux PTY backpressure tests and failure-only
+   serial-boundary diagnostics; see [SERIAL-FAILURE-INVESTIGATION.md](SERIAL-FAILURE-INVESTIGATION.md).
+   These reproduce injected write timeouts, not the unexplained physical failure.
 3. Compare Rust and POC at the serial boundary. Rust's 250 ms timeout applies to
    writes as well as reads; POC writes block. This is a lead, not a confirmed
    cause or justification for simply increasing the timeout.

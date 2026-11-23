@@ -49,7 +49,8 @@ given another panel's role. Unassigning sends sleep and releases the port.
 
 Open/access failures retry no sooner than five seconds. Each panel has at most
 one in-flight blocking job; later desired frames are coalesced, not queued. A
-write failure after opening quarantines that connection because a partial serial
+command-write failure, including a wake or query during startup, quarantines
+that connection because a partial serial
 payload must not be followed by another command. Reconnect the module and leave
 it absent for at least one two-second discovery interval before retrying; rapid
 suspend/re-enumeration recovery still requires hardware qualification. Linux
@@ -73,6 +74,13 @@ wedged blocking OS calls. A hard crash cannot guarantee hardware sleep. Device
 event coverage and all real suspend/write-failure behaviors remain hardware
 qualification work; the conservative quarantine is not a claim of automatic
 parser resynchronization.
+
+Serial-command write failures log the operation stage, opcode, optional column,
+host-accepted byte count, elapsed time, error kind and optional OS error. Terminal
+firmware-read failures log attempt, received bytes and reply-window elapsed time.
+These failure-only records omit payloads and device paths; successful writes do
+not confirm firmware parsing. The software-only reproduction and remaining
+hardware evidence gaps are in [SERIAL-FAILURE-INVESTIGATION.md](SERIAL-FAILURE-INVESTIGATION.md).
 
 Layouts use fixed Framework 9×34 slot geometry. All pixels, including draft
 previews, are generated in Rust. Repeated widgets share source readings but keep

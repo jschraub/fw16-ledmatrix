@@ -47,7 +47,7 @@ async fn run() -> std::io::Result<()> {
     tokio::spawn(matrix_daemon::display::poll(display_tx, fast_light_rx));
     let (lock_tx, lock_rx) = tokio::sync::watch::channel(None);
     tokio::spawn(matrix_daemon::session_lock::poll(lock_tx));
-    let (power_tx, power_rx) = tokio::sync::watch::channel(matrix_daemon::power::unavailable(
+    let (power_tx, mut power_rx) = tokio::sync::watch::channel(matrix_daemon::power::unavailable(
         matrix_core::power::PowerStatus::Unavailable,
     ));
     tokio::spawn(matrix_daemon::power::poll(power_tx));
@@ -67,11 +67,12 @@ async fn run() -> std::io::Result<()> {
                 _ = timer.tick() => {},
                 Ok(()) = audio_rx.changed() => {},
                 Ok(()) = display_rx.changed() => {},
+                Ok(()) = power_rx.changed() => {},
             }
             let now = chrono::Local::now();
             sequence = sequence.wrapping_add(1);
             let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
-            let power = power_rx.borrow().clone();
+            let power = power_rx.borrow_and_update().clone();
             frame.power = Some(power.clone());
             let assistants = feed_rx.borrow().clone();
             frame.assistants = assistants.clone();

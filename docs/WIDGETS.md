@@ -188,7 +188,9 @@ readings are never shown as 0%. The main panel subscription includes the source
 status, observation timestamp, charge percentage and independently known AC and
 charging flags. Errors blank widgets without stopping the clock.
 
-Sampling is every five seconds, isolated from rendering. A wedged system call
+Linux power-supply events trigger a fresh sysfs reading after a 25 ms coalescing
+window and wake the renderer. A five-second poll covers missed events or an
+unavailable `udevadm monitor`. Sampling is isolated from rendering. A wedged system call
 marks the source error after two seconds and waits on the same job, avoiding
 unbounded blocking threads while leaving clock updates running. Recovery resumes
 sampling. Battery gauges support direction, relative intensity and an optional

@@ -106,11 +106,47 @@ pub fn read() -> PowerReading {
     }
 }
 
+#[cfg(target_os = "linux")]
+async fn events(wake: &tokio::sync::Notify) {
+    use std::{process::Stdio, time::Duration};
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    loop {
+        if let Ok(mut child) = tokio::process::Command::new("udevadm")
+            .args(["monitor", "--kernel", "--subsystem-match=power_supply"])
+            .env("LC_ALL", "C")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+        {
+            let mut lines = BufReader::new(child.stdout.take().expect("piped monitor")).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                if line.starts_with("KERNEL[") && line.trim_end().ends_with("(power_supply)") {
+                    wake.notify_one();
+                }
+            }
+        }
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
+}
+
 pub async fn poll(tx: tokio::sync::watch::Sender<PowerReading>) {
+    let wake = tokio::sync::Notify::new();
+    #[cfg(target_os = "linux")]
+    tokio::join!(events(&wake), sample_loop(tx, &wake));
+    #[cfg(not(target_os = "linux"))]
+    sample_loop(tx, &wake).await;
+}
+
+async fn sample_loop(tx: tokio::sync::watch::Sender<PowerReading>, wake: &tokio::sync::Notify) {
     let mut timer = tokio::time::interval(std::time::Duration::from_secs(5));
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     loop {
-        timer.tick().await;
+        tokio::select! {
+            _ = timer.tick() => {},
+            _ = wake.notified() => tokio::time::sleep(std::time::Duration::from_millis(25)).await,
+        }
         let mut task = tokio::task::spawn_blocking(read);
         match tokio::time::timeout(std::time::Duration::from_secs(2), &mut task).await {
             Ok(Ok(reading)) => {

@@ -92,5 +92,7 @@ paths. Do not remove assistant settings or the POC backup.
 
 For public distribution, sign release packages with a published, verifiable
 maintainer key and document trust/upgrade policy. An unsigned local build or
-checksum alone does not establish publisher identity. Clean-user login,
-and release signing remain #28 qualification/delivery work.
+checksum alone does not establish publisher identity. For #28 the owner accepted
+the scratch-root install/upgrade/uninstall checks and the migrated account’s
+real graphical login. Fresh-user login was not tested. Closing this slice does
+not make the unsigned candidate a signed public release.

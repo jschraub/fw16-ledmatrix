@@ -3,7 +3,7 @@
 Updated **2026-11-23** after switching the existing account to the installed Linux daemon.
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 
-**Current checkpoint: #28 installed graphical-login qualification.** Windows
+**Current checkpoint: #28 Linux packaging and login startup complete.** Windows
 development (#42) and support qualification (#43) are post-v1. Linux optical
 lock, display-off and an attended system suspend/resume cycle passed. Details are in
 [SUPPORT.md](SUPPORT.md#initial-cachyos-hardware-session--2026-11-23).
@@ -37,7 +37,8 @@ Rollback was not exercised; preserve settings and verify a single USB writer.
 1. Existing-account graphical login passed: the owner saw the clock and battery
    gauge return after logout/login. The packaged daemon had a new PID, served
    revision 26 on default IPC and alone held both firmware-0.20 ports.
-2. Continue #28 on this existing account; no additional user account requested.
+2. Fresh-user login was not tested; the owner accepted the existing-account
+   login and staged package transactions for #28. Leave installed startup enabled.
 
 | Area | Evidence from this session |
 | --- | --- |
@@ -319,13 +320,12 @@ Windows runner does not qualify physical Windows hardware.
 | --- | --- |
 | [#22 Account-bound usage windows](https://github.com/jschraub/fw16-ledmatrix/issues/22) | Read-only supported credential discovery, independent Claude/OpenAI windows, correct durations, account changes, caching/expiry, 401/schema failures and redaction. Depends on closed #20/#21. Live requests require explicit opt-in; never paste tokens into config or take ownership of refresh. |
 | [#27 Feedback overlays](https://github.com/jschraub/fw16-ledmatrix/issues/27) | Enabled/target/duration settings, latest-event replacement, ambient updates underneath, supervised real audio state and bounded charging indication. Depends on #26 and closed #18. Preserve identify/preview priority and complete serial commands. |
-| [#28 Packaging/startup](https://github.com/jschraub/fw16-ledmatrix/issues/28) | Choose installers/startup from platform evidence, install outside the checkout, narrow USB access, login startup, upgrade/uninstall and signing limits. Depends on closed #11/#14/#24. Do not confuse existing explicit desktop “Start daemon” with login startup. |
 | [#29 Migration/diagnostics](https://github.com/jschraub/fw16-ledmatrix/issues/29) | Explicit POC stop/disable, preserved settings, rollback without dual writers, keyboard workflows and redacted diagnostics. Depends on #22/#27/#28 and closed #15/#17. |
 | [#41 Desktop redesign](https://github.com/jschraub/fw16-ledmatrix/issues/41) | Iterate on the selected panel map, demonstrate everyday workflows and obtain owner sign-off before #30. |
 | [#30 Release qualification](https://github.com/jschraub/fw16-ledmatrix/issues/30) | Dated supported-environment evidence, POC parity, disruptive checks by approval, full-day product soak and green CI. Depends on #29. The device-focused #36 soak alone does not complete release qualification. |
 
-Suggested development lanes: #22 independently; #27 now that #26 is closed; #28 after initial
-platform evidence. Converge on #29, then #30. Keep each ticket's implementation,
+Suggested development lanes: #22 independently; finalize #27. Packaging #28 is
+complete. Converge on #29, then #30. Keep each ticket's implementation,
 tests and commit separate. Use native GitHub parent/dependency relationships for
 new follow-ups, then verify them. Do not close parent specs while required
 qualification or software work remains.

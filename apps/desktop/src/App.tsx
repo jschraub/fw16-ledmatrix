@@ -5,6 +5,7 @@ import { Devices } from "./Devices";
 import { Integrations } from "./Integrations";
 import { useState, useRef } from "react";
 import { ViewNav } from "./ViewNav";
+import { LoginStartup } from "./LoginStartup";
 
 const views = ["Overview", "Configuration", "Devices", "Integrations", "Diagnostics"] as const;
 
@@ -77,7 +78,9 @@ export function App() {
       </section>
       <footer>Closing this window leaves the daemon running.</footer>
       </div>
-      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}><ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} /></div>
+      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}><ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} />
+        {view === "Configuration" && <LoginStartup />}
+      </div>
       <div hidden={view !== "Devices"}><Devices /></div>
       <div hidden={view !== "Integrations"}>{snapshot ? <Integrations state={snapshot.assistants} /> : <p>Connect to the daemon to view assistant integrations.</p>}</div>
       <div hidden={view !== "Diagnostics"}>

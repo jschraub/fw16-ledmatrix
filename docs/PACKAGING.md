@@ -39,7 +39,11 @@ Administrative access is for package management only. Launch **Framework LED
 Matrix** from the desktop menu. The desktop's **Start daemon** button uses the
 binary alongside the desktop; closing the UI leaves rendering running.
 
-For **future graphical logins** on systemd user sessions, use
+For **future graphical logins**, open **Configuration → Login startup → Check
+login startup**, then choose Enable or Disable. The preference is independent
+of panel drafts and the daemon connection. The desktop rechecks the persistent
+systemd unit state after changing it. An absent package, masked service or
+unavailable user manager cannot be enabled from this control. CLI equivalent:
 `systemctl --user enable fw16-ledmatrix.service`; `disable` reverses it.
 `enable` alone does not start another daemon now. The desktop session must
 activate `graphical-session.target` and import its session environment. Check
@@ -57,5 +61,5 @@ paths. Do not remove assistant settings or the POC backup.
 For public distribution, sign release packages with a published, verifiable
 maintainer key and document trust/upgrade policy. An unsigned local build or
 checksum alone does not establish publisher identity. Clean-user login,
-interactive desktop startup controls, CI publication and signing remain #28
+interactive verification of installed startup controls, CI publication and signing remain #28
 qualification/delivery work.

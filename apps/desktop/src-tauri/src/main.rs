@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod login_startup;
+
 use matrix_client::{Client, ErrorCode, Event, Failure, flow::Acknowledgements, local, startup};
 use std::{
     sync::{Arc, Mutex},
@@ -186,6 +188,7 @@ fn main() {
             subscribe,
             acknowledge,
             start_daemon,
+            login_startup::login_startup,
             probe,
             configuration,
             render_draft,

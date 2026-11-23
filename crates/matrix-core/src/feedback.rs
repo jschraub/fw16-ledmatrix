@@ -76,8 +76,11 @@ pub fn gauge(level: u8) -> Frame {
 
 pub fn charging_level(policy: &Brightness, now: Duration) -> Option<u8> {
     let base = policy.level()?;
-    let span = (base / 4).max(1).min(policy.maximum - policy.minimum);
-    let low = base.min(policy.maximum - span);
+    // Aim for a 2:1 peak-to-trough ratio, shifting down near the ceiling
+    // rather than flattening the pulse or crossing the visibility floor.
+    let high = base.saturating_mul(2).min(policy.maximum);
+    let low = high.div_ceil(2).max(policy.minimum);
+    let span = high - low;
     let phase = (now.as_millis() % 8000) as u32;
     let ramp = phase.min(8000 - phase);
     Some(low + (u32::from(span) * ramp / 4000) as u8)
@@ -132,5 +135,12 @@ mod tests {
             p.off = true;
             assert_eq!(charging_level(&p, Duration::ZERO), None);
         }
+    }
+
+    #[test]
+    fn pulse_doubles_normal_brightness_and_returns_to_base() {
+        let policy = Brightness::default();
+        let levels = [0, 2, 4, 6, 8].map(|s| charging_level(&policy, Duration::from_secs(s)));
+        assert_eq!(levels, [Some(32), Some(48), Some(64), Some(48), Some(32)]);
     }
 }

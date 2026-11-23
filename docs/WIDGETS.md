@@ -33,8 +33,10 @@ distinguish an unmarked automatic change from a user adjustment.
 
 One gauge replaces another on the same panel; it expires from the latest
 observed change. Simultaneous samples use volume before brightness before AC.
-The optional eight-second charging pulse changes **whole-panel brightness**,
-never outside its configured limits. Hardware previews, identification, sleep
+The optional eight-second charging pulse changes **whole-panel brightness**.
+At manual level 32 it rises to 64 over four seconds and returns over four.
+Near the ceiling the range shifts down; the configured minimum can limit contrast.
+Hardware previews, identification, sleep
 and locked layouts take priority. Expiry returns to current ambient output.
 Volume and backlight changes wake rendering and changed panel output wakes routing.
 With brightness feedback enabled, Linux samples known backlights roughly every

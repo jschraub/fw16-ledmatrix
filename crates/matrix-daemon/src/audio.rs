@@ -48,6 +48,61 @@ async fn read() -> Volume {
     };
     Some((level, muted))
 }
+#[cfg(target_os = "linux")]
+async fn listen(wake: &tokio::sync::Notify) -> Option<()> {
+    use std::process::Stdio;
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let mut child = tokio::process::Command::new("pactl")
+        .arg("subscribe")
+        .env("LC_ALL", "C")
+        .kill_on_drop(true)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let mut lines = BufReader::new(child.stdout.take()?).lines();
+    while let Some(line) = lines.next_line().await.ok()? {
+        // Our own state queries generate client events. Never sample on those.
+        if matches!(
+            line.split_once(" on ")
+                .and_then(|(_, tail)| tail.split_whitespace().next()),
+            Some("sink" | "server")
+        ) {
+            wake.notify_one();
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "linux")]
+async fn monitor(tx: &watch::Sender<Volume>) {
+    use tokio::time::{Duration, sleep};
+    let wake = tokio::sync::Notify::new();
+    let subscribe = async {
+        loop {
+            listen(&wake).await;
+            sleep(Duration::from_secs(2)).await;
+        }
+    };
+    let sample = async {
+        loop {
+            let next = read().await;
+            tx.send_if_modified(|previous| {
+                let changed = *previous != next;
+                *previous = next;
+                changed
+            });
+            tokio::select! {
+                // Coalesce a burst and allow the default sink state to settle.
+                _ = wake.notified() => sleep(Duration::from_millis(20)).await,
+                _ = sleep(Duration::from_millis(750)) => {},
+            }
+        }
+    };
+    tokio::join!(subscribe, sample);
+}
+
 pub async fn poll(mut enabled: watch::Receiver<bool>, tx: watch::Sender<Volume>) {
     #[cfg(not(target_os = "linux"))]
     let _ = (&mut enabled, tx);
@@ -60,9 +115,8 @@ pub async fn poll(mut enabled: watch::Receiver<bool>, tx: watch::Sender<Volume>)
             }
             continue;
         }
-        tx.send_replace(read().await);
         tokio::select! {
-            _=tokio::time::sleep(std::time::Duration::from_millis(750))=>{},
+            _=monitor(&tx)=>{},
             r=enabled.changed()=>if r.is_err(){return;}
         }
     }

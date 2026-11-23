@@ -11,18 +11,21 @@ ipc = runpy.run_path(str(Path(__file__).with_name("check-preview-apply.py")))
 
 def run(root):
     state = root / "volume"
+    fifo = root / "events"
+    os.mkfifo(fifo)
     stub = root / "pactl"
     stub.write_text("""#!/bin/sh
 case "$1" in
+subscribe) exec cat "$EVENT_FIXTURE";;
 get-sink-volume) read v < "$VOLUME_FIXTURE" || exit 1; echo "Volume: mono: 1 / $v% / -3 dB";;
 get-sink-mute) echo 'Mute: no';;
 *) exit 1;;
 esac
 """)
     stub.chmod(0o700)
-    os.environ.update(PATH=f"{root}:{os.environ['PATH']}", VOLUME_FIXTURE=str(state))
+    os.environ.update(PATH=f"{root}:{os.environ['PATH']}", VOLUME_FIXTURE=str(state), EVENT_FIXTURE=str(fifo))
     state.write_text("17\n")
-    with ipc["daemon"](root) as endpoint:
+    with ipc["daemon"](root) as endpoint, os.fdopen(os.open(fifo, os.O_RDWR | os.O_NONBLOCK), "w") as events:
         def req(kind, **args):
             return ipc["request"](endpoint, kind, **args)
         cfg = req("read_config")["saved"]["config"]
@@ -48,8 +51,15 @@ esac
         apply(0)
         expect(180)
         time.sleep(2)
-        state.write_text("50\n")
-        expect(None, count=17*9)
+        for value, rows in [(50, 17), (25, 9), (75, 26)]:
+            start = time.monotonic()
+            state.write_text(f"{value}\n")
+            events.write("Event 'change' on sink #1\n")
+            events.flush()
+            expect(None, count=rows*9)
+            elapsed = time.monotonic() - start
+            print(f"Volume {value}% to subscriber gauge: {elapsed:.3f}s", flush=True)
+            assert elapsed < .4, "volume feedback waited for an ambient render tick"
         cfg["clock_intensity"] = 111
         apply(1)
         expect(111)  # a constant reading must not extend the gauge

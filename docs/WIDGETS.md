@@ -34,11 +34,14 @@ observed change. Simultaneous samples use volume before brightness before AC.
 The optional eight-second charging pulse changes **whole-panel brightness**,
 never outside its configured limits. Hardware previews, identification, sleep
 and locked layouts take priority. Expiry returns to current ambient output.
-Physical presentation includes the one-second render and two-second router
-cadences and serial write time; duration is a desired-output timer.
+Volume changes wake rendering and changed panel output wakes routing. The
+one-second ambient tick and two-second device discovery remain fallbacks.
+Physical presentation still includes in-flight commands and serial write time;
+duration is a desired-output timer.
 
-With volume enabled, the daemon polls the default sink's actual volume and mute
-using bounded `pactl` calls. Startup and recovery establish a baseline. Repeated
+With volume enabled, sink/server notifications wake a bounded `pactl` reread
+of actual volume and mute after a 20 ms coalescing window. A 750 ms poll covers
+missed events while the subscription restarts. Startup and recovery establish a baseline. Repeated
 identical readings (including notification sounds with unchanged level) do not
 trigger a gauge. Changes between samples can be coalesced. The other sources
 keep working if audio is missing.

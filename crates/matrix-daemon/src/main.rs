@@ -38,7 +38,7 @@ async fn run() -> std::io::Result<()> {
     let config = std::sync::Arc::new(std::sync::Mutex::new(Store::load(Store::default_path()?)?));
     let render_config = config.clone();
     let (audio_enable, enabled) = tokio::sync::watch::channel(false);
-    let (audio_tx, audio_rx) = tokio::sync::watch::channel(None);
+    let (audio_tx, mut audio_rx) = tokio::sync::watch::channel(None);
     tokio::spawn(matrix_daemon::audio::poll(enabled, audio_tx));
     let feedback_start = std::time::Instant::now();
     let mut feedback = matrix_daemon::feedback::Runtime::default();
@@ -62,7 +62,10 @@ async fn run() -> std::io::Result<()> {
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut sequence = 0_u32;
         loop {
-            timer.tick().await;
+            tokio::select! {
+                _ = timer.tick() => {},
+                Ok(()) = audio_rx.changed() => {},
+            }
             let now = chrono::Local::now();
             sequence = sequence.wrapping_add(1);
             let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
@@ -127,7 +130,7 @@ async fn run() -> std::io::Result<()> {
             feedback.apply(
                 &mut frame,
                 &config,
-                *audio_rx.borrow(),
+                *audio_rx.borrow_and_update(),
                 feedback_start.elapsed(),
             );
             tx.send_replace(frame);

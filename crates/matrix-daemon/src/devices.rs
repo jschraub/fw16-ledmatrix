@@ -5,7 +5,7 @@ use matrix_client::{
 };
 use matrix_core::{Frame, HEIGHT, WIDTH, protocol};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     io::{self, Write},
     sync::{
         Arc, Mutex, OnceLock,
@@ -30,7 +30,8 @@ struct Panel {
 pub struct Manager {
     panels: Mutex<BTreeMap<String, Arc<Mutex<Panel>>>>,
     active: Mutex<BTreeMap<String, Arc<AtomicBool>>>,
-    jobs: Mutex<BTreeSet<String>>,
+    jobs: Mutex<BTreeMap<String, bool>>,
+    reroute: tokio::sync::Notify,
     stopping: AtomicBool,
 }
 static MANAGER: OnceLock<Manager> = OnceLock::new();
@@ -253,7 +254,12 @@ impl Manager {
         result
     }
 
-    fn route(&'static self, snapshot: Snapshot) {
+    fn finish_job(&self, name: &str) {
+        if self.jobs.lock().expect("jobs").remove(name) == Some(true) {
+            self.reroute.notify_one();
+        }
+    }
+    fn route(&'static self, snapshot: Snapshot, changed: bool) {
         if self.stopping.load(Ordering::Acquire) {
             return;
         }
@@ -297,8 +303,13 @@ impl Manager {
             };
             let brightness = output.brightness;
             let frame = output.frame.clone();
-            if !self.jobs.lock().expect("jobs").insert(name.clone()) {
-                continue;
+            {
+                let mut jobs = self.jobs.lock().expect("jobs");
+                if let Some(pending) = jobs.get_mut(&name) {
+                    *pending |= changed;
+                    continue;
+                }
+                jobs.insert(name.clone(), false);
             }
             tokio::task::spawn_blocking(move || {
                 if let Ok(handle) = self.panel(&name)
@@ -309,7 +320,7 @@ impl Manager {
                         || !panel.ready(Instant::now())
                         || self.stopping.load(Ordering::Acquire)
                     {
-                        self.jobs.lock().expect("jobs").remove(&name);
+                        self.finish_job(&name);
                         return;
                     }
                     let result = (|| {
@@ -357,7 +368,7 @@ impl Manager {
                         panel.sleep();
                     }
                 }
-                self.jobs.lock().expect("jobs").remove(&name);
+                self.finish_job(&name);
             });
         }
     }
@@ -556,13 +567,23 @@ fn normal_frame(
         snapshot.session_locked == Some(true),
     ))
 }
-pub async fn route_loop(frames: tokio::sync::watch::Receiver<Snapshot>) {
+pub async fn route_loop(mut frames: tokio::sync::watch::Receiver<Snapshot>) {
     let mut timer = tokio::time::interval(Duration::from_secs(2));
     timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let mut last = Vec::new();
     loop {
-        timer.tick().await;
-        let snapshot = frames.borrow().clone();
-        let _ = tokio::task::spawn_blocking(move || manager().route(snapshot)).await;
+        let discovery = tokio::select! {
+            _ = timer.tick() => true,
+            _ = manager().reroute.notified() => true,
+            result = frames.changed() => { if result.is_err() {return;} false },
+        };
+        let snapshot = frames.borrow_and_update().clone();
+        let changed = snapshot.panels != last;
+        if !discovery && !changed {
+            continue;
+        }
+        last.clone_from(&snapshot.panels);
+        let _ = tokio::task::spawn_blocking(move || manager().route(snapshot, changed)).await;
     }
 }
 

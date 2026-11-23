@@ -32,6 +32,12 @@ missing files), desktop-entry validation, installed daemon probe with zero
 accessible panels, and uninstall with the pre-existing settings fixture intact.
 No package was installed on the host and no login-startup setting was changed.
 
+**Installed desktop check (CachyOS, `0.1.0-3`):** The user clicked Enable and
+then Disable under Login startup and saw the status text update after each
+click. Afterward, systemd independently reported `fw16-ledmatrix.service`
+disabled and inactive, with the handoff daemon still active. This verifies the
+control in the installed app, not daemon startup at an actual graphical login.
+
 ## Installed usage
 
 Install a reviewed local artifact with `sudo pacman -U /path/to/package.pkg.tar.zst`.
@@ -61,5 +67,5 @@ paths. Do not remove assistant settings or the POC backup.
 For public distribution, sign release packages with a published, verifiable
 maintainer key and document trust/upgrade policy. An unsigned local build or
 checksum alone does not establish publisher identity. Clean-user login,
-interactive verification of installed startup controls, CI publication and signing remain #28
+CI publication and signing remain #28
 qualification/delivery work.

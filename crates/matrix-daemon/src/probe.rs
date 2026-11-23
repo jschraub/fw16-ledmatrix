@@ -4,6 +4,8 @@ use std::{
     time::Duration,
 };
 use tokio::io::AsyncReadExt;
+#[cfg(target_os = "linux")]
+mod backlight;
 
 fn item(name: &str, state: State, detail: &str) -> Capability {
     Capability {
@@ -88,14 +90,7 @@ pub async fn report() -> CapabilityReport {
             .find(|name| value.contains(name))
             .unwrap_or("unknown")
             .to_owned();
-        let backlights = std::fs::read_dir("/sys/class/backlight")
-            .ok()
-            .into_iter()
-            .flatten()
-            .filter_map(Result::ok)
-            .collect::<Vec<_>>();
-        capabilities.push(item("screen_brightness", if backlights.is_empty() { State::Unavailable } else { State::Available },
-            if backlights.is_empty() { "No sysfs backlight found; use manual brightness." } else { "Sysfs backlight exposed. Display selection and event tracking need adapter qualification." }));
+        capabilities.push(backlight::capability(Path::new("/sys/class/backlight")));
         let power = std::fs::read_dir("/sys/class/power_supply")
             .ok()
             .into_iter()

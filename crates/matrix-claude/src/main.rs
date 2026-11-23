@@ -12,7 +12,7 @@ fn main() {
 async fn run() -> i32 {
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
     let hook = args.first().is_some_and(|arg| arg == "hook");
-    if !hook && !args.first().is_some_and(|arg| arg == "statusline") {
+    if !hook && args.first().is_none_or(|arg| arg != "statusline") {
         return 0;
     }
     let downstream = if !hook && args.get(1).is_some_and(|arg| arg == "--") {

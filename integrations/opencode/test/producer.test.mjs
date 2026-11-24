@@ -36,6 +36,18 @@ test("entrypoint is a V2 definition, not a V1 hook-returning function", () => {
   assert.equal(plugin.id, "fw16-matrix.metadata")
   assert.equal(typeof plugin.setup, "function")
 })
+test("server plugin context works without HTTP-only message and active methods", async t => {
+  const f = await fixture(t, {configure(ctx) {
+    delete ctx.session.message
+    delete ctx.session.active
+    ctx.session.context = async () => [assistant, {type:"assistant",tokens:{input:0}}]
+  }})
+  await f.create().tick()
+  const [feed] = await f.feeds()
+  assert.equal(feed.sessions[0].context_percent,41)
+  assert.equal(feed.sessions[0].last_activity_ms,95000)
+  assert.ok(!JSON.stringify(feed).includes("never-export-this"))
+})
 test("platform paths match daemon defaults and explicit override", () => {
   assert.equal(feedRoot({ XDG_RUNTIME_DIR: "/run/user/1" }, "linux", "/home/a"), "/run/user/1/fw16-matrix/feeds")
   assert.equal(feedRoot({ XDG_DATA_HOME: "/data" }, "linux", "/home/a"), "/data/fw16-matrix/feeds")

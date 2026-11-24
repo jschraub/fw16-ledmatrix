@@ -69,11 +69,14 @@ export function start(ctx, options = {}) {
   const controller = new AbortController()
   let stopped = false
   let pending
+  // Some V2 plugin hosts expose context(), not the HTTP client's message.list.
+  // Cache scalars only; never retain the context array between sweeps.
+  const recent = new Map()
   async function sample() {
     const request = { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]) }
     const [page, active, inventory] = await Promise.all([
       ctx.session.list({ directory: ctx.location.directory, parentID: null, archived: false, limit: 16, order: "desc" }, request),
-      ctx.session.active(request),
+      ctx.session.active?.(request) ?? {},
       ctx.model.list(undefined, request),
     ])
     const candidates = new Map()
@@ -82,6 +85,7 @@ export function start(ctx, options = {}) {
       try { const session = await ctx.session.get({ sessionID: id }, request); candidates.set(id, session) } catch { /* isolated source */ }
     }
     for (const session of page.data.slice(0, 16)) if (!candidates.has(session.id)) candidates.set(session.id, session)
+    for (const id of recent.keys()) if (!candidates.has(id)) recent.delete(id)
     const sessions = []
     const observed = now()
     for (const session of candidates.values()) {
@@ -89,19 +93,32 @@ export function start(ctx, options = {}) {
       if (!safeID(session.id) || session.parentID || session.time?.archived || session.location?.directory !== ctx.location.directory || session.model?.providerID !== "openai") continue
       try {
         const args = { sessionID: session.id, order: "desc", limit: 1 }
-        const [response, user] = await Promise.all([
-          ctx.session.message.list({ ...args, type: "assistant" }, request),
-          ctx.session.message.list({ ...args, type: "user" }, request),
-        ])
-        const message = response.data[0]
+        const busy = ctx.session.active ? active[session.id]?.type === "running" : (session.time?.busy ?? 0) > (session.time?.idle ?? 0)
+        const previous = recent.get(session.id)
+        if (!ctx.session.message && !busy && previous && !previous.reading.busy && previous.updated === session.time?.updated && previous.model === session.model.id && observed - previous.at < 60000) {
+          sessions.push(previous.reading)
+          continue
+        }
+        let message, user
+        if (ctx.session.message?.list) {
+          const [response, input] = await Promise.all([
+            ctx.session.message.list({ ...args, type: "assistant" }, request),
+            ctx.session.message.list({ ...args, type: "user" }, request),
+          ])
+          message = response.data[0]; user = input.data[0]
+        } else {
+          const history = await ctx.session.context({sessionID: session.id}, request)
+          message = history.findLast(m => m.type === "assistant" && (m.tokens?.input > 0 || m.tokens?.cache?.read > 0 || m.tokens?.cache?.write > 0))
+          user = history.findLast(m => m.type === "user")
+        }
         // Copy only scalar metadata; never retain text, titles, project paths,
         // tool arguments, credentials or cumulative session token counts.
-        const times = [message?.time?.created, message?.time?.completed, message?.time?.streamed, user.data[0]?.time?.created]
-        sessions.push({ session_id: session.id, parent_id: null,
+        const times = [message?.time?.created, message?.time?.completed, message?.time?.streamed, user?.time?.created]
+        const reading = { session_id: session.id, parent_id: null,
           context_percent: contextPercent(message, inventory.data),
-          busy: active[session.id]?.type === "running",
-          last_activity_ms: Math.max(0, ...times.map((time) => timestamp(time, observed))),
-        })
+          busy, last_activity_ms: Math.max(0, ...times.map((time) => timestamp(time, observed))) }
+        sessions.push(reading)
+        if (!ctx.session.message) recent.set(session.id,{updated:session.time?.updated,model:session.model.id,at:observed,reading})
       } catch { /* Failed session is absent, not a fabricated idle/zero reading. */ }
     }
     sessions.sort((a, b) => b.last_activity_ms - a.last_activity_ms || a.session_id.localeCompare(b.session_id))

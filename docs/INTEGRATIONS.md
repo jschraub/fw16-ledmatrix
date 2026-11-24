@@ -138,6 +138,12 @@ preserved, not installed or loaded by this application. Explicit setup:
    instance's snapshot. Abrupt server death leaves a snapshot expiring in 60 s.
 
 Every five seconds a single coalesced job reads public V2 session/model APIs.
+OpenCode 2.3.2's server plugin context exposes `session.context` rather than
+the HTTP client's `session.message.list` and `session.active`. On that host,
+the producer reads the latest assistant usage from the session context,
+derives activity state from busy/idle timestamps, and reuses only scalar
+metadata for unchanged idle sessions for up to one minute. Active-session
+discovery outside the newest page requires the optional active-list method.
 It considers the newest 16 unarchived main sessions at the plugin location plus
 up to 16 active drains, and publishes the 16 most recently active eligible
 sessions. Older inactive sessions outside that window cannot be pinned until

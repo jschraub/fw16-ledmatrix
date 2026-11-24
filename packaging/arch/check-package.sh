@@ -39,6 +39,10 @@ test "$(pm -Q fw16-ledmatrix)" = "fw16-ledmatrix $newver"
 pm -Qk fw16-ledmatrix
 for binary in matrix-desktop matrix-daemon matrix-claude; do test -x "$root/usr/bin/$binary"; done
 desktop-file-validate "$root/usr/share/applications/fw16-ledmatrix.desktop"
+grep -Fxq 'Icon=fw16-ledmatrix' "$root/usr/share/applications/fw16-ledmatrix.desktop"
+for icon in scalable/apps/fw16-ledmatrix.svg 512x512/apps/fw16-ledmatrix.png; do
+    test -s "$root/usr/share/icons/hicolor/$icon"
+done
 test -f "$root/usr/lib/systemd/user/fw16-ledmatrix.service"
 test -f "$root/usr/lib/udev/rules.d/60-framework-ledmatrix.rules"
 # Smoke-test the installed binary with host libraries; hide the actual panels.

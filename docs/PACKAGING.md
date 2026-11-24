@@ -70,8 +70,10 @@ For a machine that ran the proof of concept, follow [one-way migration and
 Rust recovery](MIGRATION.md) before starting the packaged service.
 
 Install a reviewed local artifact with `sudo pacman -U /path/to/package.pkg.tar.zst`.
-Administrative access is for package management only. Launch **Framework LED
-Matrix** from the desktop menu. The desktop's **Start daemon** button uses the
+Administrative access is for package management only. Launch **Matrix Studio**
+from the desktop menu (searching “Framework LED Matrix” also matches the entry).
+The package installs the phosphor-dot M as a scalable hicolor icon with a 512 px
+PNG fallback. The desktop's **Start daemon** button uses the
 binary alongside the desktop; closing the UI leaves rendering running.
 
 For **future graphical logins**, open **Configuration → Login startup → Check

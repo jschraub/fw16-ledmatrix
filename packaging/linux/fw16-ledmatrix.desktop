@@ -1,6 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Framework LED Matrix
+Name=Matrix Studio
+GenericName=Framework LED Matrix settings
+Keywords=Framework;LED;Matrix;Panels;
 Comment=Configure and preview your Framework Laptop 16 LED panels
 Exec=/usr/bin/matrix-desktop
 Icon=fw16-ledmatrix

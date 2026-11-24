@@ -15,18 +15,15 @@ touchpad input. Full-day soak and Windows bay qualification remain pending.
 ## Resume this machine
 
 - `fw16-ledmatrix.service` is the **enabled, active systemd user service** from
-  package `0.1.0-3`. The packaged daemon served revision 26, identical to the
-  saved handoff config at cutover, and alone held both firmware-0.20 ports.
-- During design review the service uses a **runtime** `90-preview-fix.conf`
-  override to launch the newer Rust binary. The `matrix41-hardware-desktop`
-  user unit opens the rebuilt desktop on the regular daemon socket. The menu
-  still launches the installed `0.1.0-3` UI. Upgrade the package to a matching
-  build before relying on a new login for newer settings and preview support.
-  The separate OpenAI polling preference is persistent; Claude polling is off.
+  package `0.1.0-4`. The installed `/usr/bin/matrix-daemon` resumed revision 35
+  and alone owned both ports. The temporary `90-preview-fix.conf` was removed;
+  the only remaining drop-in enables OpenAI polling and leaves Claude off.
+- The review desktop unit was stopped. The **Matrix Studio** launcher opened
+  `/usr/bin/matrix-desktop` and the packaged panel map connected successfully.
 - The legacy `matrixd.service` is disabled and inactive. The transient handoff
   daemon was stopped before starting the installed service. Private POC backups
   and the handoff config remain in `$HOME/.local/share/fw16-matrix-handoff/`.
-- Launch **Framework LED Matrix** from the desktop menu or `/usr/bin/matrix-desktop`
+- Launch **Matrix Studio** from the desktop menu or `/usr/bin/matrix-desktop`
   without handoff environment overrides. The installed config is now
   `~/.config/fw16-matrix/config.json`; the endpoint is `$XDG_RUNTIME_DIR/fw16-matrix/daemon.sock`.
   Do not launch a second daemon with the old physical bindings.

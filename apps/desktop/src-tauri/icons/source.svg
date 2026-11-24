@@ -1,7 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#12151b"/>
-  <rect x="160" y="48" width="192" height="416" rx="32" fill="#050608" stroke="#91e8bc" stroke-width="8"/>
-  <g fill="#eef1f5">
-    <path d="M192 96h32v32h-32zm48 0h32v32h-32zm48 0h32v32h-32zM192 144h32v32h-32zm96 0h32v32h-32zM192 192h32v32h-32zm48 0h32v32h-32zm48 0h32v32h-32zM192 272h32v32h-32zm48 0h32v32h-32zm48 0h32v32h-32zM288 320h32v32h-32zM192 368h32v32h-32zm48 0h32v32h-32zm48 0h32v32h-32z"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 128 128">
+  <title>Matrix Studio</title>
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#101d16" stroke="#48634e" stroke-width="3"/>
+  <!-- Two upright banks of phosphor LEDs form the stems of an M. -->
+  <g fill="#b5f8b0">
+    <circle cx="28" cy="34" r="6.5"/><circle cx="28" cy="49" r="6.5"/>
+    <circle cx="28" cy="64" r="6.5"/><circle cx="28" cy="79" r="6.5"/>
+    <circle cx="28" cy="94" r="6.5"/>
+    <circle cx="100" cy="34" r="6.5"/><circle cx="100" cy="49" r="6.5"/>
+    <circle cx="100" cy="64" r="6.5"/><circle cx="100" cy="79" r="6.5"/>
+    <circle cx="100" cy="94" r="6.5"/>
   </g>
+  <path d="M40 42 64 70 88 42" fill="none" stroke="#e0ffce" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

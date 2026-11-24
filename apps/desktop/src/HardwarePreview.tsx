@@ -22,9 +22,9 @@ export function HardwarePreview({ config }: { config: Config }) {
     catch { setMessage("Cancellation could not be delivered. The bounded lease still expires automatically."); }
   }
   return <section aria-label="Temporary hardware preview">
-    <p>Try the draft on your assigned panels for ten seconds. They return to the latest saved settings afterward.</p>
-    <button type="button" disabled={active || !config.panels?.some((panel) => panel.binding)} onClick={() => void begin()}>Preview on assigned hardware (10 seconds)</button>
-    <button type="button" disabled={!active} onClick={() => void cancel()}>Cancel hardware preview</button>
+    <p>Try on panels for 10 seconds.</p>
+    <button type="button" disabled={active || !config.panels?.some((panel) => panel.binding)} onClick={() => void begin()}>Preview</button>
+    {active && <button type="button" onClick={() => void cancel()}>Stop preview</button>}
     <p aria-live="polite">{message}</p>
   </section>;
 }

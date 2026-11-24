@@ -31,6 +31,10 @@ guarantee. Real cancellation/unplug/priority observations require panels.
 
 ### Temporary feedback (Linux)
 
+Select a panel and open **Advanced · Charging pulse & feedback** to change
+its pulse strength, custom cycle and gauge settings. Save changes to apply.
+The overview shows the base brightness, not each step of the charging pulse.
+
 In **Configuration → Feedback**, choose Off or 3–15 seconds for each panel's
 volume, brightness and AC-change gauges. Each enabled gauge has its own centered
 bar width: 1, 3, 5 (default), 7 or 9 LED columns. Width does not change the

@@ -101,6 +101,10 @@ pub struct Snapshot {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PanelFrame {
+    // Policy level before a temporary charging pulse changes the LED drive.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub base_brightness: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub sources: Option<Vec<matrix_core::layout::Source>>,

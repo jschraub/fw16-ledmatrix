@@ -19,7 +19,7 @@ export function PanelMap({snapshot, connected, edit, setup}:{snapshot:Snapshot|n
         <button key={p.name} className="map-card" aria-label={`Customize ${p.name} panel`} onClick={()=>edit(p.name)}>
           <span className="card-title">0{i+1} / {p.name} bay</span>
           <span className="matrix-stage"><PanelDisplay frame={p.frame} label={`Live logical panel ${p.name}`} /></span>
-          <span className="caption"><span><small>{p.binding ? "Assigned" : "Unassigned"} · {p.brightness == null ? "Sleeping" : `Level ${p.brightness}`}</small>
+          <span className="caption"><span><small>{p.binding ? "Assigned" : "Unassigned"}{p.brightness == null ? " · Sleeping" : p.base_brightness != null ? ` · Brightness ${p.base_brightness}` : ""}</small>
           <strong>{p.sources ? p.sources.map(s=>labels[s]).join(" + ") || "Empty layout" : "Panel output"}</strong></span><span aria-hidden="true">↗</span></span>
         </button>)}</div> :
         <div><p>Simulated output</p><PanelDisplay frame={snapshot.frame} label={`Simulated LED panel showing ${String(snapshot.hour).padStart(2,"0")}:${String(snapshot.minute).padStart(2,"0")}`} /></div>}

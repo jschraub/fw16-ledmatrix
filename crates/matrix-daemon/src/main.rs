@@ -134,25 +134,29 @@ async fn run() -> std::io::Result<()> {
             frame.panels = config
                 .panels
                 .iter()
-                .map(|panel| matrix_client::PanelFrame {
-                    sources: Some(
-                        panel
-                            .slots
-                            .iter()
-                            .flatten()
-                            .map(|slot| slot.source)
-                            .collect(),
-                    ),
-                    brightness: matrix_core::brightness::effective(&config.brightness, panel)
-                        .level(),
-                    name: panel.name.clone(),
-                    frame: matrix_core::layout::render_live(
-                        panel,
-                        &readings,
-                        &config.brightness,
-                        frame.session_locked == Some(true),
-                    ),
-                    binding: panel.binding.clone(),
+                .map(|panel| {
+                    let base =
+                        matrix_core::brightness::effective(&config.brightness, panel).level();
+                    matrix_client::PanelFrame {
+                        base_brightness: base,
+                        sources: Some(
+                            panel
+                                .slots
+                                .iter()
+                                .flatten()
+                                .map(|slot| slot.source)
+                                .collect(),
+                        ),
+                        brightness: base,
+                        name: panel.name.clone(),
+                        frame: matrix_core::layout::render_live(
+                            panel,
+                            &readings,
+                            &config.brightness,
+                            frame.session_locked == Some(true),
+                        ),
+                        binding: panel.binding.clone(),
+                    }
                 })
                 .collect();
             let needed = config

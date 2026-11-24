@@ -2,4 +2,4 @@
 import type { Frame } from "./Frame";
 import type { Source } from "./Source";
 
-export type PanelFrame = { sources?: Array<Source>, brightness: number | null, name: string, frame: Frame, binding: string | null, };
+export type PanelFrame = { base_brightness?: number, sources?: Array<Source>, brightness: number | null, name: string, frame: Frame, binding: string | null, };

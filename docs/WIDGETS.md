@@ -1,5 +1,10 @@
 # Widgets
 
+Five-hour and weekly widgets show the selected provider's **percentage used**.
+Choose the provider separately for each slot; no session pin or producer is
+required. A missing or expired window stays blank. See [account usage
+setup and cache limits](INTEGRATIONS.md#account-usage-windows-linux).
+
 ## Temporary output previews
 
 Render-only sample/live-time previews never change configuration or output. The

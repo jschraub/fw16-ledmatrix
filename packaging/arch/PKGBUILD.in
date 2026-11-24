@@ -6,7 +6,7 @@ pkgdesc='Framework Laptop 16 LED Matrix desktop and user daemon'
 arch=('x86_64')
 url='https://github.com/jschraub/fw16-ledmatrix'
 license=('MIT')
-depends=('glibc' 'gcc-libs' 'gtk3' 'webkit2gtk-4.1' 'systemd')
+depends=('glibc' 'gcc-libs' 'gtk3' 'webkit2gtk-4.1' 'systemd' 'openssl' 'ca-certificates')
 optdepends=('libpulse: volume feedback via pactl'
             'glib2: Linux session sleep notifications via gdbus')
 options=('!debug' '!strip')

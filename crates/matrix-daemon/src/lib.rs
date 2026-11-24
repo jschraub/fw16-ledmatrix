@@ -17,6 +17,7 @@ pub mod probe;
 mod serial_io;
 pub mod session_lock;
 pub mod suspend;
+pub mod usage;
 #[cfg(windows)]
 mod windows_session;
 pub type Configuration = Arc<std::sync::Mutex<config::Store>>;

@@ -243,6 +243,13 @@ impl Client {
                     && snapshot.hour < 24
                     && snapshot.minute < 60
                     && snapshot.panels.len() <= 2
+                    && snapshot.assistants.usage.len() <= 2
+                    && snapshot.assistants.usage.iter().all(|u| {
+                        [u.five_hour, u.weekly]
+                            .into_iter()
+                            .flatten()
+                            .all(|w| w.used_percent <= 100)
+                    })
                     && snapshot.assistants.sessions.len() <= 64
                     && snapshot.assistants.sessions.iter().all(|session| {
                         matrix_core::assistant::safe_id(&session.session_id)

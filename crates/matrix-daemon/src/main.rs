@@ -25,6 +25,19 @@ async fn shutdown_signal() -> std::io::Result<()> {
 }
 
 async fn run() -> std::io::Result<()> {
+    use matrix_core::assistant::Provider;
+    if std::env::args().nth(1).as_deref() == Some("--check-usage") {
+        let provider = match std::env::args().nth(2).as_deref() {
+            Some("openai") => Provider::OpencodeOpenai,
+            Some("claude") => Provider::Claude,
+            _ => return Err(std::io::Error::other("expected openai or claude")),
+        };
+        println!(
+            "{}",
+            serde_json::to_string(&matrix_daemon::usage::check(provider).await)?
+        );
+        return Ok(());
+    }
     if std::env::args().nth(1).as_deref() == Some("--probe") {
         println!(
             "{}",
@@ -54,6 +67,10 @@ async fn run() -> std::io::Result<()> {
     let (feed_tx, feed_rx) =
         tokio::sync::watch::channel(matrix_core::assistant::AssistantState::default());
     tokio::spawn(matrix_daemon::feeds::poll(feed_tx));
+    let quota = [
+        matrix_daemon::usage::start(Provider::Claude, "MATRIX_USAGE_CLAUDE"),
+        matrix_daemon::usage::start(Provider::OpencodeOpenai, "MATRIX_USAGE_OPENAI"),
+    ];
     let now = chrono::Local::now();
     let (tx, rx) = tokio::sync::watch::channel(snapshot(0, now.hour() as u8, now.minute() as u8));
     tokio::spawn(matrix_daemon::devices::route_loop(rx.clone()));
@@ -74,7 +91,15 @@ async fn run() -> std::io::Result<()> {
             let mut frame = snapshot(sequence, now.hour() as u8, now.minute() as u8);
             let power = power_rx.borrow_and_update().clone();
             frame.power = Some(power.clone());
-            let assistants = feed_rx.borrow().clone();
+            let mut assistants = feed_rx.borrow().clone();
+            assistants.usage = quota
+                .iter()
+                .map(|q| {
+                    q.borrow()
+                        .clone()
+                        .at(now.timestamp().try_into().unwrap_or(u32::MAX))
+                })
+                .collect();
             frame.assistants = assistants.clone();
             let (config, preview) = {
                 let mut store = render_config.lock().expect("configuration lock");
@@ -97,6 +122,7 @@ async fn run() -> std::io::Result<()> {
                 default_clock_intensity: config.clock_intensity,
                 battery: power.percent.map(f64::from),
                 sessions: assistants.sessions,
+                usage: assistants.usage,
                 ..Default::default()
             };
             frame.frame = matrix_core::layout::render_live(

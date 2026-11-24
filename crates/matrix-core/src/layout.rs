@@ -150,6 +150,7 @@ pub fn defaults() -> Vec<PanelLayout> {
 
 #[derive(Clone)]
 pub struct Readings {
+    pub usage: Vec<crate::usage::Usage>,
     pub sessions: Vec<crate::assistant::Session>,
     pub default_clock_intensity: u8,
     pub hour: u8,
@@ -165,6 +166,7 @@ impl Default for Readings {
         Self {
             default_clock_intensity: DATA,
             sessions: vec![],
+            usage: vec![],
             hour: 0,
             minute: 0,
             battery: None,
@@ -207,8 +209,15 @@ impl Readings {
                 self.session(widget)
                     .map(|session| if session.busy { 100.0 } else { 0.0 })
             }),
-            Source::FiveHour => self.five_hour,
-            Source::Weekly => self.weekly,
+            Source::FiveHour | Source::Weekly => {
+                let five = widget.source == Source::FiveHour;
+                self.usage
+                    .iter()
+                    .find(|u| u.provider == widget.provider)
+                    .and_then(|u| if five { u.five_hour } else { u.weekly })
+                    .map(|w| f64::from(w.used_percent))
+                    .or(if five { self.five_hour } else { self.weekly })
+            }
         }
         .filter(|v| v.is_finite())
     }
@@ -321,6 +330,32 @@ pub fn render_configured(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn usage_gauge_uses_its_provider_even_without_a_session() {
+        use crate::{
+            assistant::Provider,
+            usage::{Usage, UsageStatus, Window},
+        };
+        let mut panel = defaults().remove(0);
+        panel.template = Template::FullGauge;
+        panel.slots = default_slots(panel.template);
+        let slot = panel.slots[0].as_mut().unwrap();
+        slot.source = Source::Weekly;
+        slot.provider = Provider::OpencodeOpenai;
+        let readings = Readings {
+            usage: vec![Usage {
+                weekly: Some(Window {
+                    used_percent: 50,
+                    resets_at: None,
+                }),
+                ..Usage::empty(Provider::OpencodeOpenai, UsageStatus::Fresh)
+            }],
+            ..Default::default()
+        };
+        assert!(render(&panel, &readings).pixels.iter().any(|p| *p != 0));
+        panel.slots[0].as_mut().unwrap().provider = Provider::Claude;
+        assert!(render(&panel, &readings).pixels.iter().all(|p| *p == 0));
+    }
     #[test]
     fn default_geometry_matches_poc_and_missing_values_never_reflow() {
         let panels = defaults();

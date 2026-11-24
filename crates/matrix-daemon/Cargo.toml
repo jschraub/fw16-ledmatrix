@@ -12,6 +12,9 @@ serde_json.workspace = true
 serialport = { version = "4", default-features = false }
 tempfile = "3"
 dirs = "6"
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+sha2 = "0.10"
+rusqlite = { version = "0.37", features = ["bundled"] }
 tokio.workspace = true
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 

@@ -120,7 +120,7 @@ pub async fn poll(tx: tokio::sync::watch::Sender<AssistantState>) {
                 tx.send_replace(state);
             }
             _ => {
-                tx.send_replace(AssistantState { sessions: vec![], health: [Provider::Claude, Provider::OpencodeOpenai].into_iter().map(|provider| FeedHealth { provider, status: "error".into(), detail: "Metadata scan failed or timed out; unrelated widgets remain active.".into() }).collect() });
+                tx.send_replace(AssistantState { health: [Provider::Claude, Provider::OpencodeOpenai].into_iter().map(|provider| FeedHealth { provider, status: "error".into(), detail: "Metadata scan failed or timed out; unrelated widgets remain active.".into() }).collect(), ..Default::default() });
                 if !job.is_finished() {
                     let _ = job.await;
                 }

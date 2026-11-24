@@ -321,6 +321,11 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   brightness or cycle time. Automated tests cover the other pulse profiles,
   configured brightness limits, explicit sleep, and centered 1/3/5/7/9-column
   gauge widths; individual presets and widths were not optically qualified.
+- Subscription usage (#22): one owner-authorized OpenAI check using the active
+  OpenCode V2 SQLite login returned a fresh weekly percentage and reset time.
+  No five-hour window was present. This was a standalone request, not a panel
+  observation or a change to service settings. Claude had no subscription
+  available for live verification; its result is fixture-only.
 - After `6849d94`, the observer reported noticeably faster AC feedback on the
   physical panel. The isolated fixture measured 27 ms from unplug and 29 ms
   from reconnect to a subscriber gauge; neither is a key-to-LED or optical

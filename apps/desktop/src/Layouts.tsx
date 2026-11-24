@@ -40,8 +40,10 @@ export function Layouts({ config, change, panelName }: { config: Config; change:
             <label>Provider for {panel.name} slot {s + 1} <select value={value.provider ?? "claude"} onChange={(e) => slot(p, s, { ...value, provider: e.target.value as "claude" | "opencode_openai", session_id: null })}>
               <option value="claude">Claude Code</option><option value="opencode_openai">OpenCode / OpenAI</option>
             </select></label>
-            <label>Session pin for {panel.name} slot {s + 1} <input placeholder="Latest active main session" value={value.session_id ?? ""} maxLength={128} onChange={(e) => slot(p, s, { ...value, session_id: e.target.value || null })} /></label>
-            <p>A missing/expired pinned session stays blank; it never silently follows another session.</p>
+            {value.source === "context" || value.source === "activity" ? <>
+              <label>Session pin for {panel.name} slot {s + 1} <input placeholder="Latest active main session" value={value.session_id ?? ""} maxLength={128} onChange={(e) => slot(p, s, { ...value, session_id: e.target.value || null })} /></label>
+              <p>A missing/expired pinned session stays blank; it never silently follows another session.</p>
+            </> : <p>Shows percentage used for the selected account. See Integrations for availability and reset times.</p>}
           </>}
           {value.presentation === "gauge" && <label><input type="checkbox" checked={value.reversed} onChange={(e) => slot(p, s, { ...value, reversed: e.target.checked })} /> Fill downward</label>}
           {value.source !== "clock" && <label>Warning threshold for {panel.name} slot {s + 1} ({value.source === "battery" ? "at or below" : "at or above"})

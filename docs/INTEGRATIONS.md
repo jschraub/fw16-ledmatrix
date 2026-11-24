@@ -162,3 +162,36 @@ are rejected without chmod or replacement. Windows uses inherited per-user local
 data directory ACLs; custom shared paths need operator ACL review. JS/Rust
 contract and fake-client tests do not establish interactive OpenCode activation,
 Windows ACLs, or physical panel readability; those require separate qualification.
+## Account usage windows (Linux)
+
+For a panel slot choose **five_hour** or **weekly**, then Claude or OpenCode /
+OpenAI. These show percent **used** for the active subscription, independent
+of session pins, context, and activity. Integrations shows each window, reset
+time when supplied, cache deadline and failure status. Missing is not zero.
+
+Polling is off by default. For a one-time live check run
+`matrix-daemon --check-usage openai` (or `claude`) **with the new build**.
+This makes at most one usage request and exits without opening panels. For
+ongoing polling set `MATRIX_USAGE_OPENAI=1` or `MATRIX_USAGE_CLAUDE=1` in the
+daemon environment; for the packaged user service use a systemd `[Service]`
+drop-in with `Environment=MATRIX_USAGE_OPENAI=1`, then restart that service.
+Remove the setting and restart to disable. Each enabled provider polls once
+per minute regardless of panel/widget count. No account setup is automated.
+
+- **OpenAI:** read only the active OpenAI OAuth credential in the local
+  [OpenCode V2 SQLite database](https://opencode.ai/docs/cli/providers#storage).
+  Default `$XDG_DATA_HOME/opencode/opencode.db` (normally under `~/.local/share`).
+  For other channels use `opencode debug paths db` and set `OPENCODE_DB` to
+  that absolute path in the daemon environment. No fallback to the imported
+  legacy `auth.json`, Codex credentials, API keys or another account.
+  Match `wham/usage` windows by duration, never primary/secondary position.
+- **Claude:** read the Linux `.credentials.json` under `CLAUDE_CONFIG_DIR`
+  or `~/.claude`. Other storage is unsupported. Use the OAuth usage endpoint's
+  `five_hour` and `seven_day` buckets, excluding model-specific allowances.
+- Both endpoints are internal and can change. Only percentages, reset times,
+  cache deadline, provider and status leave the adapter. Credentials are never
+  refreshed or written. Account changes/logout clear the in-memory reading
+  when detected (checked every five seconds between requests and again before
+  publishing). A 401 clears it immediately. Temporary request/schema failures
+  mark a same-account reading stale; OpenAI expires after five minutes, Claude
+  after twelve hours, or earlier at the individual window reset.

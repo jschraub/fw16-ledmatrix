@@ -62,6 +62,8 @@ pub struct FeedHealth {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 pub struct AssistantState {
+    #[serde(default)]
+    pub usage: Vec<crate::usage::Usage>,
     pub sessions: Vec<Session>,
     pub health: Vec<FeedHealth>,
 }

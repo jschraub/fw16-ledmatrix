@@ -10,6 +10,7 @@ pub mod power;
 pub mod preview;
 pub mod protocol;
 pub mod pulse;
+pub mod usage;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

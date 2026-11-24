@@ -326,6 +326,12 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   No five-hour window was present. This was a standalone request, not a panel
   observation or a change to service settings. Claude had no subscription
   available for live verification; its result is fixture-only.
+- Packaged check (#22): the checksum-verified `0.1.0-1006` candidate ran with
+  a temporary copy of revision 26. The owner saw 18% weekly usage in the
+  desktop and 18 on the right panel; the five-hour window was unavailable
+  and Claude polling was off. After the candidate stopped, the installed
+  daemon resumed revision 26 and alone owned both ports. The owner confirmed
+  the right clock and left battery gauge returned.
 - After `6849d94`, the observer reported noticeably faster AC feedback on the
   physical panel. The isolated fixture measured 27 ms from unplug and 29 ms
   from reconnect to a subscriber gauge; neither is a key-to-LED or optical

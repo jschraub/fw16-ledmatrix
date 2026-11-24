@@ -4,7 +4,8 @@ Updated **2026-11-23** after switching the existing account to the installed Lin
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 
 **Current checkpoint: Linux feedback overlays (#27) and packaging/login startup
-(#28) complete. Next feature: account-bound usage windows (#22).** Windows
+(#28) complete. Account-bound usage (#22) passed the packaged OpenAI check;
+next is migration, rollback and diagnostics (#29).** Windows
 development (#42) and support qualification (#43) are post-v1. Linux optical
 lock, display-off and an attended system suspend/resume cycle passed. Details are in
 [SUPPORT.md](SUPPORT.md#initial-cachyos-hardware-session--2026-11-23).
@@ -319,12 +320,11 @@ Windows runner does not qualify physical Windows hardware.
 
 | Ticket | Outcome and prerequisites |
 | --- | --- |
-| [#22 Account-bound usage windows](https://github.com/jschraub/fw16-ledmatrix/issues/22) | Read-only supported credential discovery, independent Claude/OpenAI windows, correct durations, account changes, caching/expiry, 401/schema failures and redaction. Depends on closed #20/#21. Live requests require explicit opt-in; never paste tokens into config or take ownership of refresh. |
 | [#29 Migration/diagnostics](https://github.com/jschraub/fw16-ledmatrix/issues/29) | Explicit POC stop/disable, preserved settings, rollback without dual writers, keyboard workflows and redacted diagnostics. Depends on #22/#27/#28 and closed #15/#17. |
 | [#41 Desktop redesign](https://github.com/jschraub/fw16-ledmatrix/issues/41) | Iterate on the selected panel map, demonstrate everyday workflows and obtain owner sign-off before #30. |
 | [#30 Release qualification](https://github.com/jschraub/fw16-ledmatrix/issues/30) | Dated supported-environment evidence, POC parity, disruptive checks by approval, full-day product soak and green CI. Depends on #29. The device-focused #36 soak alone does not complete release qualification. |
 
-Start with #22; #27 and #28 are complete. Converge on #29, then #30.
+Start with #29; its software prerequisites are complete. Then qualify release #30.
 Keep each ticket's implementation,
 tests and commit separate. Use native GitHub parent/dependency relationships for
 new follow-ups, then verify them. Do not close parent specs while required

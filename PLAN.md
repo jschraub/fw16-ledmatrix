@@ -4,8 +4,8 @@ Status: agreed v1 scope; implementation and qualification are in progress.
 
 ## Delivery checkpoint — 2026-11-23
 
-With #27 and #28 complete for Linux, **19 of the original 22 delivery slices are closed**
-(#9–#21 and #23–#28). This measures software delivery, not release readiness.
+**20 of the original 22 delivery slices are closed** (#9–#28).
+This measures software delivery, not release readiness.
 The [live roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1) tracks
 the specs; the [handoff](docs/HARDWARE-HANDOFF.md) gives the next machine steps
 and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
@@ -15,7 +15,8 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
    roles after a real Linux suspend/resume. Linear/quadratic mapping and Windows
    adapters are implemented. Further Windows development (#42) and Windows
    support qualification (#43) are post-v1 and do not gate Linux delivery.
-2. **Next feature: #22** (account-bound usage). #27 delivered per-panel
+2. **Account-bound usage (#22) complete:** OpenAI verified in the packaged
+   desktop and on the right panel; Claude fixture-tested only. #27 delivered per-panel
    feedback gauges and bounded charging indication. #28 delivered Arch packaging and
    existing-account login startup; see [packaging evidence](docs/PACKAGING.md).
 3. **Release UX — #41:** the panel-map design was selected and its first native

@@ -64,7 +64,7 @@ keep working if audio is missing.
 
 ### Brightness and session policies
 
-**When locked:** Select a panel on Overview and choose **When locked** to
+**When locked:** In Workspace → Configuration → Layout, choose **When locked** for a panel to
 keep its normal layout (default), show only the clock, show battery as a full
 gauge, or render a blank frame. Apply saves the setting independently for
 each panel. Brightness and explicit sleep still apply. Hyprland on Linux is

@@ -13,7 +13,7 @@ test("editing the second panel from the map preserves the first panel and its bi
   vi.mocked(invoke).mockResolvedValue({ status: "read", saved: { revision: 4, config }, errors: [] });
   render(<ConfigEditor panelName="right" />);
   fireEvent.click(screen.getByRole("button", { name: "Load saved configuration" }));
-  fireEvent.change(await screen.findByLabelText("Template for right"), { target: { value: "clock_gauge" } });
+  fireEvent.click(await screen.findByRole("button",{name:"Clock + bar"}));
   expect(screen.queryByLabelText("Template for left")).toBeNull();
   expect(invoke).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole("button", { name: "Save changes" }));

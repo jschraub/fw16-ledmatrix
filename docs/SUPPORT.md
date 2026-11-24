@@ -332,6 +332,15 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   and Claude polling was off. After the candidate stopped, the installed
   daemon resumed revision 26 and alone owned both ports. The owner confirmed
   the right clock and left battery gauge returned.
+- Migration and recovery (#29): after a brief ownership handoff the installed
+  Rust daemon was enabled and alone on both ports, with byte-identical revision
+  26; the legacy unit was disabled and inactive. The POC is reference-only.
+  In a separate zero-panel Linux session, `tools/check-desktop-recovery.py`
+  drove the native desktop through AT-SPI, applied a one-panel layout, checked
+  persistence through IPC and the saved file, and read the redacted report.
+  UI fixtures cover keyboard navigation, draft retention on reconnect and
+  redaction of untrusted source/device data. No physical display observation
+  is attributed to this isolated test.
 - After `6849d94`, the observer reported noticeably faster AC feedback on the
   physical panel. The isolated fixture measured 27 ms from unplug and 29 ms
   from reconnect to a subscriber gauge; neither is a key-to-LED or optical

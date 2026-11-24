@@ -6,6 +6,7 @@ import { Integrations } from "./Integrations";
 import { useState, useRef } from "react";
 import { ViewNav } from "./ViewNav";
 import { LoginStartup } from "./LoginStartup";
+import { DiagnosticExport } from "./DiagnosticExport";
 
 const views = ["Overview", "Configuration", "Devices", "Integrations", "Diagnostics"] as const;
 
@@ -84,6 +85,7 @@ export function App() {
       <div hidden={view !== "Devices"}><Devices /></div>
       <div hidden={view !== "Integrations"}>{snapshot ? <Integrations state={snapshot.assistants} /> : <p>Connect to the daemon to view assistant integrations.</p>}</div>
       <div hidden={view !== "Diagnostics"}>
+        <DiagnosticExport snapshot={snapshot} failure={error?.code} />
         <Capabilities />
         {hello && <details><summary>Connection details</summary>
           <p>Daemon {hello.daemon_version} · protocol {hello.protocol_version}<br />Capabilities: {hello.capabilities.join(", ")}</p>

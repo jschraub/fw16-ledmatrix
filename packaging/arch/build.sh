@@ -26,7 +26,9 @@ install -Dm644 apps/desktop/src-tauri/icons/icon.png "$usr/share/icons/hicolor/5
 install -Dm644 packaging/linux/fw16-ledmatrix.service "$usr/lib/systemd/user/fw16-ledmatrix.service"
 install -Dm644 poc/udev/60-framework-ledmatrix.rules "$usr/lib/udev/rules.d/60-framework-ledmatrix.rules"
 install -Dm644 LICENSE "$usr/share/licenses/fw16-ledmatrix/LICENSE"
-install -Dm644 docs/INTEGRATIONS.md "$usr/share/doc/fw16-ledmatrix/INTEGRATIONS.md"
+for guide in INTEGRATIONS MIGRATION PACKAGING; do
+    install -Dm644 "docs/$guide.md" "$usr/share/doc/fw16-ledmatrix/$guide.md"
+done
 cd "$work"
 tar --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner -cf payload.tar payload
 sum=$(sha256sum payload.tar | cut -d' ' -f1)

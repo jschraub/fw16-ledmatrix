@@ -1,13 +1,43 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { Event } from "./bindings/Event";
 import { subscribe, startDaemon } from "./connection";
 import { App } from "./App";
 import { invoke } from "@tauri-apps/api/core";
+import userEvent from "@testing-library/user-event";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
 vi.mock("./connection", async (original) => ({ ...await original<typeof import("./connection")>(), subscribe: vi.fn(), startDaemon: vi.fn() }));
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
+
+test("keyboard reaches device, display, layout, integration and support workflows and retains a draft on reconnect", async () => {
+  const user = userEvent.setup();
+  let publish!: (e: Event) => void;
+  vi.mocked(subscribe).mockImplementation(async receive => { publish = receive; receive(hello); receive(frame); });
+  vi.mocked(invoke).mockImplementation(async command => command === "devices" ? {message:"Detected",devices:[]} :
+    {status:"read",errors:[],saved:{revision:1,config:{schema_version:2,clock_intensity:180,panels:[],brightness:{manual:32,minimum:3,maximum:255,off:false}}}});
+  render(<App />);
+  async function focus(element: HTMLElement) {
+    for (let i=0; document.activeElement !== element && i<80; i++) await user.tab();
+    expect(element).toHaveFocus();
+  }
+  async function activate(name: string) {
+    await focus(screen.getByRole("button",{name})); await user.keyboard("{Enter}");
+  }
+  await activate("Devices"); await activate("Discover physical panels");
+  await activate("Configuration"); await activate("Load saved configuration");
+  const input = await screen.findByLabelText("Clock intensity"); await focus(input);
+  await user.keyboard("{ArrowUp}");
+  await user.clear(input); await user.keyboard("160");
+  await activate("Brightness"); await focus(screen.getByLabelText("Display and backlight"));
+  await activate("Integrations"); expect(screen.getByRole("heading",{name:"Account usage"})).toBeVisible();
+  await activate("Diagnostics"); await activate("Generate redacted report");
+  const report = await screen.findByLabelText<HTMLTextAreaElement>("Redacted report (JSON)");
+  expect(JSON.parse(report.value).connection).toBe("connected");
+  act(() => publish({type:"error",code:"disconnected",message:"closed"}));
+  await activate("Retry connection"); await activate("Configuration"); await activate("Layout");
+  expect(screen.getByLabelText("Clock intensity")).toHaveValue(160);
+});
 
 const hello: Event = { type: "hello", hello: { protocol_version: 2, daemon_version: "0.1.0", simulated: true, capabilities: ["simulated_panel", "clock_frames"] } };
 const pixels = Array<number>(306).fill(0);

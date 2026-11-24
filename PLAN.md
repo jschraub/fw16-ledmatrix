@@ -4,7 +4,7 @@ Status: agreed v1 scope; implementation and qualification are in progress.
 
 ## Delivery checkpoint — 2026-11-23
 
-**20 of the original 22 delivery slices are closed** (#9–#28).
+**21 of the original 22 delivery slices are closed** (#9–#29).
 This measures software delivery, not release readiness.
 The [live roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1) tracks
 the specs; the [handoff](docs/HARDWARE-HANDOFF.md) gives the next machine steps
@@ -26,7 +26,7 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
    Linux optics, preview ownership/restoration and diagnostics have passed
    specific scenarios. Physical serial failure capture, safe reconnect, Linux
    bay identity, integration activation and the full-day soak remain open.
-5. **Converge:** #29 demonstrates migration and rollback; #30 requires packaging,
+5. **Release qualification:** #29 delivered one-way migration and Rust diagnostics; #30 requires packaging,
    qualified environments, hardware parity, full-day results, green CI and #41.
 
 ## 1. Agreed direction
@@ -349,8 +349,8 @@ preview changes, and save them without editing files or using a terminal.
 - Install/update/uninstall both binaries and per-user startup independently of
   the source checkout. Explain settings retention and optional cleanup.
 - Provide an explicit POC migration path: stop/disable its service before starting
-  Rust, preserve external client settings, and document rollback without running
-  both against the same ports. Do not treat this plan's file move as migration.
+  Rust and preserve external client settings. The POC is a reference, not a
+  supported release or recovery target. See [migration and recovery](docs/MIGRATION.md).
 - Complete a full-day soak and the hardware/platform qualification matrix.
 
 Exit: the supported Linux environments pass the documented release checks; outstanding

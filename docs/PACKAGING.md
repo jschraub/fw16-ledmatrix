@@ -66,6 +66,9 @@ This verifies startup on the migrated account, not a fresh-user installation.
 
 ## Installed usage
 
+For a machine that ran the proof of concept, follow [one-way migration and
+Rust recovery](MIGRATION.md) before starting the packaged service.
+
 Install a reviewed local artifact with `sudo pacman -U /path/to/package.pkg.tar.zst`.
 Administrative access is for package management only. Launch **Framework LED
 Matrix** from the desktop menu. The desktop's **Start daemon** button uses the

@@ -313,8 +313,14 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   the right panel's 100% battery gauge, then restored its clock. The observer
   confirmed both transitions and that the left gauge stayed unchanged. AC
   changed from disconnected to connected, but charging stayed false at 100%;
-  the charging pulse was not physically exercised. Prior settings were restored
+  the charging pulse was not expected in that run. Prior settings were restored
   and verified at revision 18.
+- Charging indication (#27): in a later run with the battery actively charging,
+  the observer saw the pulse and found the stronger eight-second 32 → 64 → 32
+  default easier to see. This was a visual check, not an optical measurement of
+  brightness or cycle time. Automated tests cover the other pulse profiles,
+  configured brightness limits, explicit sleep, and centered 1/3/5/7/9-column
+  gauge widths; individual presets and widths were not optically qualified.
 - After `6849d94`, the observer reported noticeably faster AC feedback on the
   physical panel. The isolated fixture measured 27 ms from unplug and 29 ms
   from reconnect to a subscriber gauge; neither is a key-to-LED or optical

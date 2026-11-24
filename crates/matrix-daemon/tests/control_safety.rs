@@ -29,6 +29,44 @@ fn fixture() -> (tempfile::TempDir, String) {
 }
 
 #[tokio::test]
+async fn draft_battery_bar_uses_live_power_without_sample_data() {
+    use matrix_core::{
+        config::Config,
+        layout::{Template, default_slots},
+        power::{PowerReading, PowerStatus},
+    };
+    let (_dir, endpoint) = fixture();
+    let listener = local::Listener::bind(&endpoint).await.unwrap();
+    let mut state = snapshot(1, 12, 34);
+    state.power = Some(PowerReading {
+        percent: Some(50),
+        status: PowerStatus::Available,
+        ac: None,
+        charging: None,
+        updated_at: String::new(),
+    });
+    let (_tx, rx) = tokio::sync::watch::channel(state);
+    let server = tokio::spawn(serve(listener, rx));
+    let mut config = Config::default();
+    config.panels.truncate(1);
+    config.panels[0].template = Template::FullGauge;
+    config.panels[0].slots = default_slots(Template::FullGauge);
+    let Event::Rendered { frames, .. } = Client::request(
+        &endpoint,
+        Request::RenderDraft {
+            config,
+            sample: false,
+        },
+    )
+    .await
+    .unwrap() else {
+        panic!("expected draft frame")
+    };
+    assert_eq!(frames[0].pixels.iter().filter(|p| **p > 0).count(), 17 * 3);
+    server.abort();
+}
+
+#[tokio::test]
 async fn preview_owner_disconnect_restores_current_applied_state_for_all_clients() {
     use matrix_core::{config::Config, preview::PreviewStatus};
     let (_dir, endpoint) = fixture();

@@ -59,3 +59,6 @@ textarea {width:100%}summary {cursor:pointer;padding:8px 0}p {overflow-wrap:anyw
 .bay-controls .content-row label {display:grid;grid-template-columns:minmax(6ch,.7fr) minmax(0,1fr);align-items:center;gap:8px;margin:6px 0;color:var(--muted);font-size:.9rem}
 .content-row select {margin:0}
 .preview-tools {padding-top:12px}
+.bay-output {margin:0;padding:14px 6px;text-align:center}
+.bay-output figcaption small {display:block;letter-spacing:0;text-transform:none;font:inherit;color:var(--muted)}
+.bay-output figcaption {font-size:.8rem}

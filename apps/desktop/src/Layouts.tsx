@@ -68,13 +68,13 @@ export function DraftPreview({ config }: { config: Config }) {
   async function preview(sample: boolean) {
     const current = ++generation.current;
     setBusy(true);
-    try { const result = await invoke<Frame[]>("render_draft", { config, sample }); if (current === generation.current) { setFrames(result); setMessage(sample ? "SAMPLE DATA · not live readings" : "Live local time; unavailable sources remain blank"); } }
+    try { const result = await invoke<Frame[]>("render_draft", { config, sample }); if (current === generation.current) { setFrames(result); setMessage(sample ? "SAMPLE DATA · not live readings" : "Current readings; unavailable sources remain blank"); } }
     catch { if (current === generation.current) { setFrames(null); setMessage("Preview rejected or daemon unavailable. Validate the draft and retry."); } }
     finally { if (current === generation.current) setBusy(false); }
   }
   return <section aria-label="Draft preview">
     <button type="button" disabled={busy} onClick={() => void preview(true)}>Preview with sample data</button>
-    <button type="button" disabled={busy} onClick={() => void preview(false)}>Preview with live time</button>
+    <button type="button" disabled={busy} onClick={() => void preview(false)}>Preview with current readings</button>
     <p>{message}</p><div className="draft-panels">{frames?.map((frame, i) => <figure key={i}><figcaption>{config.panels[i].name}</figcaption>
       <div className="panel" role="img" aria-label={`Draft preview for ${config.panels[i].name}`}><div className="pixels" aria-hidden="true">{frame.pixels.map((pixel, n) => <span key={n} className="pixel" style={{ opacity: pixel ? pixel / 255 : 0.06 }} />)}</div></div>
     </figure>)}</div>

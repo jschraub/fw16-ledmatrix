@@ -53,8 +53,7 @@ export function App() {
       </div>
       <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}>
         {selected && <button ref={back} onClick={()=>{setSelected(null); requestAnimationFrame(()=>document.getElementById("map-title")?.focus());}}>← Your panels</button>}
-        <ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources}
-          output={snapshot?.panels.find(p=>p.name===selected)?.frame} />
+        <ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} />
         {view === "Configuration" && <LoginStartup />}
       </div>
       <div hidden={view !== "Devices"}><Devices />

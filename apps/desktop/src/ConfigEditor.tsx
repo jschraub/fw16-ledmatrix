@@ -12,12 +12,11 @@ import { HardwarePreview } from "./HardwarePreview";
 import { FeedbackEditor } from "./FeedbackEditor";
 import { ViewNav } from "./ViewNav";
 import { BayEditor } from "./BayEditor";
-import type { Frame } from "./bindings/Frame";
 
 const tasks = ["Layout", "Brightness", "Feedback", "Assignments", "Preview"] as const;
 
 export interface EditorActions { loadIfNeeded(): void; openAssignments(): void }
-export function ConfigEditor({ panelName = null, ref, sources, output }: { panelName?: string | null; ref?: Ref<EditorActions>; sources?: DisplaySources; output?:Frame }) {
+export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: string | null; ref?: Ref<EditorActions>; sources?: DisplaySources }) {
   const [task, setTask] = useState<typeof tasks[number]>("Layout");
   const [saved, setSaved] = useState<SavedConfig | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
@@ -61,7 +60,7 @@ export function ConfigEditor({ panelName = null, ref, sources, output }: { panel
         <p>Current saved clock intensity: {conflict.config.clock_intensity}. Draft clock intensity: {draft.clock_intensity}.</p>
         <p>Refresh to adopt the current revision while keeping your draft, review it, then Apply explicitly; or load saved configuration to discard your draft.</p>
       </div>}
-      {panel && <BayEditor config={draft} panel={panel} output={output} change={setDraft}/>}
+      {panel && <BayEditor config={draft} panel={panel} change={setDraft}/>}
       {!panelName && <ViewNav label="Configuration tasks" items={tasks} current={task} select={setTask} />}
       <div hidden={!panelName && task !== "Layout"}>{!panelName && <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
         onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>}

@@ -279,9 +279,13 @@ async fn configured_session(
         let mut readings = if sample {
             matrix_core::layout::Readings::sample(now.hour() as u8, now.minute() as u8)
         } else {
+            let live = frames.borrow();
             matrix_core::layout::Readings {
                 hour: now.hour() as u8,
                 minute: now.minute() as u8,
+                battery: live.power.as_ref().and_then(|p| p.percent).map(f64::from),
+                sessions: live.assistants.sessions.clone(),
+                usage: live.assistants.usage.clone(),
                 ..Default::default()
             }
         };

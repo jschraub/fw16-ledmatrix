@@ -7,7 +7,9 @@ setup and cache limits](INTEGRATIONS.md#account-usage-windows-linux).
 
 ## Temporary output previews
 
-Render-only sample/live-time previews never change configuration or output. The
+The bay editor automatically renders the selected panel's draft on screen using
+the daemon's current readings. Display brightness is illustrative, not calibrated.
+Render-only previews never change configuration or physical output. The
 explicit hardware preview leases the daemon's desired output for ten seconds
 (protocol maximum 15). Only one owner is allowed. A separate local IPC request
 stays connected for the lease; EOF, cancellation, expiry or a crashed desktop
@@ -208,4 +210,5 @@ unbounded blocking threads while leaving clock updates running. Recovery resumes
 sampling. Battery gauges support direction, relative intensity and an optional
 low threshold (emphasis at/below it); thresholds for usage sources run in the
 opposite direction. A sample-data draft preview remains explicitly synthetic;
-the live-time-only draft preview does not claim to sample other sources.
+the live preview uses the latest machine and assistant readings, leaving
+unavailable widgets blank.

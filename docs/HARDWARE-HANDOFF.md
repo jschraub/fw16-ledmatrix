@@ -111,7 +111,7 @@ clock/battery widgets, discovery/identification, location bindings, serial outpu
 routing/recovery safeguards, manual brightness/sleep, temporary output previews,
 and optional Claude/OpenCode context/activity producers.
 
-Still outstanding for Linux v1: account-bound quota sources, desktop redesign,
+Still outstanding for Linux v1: desktop redesign,
 and the complete migration
 and release-qualification workflows. These are software tickets, not checks that
 can be closed merely by connecting hardware.

@@ -23,8 +23,10 @@ export function HardwarePreview({ config }: { config: Config }) {
   }
   return <section aria-label="Temporary hardware preview">
     <p>Try on panels for 10 seconds.</p>
-    <button type="button" disabled={active || !config.panels?.some((panel) => panel.binding)} onClick={() => void begin()}>Preview</button>
-    {active && <button type="button" onClick={() => void cancel()}>Stop preview</button>}
+    <div className="hardware-preview-actions">
+      <button type="button" disabled={active || !config.panels?.some((panel) => panel.binding)} onClick={() => void begin()}>Preview</button>
+      {active && <button type="button" onClick={() => void cancel()}>Stop preview</button>}
+    </div>
     <p aria-live="polite">{message}</p>
   </section>;
 }

@@ -5,4 +5,4 @@ import type { LockContent } from "./LockContent";
 import type { Template } from "./Template";
 import type { Widget } from "./Widget";
 
-export type PanelLayout = { feedback?: Feedback, name: string, when_locked?: LockContent, template: Template, slots: Array<Widget | null>, binding: string | null, brightness_override: Brightness | null, };
+export type PanelLayout = { center_single_bar?: boolean, feedback?: Feedback, name: string, when_locked?: LockContent, template: Template, slots: Array<Widget | null>, binding: string | null, brightness_override: Brightness | null, };

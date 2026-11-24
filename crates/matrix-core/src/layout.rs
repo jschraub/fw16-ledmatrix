@@ -47,6 +47,9 @@ pub struct Widget {
 pub struct PanelLayout {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
+    pub center_single_bar: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub feedback: Option<crate::feedback::Feedback>,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -137,6 +140,7 @@ pub fn defaults() -> Vec<PanelLayout> {
     ]
     .into_iter()
     .map(|(name, template)| PanelLayout {
+        center_single_bar: None,
         name: name.into(),
         when_locked: None,
         feedback: None,
@@ -292,6 +296,12 @@ pub fn render(panel: &PanelLayout, readings: &Readings) -> Frame {
         }
         let (y0, y1, x0, x1) = match panel.template {
             Template::ClockGauge => (13, 33, 3, 5),
+            Template::NumberTwoGauges
+                if panel.center_single_bar == Some(true)
+                    && matches!(panel.slots.get(3 - index), Some(None)) =>
+            {
+                (7, 33, 3, 5)
+            }
             Template::NumberTwoGauges if index == 1 => (7, 33, 1, 2),
             Template::NumberTwoGauges => (7, 33, 6, 7),
             Template::FullGauge => (0, 33, 3, 5),
@@ -379,8 +389,34 @@ mod tests {
         }
     }
     #[test]
+    fn centers_either_single_bar_only_for_an_explicitly_empty_neighbor() {
+        for index in [1, 2] {
+            let mut panel = defaults().remove(1);
+            panel.slots[index].as_mut().unwrap().source = Source::Battery;
+            let readings = Readings {
+                battery: Some(100.),
+                ..Default::default()
+            };
+            let row = |panel: &PanelLayout| {
+                render(panel, &readings).pixels[33 * WIDTH..]
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(x, p)| (*p > 0).then_some(x))
+                    .collect::<Vec<_>>()
+            };
+            let side = if index == 1 { vec![1, 2] } else { vec![6, 7] };
+            panel.center_single_bar = Some(true);
+            assert_eq!(row(&panel), side); // The other source has no reading.
+            panel.slots[3 - index] = None;
+            assert_eq!(row(&panel), vec![3, 4, 5]);
+            panel.center_single_bar = None;
+            assert_eq!(row(&panel), side);
+        }
+    }
+    #[test]
     fn full_gauge_direction_empty_slots_and_truthful_overflow() {
         let mut panel = PanelLayout {
+            center_single_bar: None,
             name: "test".into(),
             feedback: None,
             when_locked: None,
@@ -446,6 +482,7 @@ mod tests {
     #[test]
     fn battery_threshold_emphasizes_low_values_but_missing_is_not_zero() {
         let mut panel = PanelLayout {
+            center_single_bar: None,
             name: "battery".into(),
             feedback: None,
             when_locked: None,

@@ -8,6 +8,7 @@ import type { Presentation } from "./bindings/Presentation";
 import type { Source } from "./bindings/Source";
 import type { Widget } from "./bindings/Widget";
 import type { LockContent } from "./bindings/LockContent";
+import { SingleBarAlignment } from "./SingleBarAlignment";
 
 const templates: Record<Template, Presentation[]> = { clock_gauge: ["clock", "gauge"], number_two_gauges: ["number", "gauge", "gauge"], full_gauge: ["gauge"] };
 const sources: Source[] = ["battery", "context", "activity", "five_hour", "weekly"];
@@ -53,6 +54,7 @@ export function Layouts({ config, change, panelName }: { config: Config; change:
             <label><input type="checkbox" checked={value.hide_leading_hour_zero ?? false} onChange={(e) => slot(p, s, { ...value, hide_leading_hour_zero: e.target.checked })} /> Hide leading hour zero</label></>}
         </>}
       </details>)}
+      <SingleBarAlignment panel={panel} change={enabled=>update(p,{...panel,center_single_bar:enabled||undefined})}/>
       {!panelName && panels.length === 2 && <button type="button" onClick={() => change({ ...config, panels: panels.filter((_, i) => i !== p) })}>Remove {panel.name}</button>}
     </fieldset>)}
     {!panelName && panels.length === 1 && <button type="button" onClick={() => change({ ...config, panels: [...panels, { name: panels[0].name === "left" ? "right" : "left", binding: null, brightness_override: null, template: "clock_gauge", slots: templates.clock_gauge.map(widget) }] })}>Add second panel</button>}

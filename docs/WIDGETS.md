@@ -1,5 +1,9 @@
 # Widgets
 
+In **Number + bars**, set either bar to **Empty** and select **Center single
+bar** to draw the remaining bar across the middle three columns. With two
+configured bars, each keeps its side even when the other has no reading.
+
 Five-hour and weekly widgets show the selected provider's **percentage used**.
 Choose the provider separately for each slot; no session pin or producer is
 required. A missing or expired window stays blank. See [account usage

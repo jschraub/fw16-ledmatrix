@@ -2,6 +2,7 @@ import type { PanelLayout } from "./bindings/PanelLayout";
 import type { Template } from "./bindings/Template";
 import type { Widget } from "./bindings/Widget";
 import type { Presentation } from "./bindings/Presentation";
+import { SingleBarAlignment } from "./SingleBarAlignment";
 
 const shapes: Record<Template,{title:string; parts:Presentation[]; labels:string[]}> = {
   full_gauge:{title:"One bar",parts:["gauge"],labels:["Bar"]},
@@ -59,5 +60,6 @@ export function LayoutComposer({panel,update}:{panel:PanelLayout;update:(p:Parti
           </select></label>}
       </div>;
     })}
+    <SingleBarAlignment panel={panel} change={enabled=>update({center_single_bar:enabled||undefined})}/>
   </section>;
 }

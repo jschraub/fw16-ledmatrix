@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, type Ref } from "react";
+import { useState, useImperativeHandle, type Ref } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Config } from "./bindings/Config";
 import type { DisplaySources } from "./bindings/DisplaySources";
@@ -12,9 +12,10 @@ import { HardwarePreview } from "./HardwarePreview";
 import { FeedbackEditor } from "./FeedbackEditor";
 import { ViewNav } from "./ViewNav";
 import { BayEditor } from "./BayEditor";
+import { WorkspaceTitle } from "./WorkspaceTitle";
+import { useActionNotice, type Notice } from "./useActionNotice";
 
 const tasks = ["Layout", "Brightness", "Feedback", "Assignments", "Preview"] as const;
-type Notice = { tone: "success" | "neutral" | "error"; text: string };
 const outcomes = {
   read: {tone:"neutral", text:"Settings loaded."},
   valid: {tone:"success", text:"Settings valid."},
@@ -30,12 +31,7 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
   const [saved, setSaved] = useState<SavedConfig | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), notice.tone === "error" ? 8000 : 3000);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
+  const [notice, setNotice] = useActionNotice();
   const [conflict, setConflict] = useState<SavedConfig | null>(null);
   function encodable(value: unknown): boolean {
     if (typeof value === "number") return Number.isInteger(value) && value >= 0 && value <= 255;
@@ -64,23 +60,21 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
   const panel = draft?.panels?.find(p => p.name === panelName);
   return <section aria-label="Configuration">
     {panelName && <p className="kicker">Panel editor</p>}
-    <h2 className={panelName ? "bay-name" : undefined}>{panelName ? `${panelName} panel` : "Configuration"}</h2>
-    {(!panelName || !draft) && <button disabled={busy} onClick={() => void command({ type: "read_config" })}>Load saved configuration</button>}
+    {panelName ? <h2 className="bay-name">{panelName} panel</h2> : <WorkspaceTitle title="Configuration" purpose="Settings"/>}
+    {!draft && <button disabled={busy} onClick={() => void command({ type: "read_config" })}>{busy ? "Loading…" : "Load saved configuration"}</button>}
     {draft && saved && <>
-      <p className="draft-state">{panelName ? "Panel editor" : `Saved revision ${saved.revision}`} · {JSON.stringify(draft) === JSON.stringify(saved.config) ? "No draft changes" : "Unsaved draft"}</p>
-      <details hidden={!!panelName && !conflict} open={conflict ? true : undefined}><summary>Revision options</summary>
-      <button disabled={busy} onClick={() => void command({ type: "read_config" }, true)}>Refresh saved state (keep draft)</button>
-      </details>
+      <p className="draft-state">{JSON.stringify(draft) === JSON.stringify(saved.config) ? "Saved settings" : "Unsaved draft"}</p>
       {conflict && <div role="alert">
         Another client saved revision {conflict.revision}. Your draft and original base revision are unchanged.
         <p>Current saved clock intensity: {conflict.config.clock_intensity}. Draft clock intensity: {draft.clock_intensity}.</p>
-        <p>Refresh to adopt the current revision while keeping your draft, review it, then Apply explicitly; or load saved configuration to discard your draft.</p>
+        <p>Refresh to keep your draft, then save. Reload to use the saved settings instead.</p>
       </div>}
       {panel && <BayEditor config={draft} panel={panel} change={setDraft}/>}
       {!panelName && <ViewNav label="Configuration tasks" items={tasks} current={task} select={setTask} />}
-      <div hidden={!panelName && task !== "Layout"}>{!panelName && <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
-        onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>}
-      {!panelName && <Layouts config={draft} change={setDraft} />}</div>
+      <div hidden={!panelName && task !== "Layout"}>{!panelName && <>
+        <Layouts config={draft} change={setDraft} />
+        <label className="global-field">Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
+          onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label></>}</div>
       <div hidden={!!panelName}>
       <div hidden={task !== "Brightness"}><BrightnessEditor config={draft} change={setDraft} sources={sources} /></div>
       <div hidden={task !== "Feedback"}><FeedbackEditor config={draft} change={setDraft} /></div>
@@ -91,11 +85,16 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
       {!panelName && <div hidden={task !== "Preview"}><HardwarePreview config={draft} /></div>}
       <div className="draft-actions">
       {!numericSettingsValid && <p role="alert">Numeric settings must be whole values in the 0–255 wire range; use the narrower limits shown by each control.</p>}
-      {!panelName && <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>}
       <button disabled={busy || !numericSettingsValid || draft.clock_intensity < 1}
-        onClick={() => void command({ type: "apply_config", expected_revision: saved.revision, config: draft })}>{panelName ? "Save changes" : "Apply"}</button>
-      <button disabled={busy} onClick={() => { setDraft(saved.config); setNotice({tone:"neutral", text:"Changes discarded."}); }}>{panelName ? "Discard changes" : "Cancel draft"}</button>
+        onClick={() => void command({ type: "apply_config", expected_revision: saved.revision, config: draft })}>Save changes</button>
+      <button disabled={busy} onClick={() => { setDraft(saved.config); setNotice({tone:"neutral", text:"Changes discarded."}); }}>Discard changes</button>
+      {!panelName && <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>}
       </div>
+      <details hidden={!!panelName && !conflict} open={conflict ? true : undefined}><summary>Revision options</summary>
+      <p>Saved revision {saved.revision}</p>
+      <button disabled={busy} onClick={() => void command({ type: "read_config" }, true)}>Refresh saved state (keep draft)</button>
+      <button disabled={busy} onClick={() => void command({type:"read_config"})}>Reload and discard draft</button>
+      </details>
     </>}
     <div className="action-notice" data-tone={notice?.tone} aria-live="polite" aria-atomic="true">{notice?.text}</div>
   </section>;

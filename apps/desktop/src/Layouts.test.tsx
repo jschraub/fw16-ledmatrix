@@ -12,13 +12,13 @@ const config: Config = { schema_version: 2, clock_intensity: 180, brightness: { 
 function Harness() { const [value, setValue] = useState(config); return <Layouts config={value} change={setValue} />; }
 test("guided slots permit empty/repeated widgets and template changes reset compatible slots", () => {
   render(<Harness />);
-  fireEvent.change(screen.getByLabelText("Source for left slot 1"), { target: { value: "empty" } });
-  expect(screen.queryByLabelText("Intensity for left slot 1")).not.toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText("Template for left"), { target: { value: "full_gauge" } });
-  expect(screen.getByLabelText("Source for left slot 1")).toHaveValue("battery");
-  expect(screen.queryByLabelText("Source for left slot 2")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Time"), { target: { value: "" } });
+  expect(screen.getByLabelText("Time")).toHaveValue("");
+  fireEvent.click(screen.getByRole("button",{name:"One bar"}));
+  expect(screen.getByLabelText("Bar")).toHaveValue("battery");
+  expect(screen.queryByLabelText("Time")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Add second panel" }));
-  expect(screen.getByLabelText("Template for right")).toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"right panel"})).toHaveAttribute("aria-pressed","true");
 });
 test("sample preview displays only daemon pixels and labels synthetic values", async () => {
   vi.mocked(invoke).mockResolvedValue([{ width: 9, height: 34, pixels: Array<number>(306).fill(0) }]);

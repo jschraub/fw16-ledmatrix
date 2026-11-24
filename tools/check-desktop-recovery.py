@@ -49,15 +49,16 @@ def run(root):
         with subprocess.Popen([binary], env=dict(os.environ, MATRIX_ENDPOINT=str(endpoint),
                               NO_AT_BRIDGE="0", GTK_MODULES="atk-bridge", WEBKIT_FORCE_SANDBOX="1")) as app:
             def click(name):
-                button = find(app.pid, lambda n: n.get_name() == name and n.get_role() == Atspi.Role.PUSH_BUTTON)
+                button = find(app.pid, lambda n: (n.get_name() or "").casefold() == name.casefold()
+                              and n.get_role() in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON))
                 assert button.do_action(0), name
             try:
                 click("Workspace")
                 click("Configuration")
-                click("Load saved configuration")
                 # Change the layout by removing the second simulated panel.
+                click("right panel")
                 click("Remove right")
-                click("Apply")
+                click("Save changes")
                 end = time.monotonic() + 5
                 while time.monotonic() < end:
                     saved = ipc["request"](endpoint, "read_config")["saved"]

@@ -8,6 +8,8 @@ import { ViewNav } from "./ViewNav";
 import { LoginStartup } from "./LoginStartup";
 import { DiagnosticExport } from "./DiagnosticExport";
 import { PanelMap } from "./PanelMap";
+import { WorkspaceTitle } from "./WorkspaceTitle";
+import "./workspaces.css";
 
 const views = ["Overview", "Configuration", "Devices", "Integrations", "Diagnostics"] as const;
 
@@ -31,7 +33,7 @@ export function App() {
         <h1><span className="matrix-mark" aria-hidden="true"/>Matrix Studio</h1>
         <button ref={workspace} aria-expanded={menu} aria-controls="workspace-nav" onClick={()=>setMenu(!menu)}>Workspace</button>
       </header>
-      <div id="workspace-nav" hidden={!menu}><ViewNav label="Main navigation" items={views} current={view} select={item => { setView(item); setSelected(null); setMenu(false); workspace.current?.focus(); }} /></div>
+      <div id="workspace-nav" hidden={!menu}><ViewNav label="Main navigation" items={views} current={view} select={item => { setView(item); setSelected(null); setMenu(false); if(item==="Configuration" && hello) editor.current?.loadIfNeeded(); workspace.current?.focus(); }} /></div>
       <section className="status" aria-label="Daemon connection">
         <span className={`dot ${hello ? "online" : ""}`} aria-hidden="true" />
         <span role="status">{connecting ? "Connecting…" : hello ? "Connected to daemon" : "Daemon disconnected"}</span>
@@ -51,18 +53,19 @@ export function App() {
       <PanelMap snapshot={snapshot} connected={!!hello} edit={edit} setup={()=>setView("Devices")} />
       <footer>Closing this window leaves the daemon running.</footer>
       </div>
-      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}>
+      <div className={selected ? undefined : "workspace config-workspace"} hidden={view !== "Configuration" && !(view === "Overview" && selected)}>
         {selected && <button ref={back} onClick={()=>{setSelected(null); requestAnimationFrame(()=>document.getElementById("map-title")?.focus());}}>← Your panels</button>}
         <ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} />
         {view === "Configuration" && <LoginStartup />}
       </div>
-      <div hidden={view !== "Devices"}><Devices />
-        <button onClick={()=>{setView("Configuration"); setSelected(null); editor.current?.openAssignments();}}>Assign panels to sides</button>
+      <div className="workspace" hidden={view !== "Devices"}>{view==="Devices" && <Devices connected={!!hello} panels={snapshot?.panels} assign={()=>{setView("Configuration"); setSelected(null); editor.current?.openAssignments();}}/>}
       </div>
-      <div hidden={view !== "Integrations"}>{snapshot ? <Integrations state={snapshot.assistants} /> : <p>Connect to the daemon to view assistant integrations.</p>}</div>
-      <div hidden={view !== "Diagnostics"}>
-        <DiagnosticExport snapshot={snapshot} failure={error?.code} />
+      <div className="workspace" hidden={view !== "Integrations"}><WorkspaceTitle title="Integrations" purpose="Assistant sources"/>
+        {snapshot ? <Integrations state={snapshot.assistants} /> : <p>Reconnect to see your sources.</p>}</div>
+      <div className="workspace" hidden={view !== "Diagnostics"}>
+        <WorkspaceTitle title="Diagnostics" purpose="System checks"/>
         <Capabilities />
+        <DiagnosticExport snapshot={snapshot} failure={error?.code} />
         {hello && <details><summary>Connection details</summary>
           <p>Daemon {hello.daemon_version} · protocol {hello.protocol_version}<br />Capabilities: {hello.capabilities.join(", ")}</p>
           {snapshot && <p>Update {snapshot.sequence} · Screen brightness is not calibrated to physical LEDs.</p>}

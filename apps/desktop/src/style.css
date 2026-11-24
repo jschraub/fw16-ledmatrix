@@ -45,7 +45,7 @@ output {float:right;color:var(--muted);font-variant-numeric:tabular-nums}
 .draft-actions,.slot {border-top:1px solid var(--line);padding-top:10px}
 .draft-actions button {margin:0 6px 6px 0}
 .hardware-preview-actions {display:flex;flex-wrap:wrap;gap:10px}
-.draft-actions button:nth-last-child(2) {background:var(--accent);color:var(--paper)}
+.draft-actions button:first-of-type {background:var(--accent);color:var(--paper)}
 .action-notice {color:var(--muted);font-size:.9rem}
 .action-notice:not(:empty) {padding-block:4px}
 .action-notice[data-tone=success] {color:var(--accent)}

@@ -12,7 +12,7 @@ export function Bindings({ config, change }: { config: Config; change: (config: 
     catch { setError(true); }
   }
   return <fieldset><legend>Physical assignment</legend>
-    <p>Identify the panel in Devices first. Assign by stable physical location, never serial number or port order. An unknown/ambiguous location cannot be assigned safely. Save with Apply.</p>
+    <p>Identify each panel in Devices, then choose its side here.</p>
     <button onClick={() => void refresh()}>Refresh assignment candidates</button>
     {error && <p role="alert">Cannot list devices. Your assignments and draft are unchanged.</p>}
     {(config.panels ?? []).map((panel, index) => <label key={panel.name}>Hardware for {panel.name} <select value={panel.binding ?? ""} onChange={(e) => change({ ...config, panels: config.panels.map((p, i) => i === index ? { ...p, binding: e.target.value || null } : p) })}>

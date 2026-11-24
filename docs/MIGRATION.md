@@ -26,8 +26,8 @@ On a machine already migrated, leave the old unit disabled.
   Use the package's matching desktop and daemon. Restart the Rust service if
   needed and choose **Retry connection**. A draft stays in the open desktop;
   **Refresh saved state (keep draft)** adopts the current revision for review.
-  **Load saved configuration** deliberately replaces the draft.
-- **Panel blank:** check Devices → Discover, then Configuration → Assignments.
+  **Reload and discard draft** deliberately replaces the draft.
+- **Panel blank:** open Devices to scan, then choose Assign panels to sides.
   Confirm location, single ownership, brightness and sleep policy. A partial
   serial write is quarantined: don't force another writer or remove modules
   on a running laptop where removal has disrupted input.

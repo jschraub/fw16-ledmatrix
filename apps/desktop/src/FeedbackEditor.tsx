@@ -8,7 +8,6 @@ const gauges = { volume: "Volume and mute", brightness: "Brightness change", ac:
 
 export function FeedbackEditor({ config, change }: { config: Config; change: (c: Config) => void }) {
   return <section aria-label="Temporary feedback"><h3>Temporary feedback</h3>
-    <p>Choose which panel shows each gauge, and for how long. New changes replace the gauge already on that panel.</p>
     {config.panels?.map((panel, i) => {
       return <fieldset key={panel.name}><legend>{panel.name} panel</legend>
         <PanelEffects panel={panel} change={feedback=>change({...config,panels:config.panels.map((p,n)=>n===i?{...p,feedback}:p)})}/>

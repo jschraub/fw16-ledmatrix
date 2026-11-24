@@ -27,13 +27,13 @@ test("keyboard reaches device, display, layout, integration and support workflow
     }
     await focus(screen.getByRole("button",{name})); await user.keyboard("{Enter}");
   }
-  await activate("Devices"); await activate("Discover physical panels");
-  await activate("Configuration"); await activate("Load saved configuration");
+  await activate("Devices"); await activate("Scan again");
+  await activate("Configuration");
   const input = await screen.findByLabelText("Clock intensity"); await focus(input);
   await user.keyboard("{ArrowUp}");
   await user.clear(input); await user.keyboard("160");
   await activate("Brightness"); await focus(screen.getByLabelText("Display and backlight"));
-  await activate("Integrations"); expect(screen.getByRole("heading",{name:"Account usage"})).toBeVisible();
+  await activate("Integrations"); expect(screen.getByRole("heading",{name:"OpenAI"})).toBeVisible();
   await activate("Diagnostics"); await activate("Generate redacted report");
   const report = await screen.findByLabelText<HTMLTextAreaElement>("Redacted report (JSON)");
   expect(JSON.parse(report.value).connection).toBe("connected");
@@ -69,7 +69,7 @@ test("navigation reveals one task at a time and keeps unsaved configuration", as
     fireEvent.click(screen.getByRole("button", { name }));
   };
   expect(screen.queryByRole("button", { name: "Load saved configuration" })).toBeNull();
-  go("Configuration"); go("Load saved configuration");
+  go("Configuration");
   fireEvent.change(await screen.findByLabelText("Clock intensity"), { target: { value: "160" } });
   go("Brightness");
   expect(screen.getByLabelText("Clock intensity")).not.toBeVisible();

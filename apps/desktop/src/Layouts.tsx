@@ -3,62 +3,53 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Config } from "./bindings/Config";
 import type { Frame } from "./bindings/Frame";
 import type { PanelLayout } from "./bindings/PanelLayout";
-import type { Template } from "./bindings/Template";
 import type { Presentation } from "./bindings/Presentation";
-import type { Source } from "./bindings/Source";
 import type { Widget } from "./bindings/Widget";
 import type { LockContent } from "./bindings/LockContent";
-import { SingleBarAlignment } from "./SingleBarAlignment";
+import { LayoutComposer } from "./LayoutComposer";
 
-const templates: Record<Template, Presentation[]> = { clock_gauge: ["clock", "gauge"], number_two_gauges: ["number", "gauge", "gauge"], full_gauge: ["gauge"] };
-const sources: Source[] = ["battery", "context", "activity", "five_hour", "weekly"];
 function widget(presentation: Presentation): Widget { return { source: presentation === "clock" ? "clock" : "battery", provider: "claude", session_id: null, presentation, intensity: null, reversed: false, hide_leading_hour_zero: false, warning_threshold: null }; }
 
-export function Layouts({ config, change, panelName }: { config: Config; change: (config: Config) => void; panelName?: string | null }) {
+export function Layouts({ config, change }: { config: Config; change: (config: Config) => void }) {
   const panels = config.panels ?? [];
+  const [selected,setSelected]=useState<string>();
+  const names=panels.map(p=>p.name).sort();
+  const side=selected && names.includes(selected)?selected:names[0];
   function update(index: number, panel: PanelLayout) { change({ ...config, panels: panels.map((p, i) => i === index ? panel : p) }); }
   function slot(p: number, s: number, value: Widget | null) { update(p, { ...panels[p], slots: panels[p].slots.map((old, i) => i === s ? value : old) }); }
-  return <fieldset><legend>{panelName ? "Panel content" : "Guided layouts"}</legend>
-    <p>Changing a template replaces that panel’s draft widgets. Expand a slot to edit it.</p>
-    {panels.map((panel, p) => (!panelName || panelName === panel.name) && <fieldset key={panel.name}><legend>{panel.name}</legend>
+  return <section aria-label="Panel layouts">
+    {names.length>1 && <div className="side-picker" role="group" aria-label="Panel to configure">
+      {names.map(name=><button key={name} type="button" aria-pressed={side===name} onClick={()=>setSelected(name)}>{name} panel</button>)}
+    </div>}
+    {panels.map((panel, p) => panel.name===side && <article className="config-panel" key={panel.name} aria-label={`${panel.name} panel layout`}>
+      <LayoutComposer panel={panel} update={patch=>update(p,{...panel,...patch})}/>
+      <details><summary>Lock behavior and widget options</summary>
       <label>When locked <select aria-label={`When locked for ${panel.name}`} value={panel.when_locked ?? ""}
         onChange={e => update(p, { ...panel, when_locked: (e.target.value || undefined) as LockContent | undefined })}>
         <option value="">Keep normal layout</option><option value="clock">Clock only</option>
         <option value="battery">Battery gauge</option><option value="blank">Blank panel</option>
       </select></label>
-      <small>Lock detection uses Hyprland on Linux or the current Windows session.</small>
-      <label>Template for {panel.name} <select value={panel.template} onChange={(e) => { const template = e.target.value as Template; update(p, { ...panel, template, slots: templates[template].map(widget) }); }}>
-        {Object.keys(templates).map((t) => <option key={t} value={t}>{t.replaceAll("_", " ")}</option>)}
-      </select></label>
-      {panel.slots.map((value, s) => <details key={s} className="slot"><summary>Slot {s + 1} · {templates[panel.template][s]} · {value?.source ?? "Empty"}</summary>
-        <label>Source for {panel.name} slot {s + 1} <select value={value?.source ?? "empty"} onChange={(e) => slot(p, s, e.target.value === "empty" ? null : { ...(value ?? widget(templates[panel.template][s])), source: e.target.value as Source })}>
-          <option value="empty">Empty</option>
-          {(templates[panel.template][s] === "clock" ? ["clock"] : sources).map((source) => <option key={source} value={source}>{source}</option>)}
-        </select></label>
-        {value && <><label>Intensity for {panel.name} slot {s + 1} <input type="number" min={1} max={255} placeholder="inherit" value={value.intensity ?? ""}
+      {panel.slots.map((value, s) => value && <section key={s} className="widget-options"><h4>{panel.template==="number_two_gauges"?["Number","Left bar","Right bar"][s]:value.presentation==="clock"?"Clock":"Bar"}</h4>
+        <label>Intensity <input type="number" min={1} max={255} placeholder="inherit" value={value.intensity ?? ""}
           onChange={(e) => slot(p, s, { ...value, intensity: e.target.value === "" ? null : Number(e.target.value) })} /></label>
-          {value.source !== "clock" && value.source !== "battery" && <>
-            <label>Provider for {panel.name} slot {s + 1} <select value={value.provider ?? "claude"} onChange={(e) => slot(p, s, { ...value, provider: e.target.value as "claude" | "opencode_openai", session_id: null })}>
-              <option value="claude">Claude Code</option><option value="opencode_openai">OpenCode / OpenAI</option>
-            </select></label>
-            {value.source === "context" || value.source === "activity" ? <>
-              <label>Session pin for {panel.name} slot {s + 1} <input placeholder="Latest active main session" value={value.session_id ?? ""} maxLength={128} onChange={(e) => slot(p, s, { ...value, session_id: e.target.value || null })} /></label>
-              <p>A missing/expired pinned session stays blank; it never silently follows another session.</p>
-            </> : <p>Shows percentage used for the selected account. See Integrations for availability and reset times.</p>}
-          </>}
+          {(value.source === "context" || value.source === "activity") &&
+              <label>Session pin <input placeholder="Latest active session" value={value.session_id ?? ""} maxLength={128} onChange={(e) => slot(p, s, { ...value, session_id: e.target.value || null })} /></label>
+          }
           {value.presentation === "gauge" && <label><input type="checkbox" checked={value.reversed} onChange={(e) => slot(p, s, { ...value, reversed: e.target.checked })} /> Fill downward</label>}
-          {value.source !== "clock" && <label>Warning threshold for {panel.name} slot {s + 1} ({value.source === "battery" ? "at or below" : "at or above"})
+          {value.source !== "clock" && <label>Warning threshold ({value.source === "battery" ? "at or below" : "at or above"})
             <input type="number" min={0} max={100} value={value.warning_threshold ?? ""} placeholder="disabled"
               onChange={(e) => slot(p, s, { ...value, warning_threshold: e.target.value === "" ? null : Number(e.target.value) })} /></label>}
-          {value.presentation === "clock" && <><p>24-hour local clock. AM/PM formats are deferred until a legible 9-pixel design is agreed.</p>
+          {value.presentation === "clock" && <>
             <label><input type="checkbox" checked={value.hide_leading_hour_zero ?? false} onChange={(e) => slot(p, s, { ...value, hide_leading_hour_zero: e.target.checked })} /> Hide leading hour zero</label></>}
-        </>}
-      </details>)}
-      <SingleBarAlignment panel={panel} change={enabled=>update(p,{...panel,center_single_bar:enabled||undefined})}/>
-      {!panelName && panels.length === 2 && <button type="button" onClick={() => change({ ...config, panels: panels.filter((_, i) => i !== p) })}>Remove {panel.name}</button>}
-    </fieldset>)}
-    {!panelName && panels.length === 1 && <button type="button" onClick={() => change({ ...config, panels: [...panels, { name: panels[0].name === "left" ? "right" : "left", binding: null, brightness_override: null, template: "clock_gauge", slots: templates.clock_gauge.map(widget) }] })}>Add second panel</button>}
-  </fieldset>;
+      </section>)}</details>
+      {panels.length === 2 && <button type="button" onClick={() => change({ ...config, panels: panels.filter((_, i) => i !== p) })}>Remove {panel.name}</button>}
+    </article>)}
+    {panels.length === 1 && <button type="button" onClick={() => {
+      const name=panels[0].name==="left"?"right":"left";
+      change({ ...config, panels: [...panels, { name, binding: null, brightness_override: null, template: "clock_gauge", slots: [widget("clock"),widget("gauge")] }] });
+      setSelected(name);
+    }}>Add second panel</button>}
+  </section>;
 }
 
 export function DraftPreview({ config }: { config: Config }) {

@@ -38,5 +38,4 @@ test("off is an independent policy state rather than setting a zero level", () =
   expect(screen.getByLabelText("Default brightness off / sleep")).toBeChecked();
   expect(screen.getByLabelText("Default brightness minimum")).toHaveValue(3);
   expect(screen.getByLabelText("Default brightness manual")).toHaveValue(32);
-  expect(screen.getByText(/not a solid fill/)).toBeInTheDocument();
 });

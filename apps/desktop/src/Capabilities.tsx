@@ -13,13 +13,12 @@ export function Capabilities() {
     finally { setBusy(false); }
   }
   return <section aria-label="Platform capabilities">
-    <h2>Capabilities</h2>
+    <div className="section-line"><h3>Machine capabilities</h3>
     <button onClick={() => void refresh()} disabled={busy}>{busy ? "Probing…" : "Probe this machine"}</button>
-    {failed && <p role="alert">Capability probe failed. Check the daemon connection and retry.</p>}
-    {report && <><p>{report.os} · {report.architecture} · {report.desktop} · {report.panel_count} physical panels detected</p>
-      <dl>{report.capabilities.map((capability) => <div key={capability.name}>
-        <dt>{capability.name}: <strong>{capability.state.replaceAll("_", " ")}</strong></dt>
-        <dd>{capability.detail}</dd>
-      </div>)}</dl></>}
+    </div>{failed && <p role="alert">Capability probe failed. Check the daemon connection and retry.</p>}
+    {report && !failed && <><p className="muted">{report.os} · {report.architecture} · {report.desktop} · {report.panel_count} physical panels detected</p>
+      {report.capabilities.map(c=><details key={c.name} className="capability-row"><summary>{c.name}
+        <span className="state-label" data-tone={c.state==="available"?"success":c.state==="error"?"error":undefined}>{c.state.replaceAll("_"," ")}</span>
+      </summary><p>{c.detail}</p></details>)}</>}
   </section>;
 }

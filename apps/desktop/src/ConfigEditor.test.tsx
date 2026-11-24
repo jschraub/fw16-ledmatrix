@@ -16,7 +16,7 @@ test("editing the second panel from the map preserves the first panel and its bi
   fireEvent.change(await screen.findByLabelText("Template for right"), { target: { value: "clock_gauge" } });
   expect(screen.queryByLabelText("Template for left")).toBeNull();
   expect(invoke).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
   expect(invoke).toHaveBeenLastCalledWith("configuration", { request: { type: "apply_config", expected_revision: 4,
     config: { ...config, panels: [left, { ...right, template: "clock_gauge", slots: [expect.objectContaining({ source: "clock" }), expect.objectContaining({ source: "battery" })] }] } } });
 });

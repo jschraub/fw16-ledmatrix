@@ -111,6 +111,7 @@ mod tests {
                 .panels
                 .iter()
                 .map(|p| PanelFrame {
+                    sources: None,
                     name: p.name.clone(),
                     binding: None,
                     brightness: Some(32),

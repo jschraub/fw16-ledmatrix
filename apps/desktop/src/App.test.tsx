@@ -48,7 +48,7 @@ test("shows daemon pixels and handshake without inventing a clock in React", asy
   vi.mocked(subscribe).mockImplementation(async (receive) => { receive(hello); receive(frame); });
   const { container } = render(<App />);
   expect(await screen.findByText("Connected to daemon")).toBeInTheDocument();
-  expect(screen.getByText("SIMULATED PANEL · NO HARDWARE")).toBeInTheDocument();
+  expect(screen.getByText("Simulated output")).toBeInTheDocument();
   expect(screen.getByRole("img", { name: "Simulated LED panel showing 12:34" })).toBeInTheDocument();
   expect(container.querySelectorAll(".pixel")).toHaveLength(306);
   expect((container.querySelectorAll(".pixel")[10] as HTMLElement).style.opacity).toBe(String(180 / 255));

@@ -14,7 +14,8 @@ import { ViewNav } from "./ViewNav";
 
 const tasks = ["Layout", "Brightness", "Feedback", "Assignments", "Preview"] as const;
 
-export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: string | null; ref?: Ref<{ loadIfNeeded(): void }>; sources?: DisplaySources }) {
+export interface EditorActions { loadIfNeeded(): void; openAssignments(): void }
+export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: string | null; ref?: Ref<EditorActions>; sources?: DisplaySources }) {
   const [task, setTask] = useState<typeof tasks[number]>("Layout");
   const [saved, setSaved] = useState<SavedConfig | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
@@ -41,13 +42,14 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
     } catch { setMessage("Configuration unavailable. Reconnect and retry; your draft is retained."); }
     finally { setBusy(false); }
   }
-  useImperativeHandle(ref, () => ({ loadIfNeeded() { if (!draft && !busy) void command({ type: "read_config" }); } }));
+  function loadIfNeeded() { if (!draft && !busy) void command({ type: "read_config" }); }
+  useImperativeHandle(ref, () => ({ loadIfNeeded, openAssignments() { setTask("Assignments"); loadIfNeeded(); } }));
   const panel = draft?.panels?.find(p => p.name === panelName);
   return <section aria-label="Configuration">
     <h2>{panelName ? `Customize ${panelName} panel` : "Configuration"}</h2>
-    <button disabled={busy} onClick={() => void command({ type: "read_config" })}>Load saved configuration</button>
+    {(!panelName || !draft) && <button disabled={busy} onClick={() => void command({ type: "read_config" })}>Load saved configuration</button>}
     {draft && saved && <>
-      <p>Saved revision {saved.revision} · {JSON.stringify(draft) === JSON.stringify(saved.config) ? "No draft changes" : "Unsaved draft"}</p>
+      <p className="draft-state">{panelName ? "Panel editor" : `Saved revision ${saved.revision}`} · {JSON.stringify(draft) === JSON.stringify(saved.config) ? "No draft changes" : "Unsaved draft"}</p>
       <details open={conflict ? true : undefined}><summary>Revision options</summary>
       <button disabled={busy} onClick={() => void command({ type: "read_config" }, true)}>Refresh saved state (keep draft)</button>
       </details>
@@ -72,14 +74,15 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
       <div hidden={task !== "Preview"}>
       {draft.panels && <DraftPreview config={draft} />}
       </div></div>
+      {panelName && <details><summary>Preview on screen</summary><DraftPreview config={draft} /></details>}
       <div hidden={!panelName && task !== "Preview"}><HardwarePreview config={draft} /></div>
       <div className="draft-actions">
-      {panelName && <p>Preview, Apply, and Cancel draft include all unsaved panel changes.</p>}
+      {panelName && <p>Save or discard all pending panel changes.</p>}
       {!numericSettingsValid && <p role="alert">Numeric settings must be whole values in the 0–255 wire range; use the narrower limits shown by each control.</p>}
-      <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>
+      {!panelName && <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>}
       <button disabled={busy || !numericSettingsValid || draft.clock_intensity < 1}
-        onClick={() => void command({ type: "apply_config", expected_revision: saved.revision, config: draft })}>Apply</button>
-      <button disabled={busy} onClick={() => { setDraft(saved.config); setMessage("Draft cancelled"); }}>Cancel draft</button>
+        onClick={() => void command({ type: "apply_config", expected_revision: saved.revision, config: draft })}>{panelName ? "Save changes" : "Apply"}</button>
+      <button disabled={busy} onClick={() => { setDraft(saved.config); setMessage("Draft cancelled"); }}>{panelName ? "Discard changes" : "Cancel draft"}</button>
       </div>
     </>}
     <p aria-live="polite">{message}</p>

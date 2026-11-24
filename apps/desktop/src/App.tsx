@@ -1,12 +1,13 @@
 import { useDaemon } from "./useDaemon";
 import { Capabilities } from "./Capabilities";
-import { ConfigEditor } from "./ConfigEditor";
+import { ConfigEditor, type EditorActions } from "./ConfigEditor";
 import { Devices } from "./Devices";
 import { Integrations } from "./Integrations";
 import { useState, useRef } from "react";
 import { ViewNav } from "./ViewNav";
 import { LoginStartup } from "./LoginStartup";
 import { DiagnosticExport } from "./DiagnosticExport";
+import { PanelMap } from "./PanelMap";
 
 const views = ["Overview", "Configuration", "Devices", "Integrations", "Diagnostics"] as const;
 
@@ -14,11 +15,13 @@ export function App() {
   const { hello, snapshot, error, connecting, starting, connect, start } = useDaemon();
   const [view, setView] = useState<typeof views[number]>("Overview");
   const [selected, setSelected] = useState<string | null>(null);
-  const editor = useRef<{ loadIfNeeded(): void }>(null);
+  const editor = useRef<EditorActions>(null);
 
-  const time = snapshot
-    ? `${String(snapshot.hour).padStart(2, "0")}:${String(snapshot.minute).padStart(2, "0")}`
-    : "—";
+  const back = useRef<HTMLButtonElement>(null);
+  function edit(name: string) {
+    setSelected(name); editor.current?.loadIfNeeded();
+    requestAnimationFrame(()=>back.current?.focus());
+  }
 
   return (
     <main>
@@ -42,47 +45,18 @@ export function App() {
         </details>
       </div>}
       <ViewNav label="Main navigation" items={views} current={view} select={item => { setView(item); setSelected(null); }} />
-      <div hidden={view !== "Overview"}>
-      <section className="preview" aria-labelledby="preview-heading">
-        {snapshot?.preview && <p role="status">TEMPORARY HARDWARE PREVIEW · not saved</p>}
-        <div>
-          <span className="badge">{snapshot?.panels.some((p) => p.binding !== null) ? "PANEL PREVIEW · CHECK DEVICE STATUS" : "SIMULATED PANEL · NO HARDWARE"}</span>
-          <h2 id="preview-heading">Your panels</h2>
-          {snapshot?.panels.length ? <p>Select a panel to edit its widgets or brightness.</p> : null}
-          <p className="time">{time}</p>
-          {snapshot?.power && <p className="muted">Battery source: {snapshot.power.status}
-            {snapshot.power.percent !== null && <> · {snapshot.power.percent}%</>}
-            {snapshot.power.charging !== null && <> · {snapshot.power.charging ? "charging" : "not charging"}</>}
-            {snapshot.power.ac !== null && <> · AC {snapshot.power.ac ? "connected" : "disconnected"}</>}
-            </p>}
-        </div>
-        {snapshot?.panels.length ? <div className="overview-panels">
-          {[...snapshot.panels].sort((a, b) => a.name.localeCompare(b.name)).map(panel =>
-            <button key={panel.name} className="bay-tile" aria-label={`Customize ${panel.name} panel`} aria-pressed={selected === panel.name}
-              onClick={() => { setSelected(panel.name); editor.current?.loadIfNeeded(); }}>
-              <strong>{panel.name} panel</strong><small>{panel.binding ? "Assigned" : "Simulated"}</small>
-              <span className="panel" role="img" aria-label={`Live logical panel ${panel.name}`}>
-                <span className="pixels" aria-hidden="true">{panel.frame.pixels.map((value, index) =>
-                  <span key={index} className="pixel" style={{ opacity: value ? value / 255 : 0.06 }} />)}</span>
-              </span>
-              <small>Brightness: {panel.brightness ?? "off / sleep"}</small>
-            </button>)}
-        </div> : snapshot ? (
-          <div className="panel" role="img" aria-label={`Simulated LED panel showing ${time}`}>
-            <div className="pixels" aria-hidden="true">
-              {snapshot.frame.pixels.map((value, index) => (
-                <span key={index} className="pixel" style={{ opacity: value ? value / 255 : 0.06 }} />
-              ))}
-            </div>
-          </div>
-        ) : <div className="placeholder">{hello ? "Waiting for first frame…" : "Connect to view the panel"}</div>}
-      </section>
+      <div hidden={view !== "Overview" || !!selected}>
+      <PanelMap snapshot={snapshot} connected={!!hello} edit={edit} setup={()=>setView("Devices")} />
       <footer>Closing this window leaves the daemon running.</footer>
       </div>
-      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}><ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} />
+      <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}>
+        {selected && <button ref={back} onClick={()=>{setSelected(null); requestAnimationFrame(()=>document.getElementById("map-title")?.focus());}}>← Your panels</button>}
+        <ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} />
         {view === "Configuration" && <LoginStartup />}
       </div>
-      <div hidden={view !== "Devices"}><Devices /></div>
+      <div hidden={view !== "Devices"}><Devices />
+        <button onClick={()=>{setView("Configuration"); setSelected(null); editor.current?.openAssignments();}}>Assign panels to sides</button>
+      </div>
       <div hidden={view !== "Integrations"}>{snapshot ? <Integrations state={snapshot.assistants} /> : <p>Connect to the daemon to view assistant integrations.</p>}</div>
       <div hidden={view !== "Diagnostics"}>
         <DiagnosticExport snapshot={snapshot} failure={error?.code} />

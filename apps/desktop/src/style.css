@@ -41,3 +41,18 @@ summary { cursor: pointer; padding-block: 8px; }
 .draft-actions { border-top: 1px solid #414956; background: #191e27; padding: 8px; margin-top: 16px; border-radius: 6px; }
 button:disabled { opacity: .55; cursor: default; }
 @media (max-width: 550px) { main { padding: 18px; } .preview { padding: 14px; gap: 12px; } }
+.panel-map h2 { margin-bottom: 0; font-size: 1.7rem; }
+.panel-map > p { margin: 4px 0 16px; color: #bcc7d1; }
+.map-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: clamp(8px,2vw,18px); }
+.map-card { min-width: 0; margin: 0; padding: 16px; display: grid; gap: 4px; text-align: left; font: inherit; border: 1px solid #45535d; background: #1d262e; border-radius: 14px; }
+.map-card:hover { border-color: #91e8bc; background: #222e35; }
+.card-title { font-size: 1.2rem; font-weight: 650; text-transform: capitalize; }
+.map-card small { color: #b6c2ca; }
+.matrix-stage { display: grid; place-items: center; padding: 12px; margin: 8px 0; background: #131b21; border-radius: 9px; }
+.matrix-stage .panel { padding: 7px; border-radius: 6px; }
+.matrix-stage .pixels { grid-template-columns: repeat(9,4px); gap: 2px; }
+.matrix-stage .pixel { width: 4px; height: 4px; }
+.card-action { margin-top: 8px; padding-top: 10px; display: flex; justify-content: space-between; border-top: 1px solid #394750; color: #a6ebc6; }
+.setup-row { margin-top: 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: #bac7d0; }
+.draft-state { border-inline-start: 3px solid #a6ebc6; padding-inline-start: 10px; }
+:is(input,select,textarea,summary):focus-visible { outline: 3px solid #91e8bc; outline-offset: 2px; }

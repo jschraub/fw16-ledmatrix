@@ -101,6 +101,9 @@ pub struct Snapshot {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PanelFrame {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub sources: Option<Vec<matrix_core::layout::Source>>,
     pub brightness: Option<u8>,
     pub name: String,
     pub frame: Frame,

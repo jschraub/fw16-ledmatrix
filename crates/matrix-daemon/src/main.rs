@@ -135,6 +135,14 @@ async fn run() -> std::io::Result<()> {
                 .panels
                 .iter()
                 .map(|panel| matrix_client::PanelFrame {
+                    sources: Some(
+                        panel
+                            .slots
+                            .iter()
+                            .flatten()
+                            .map(|slot| slot.source)
+                            .collect(),
+                    ),
                     brightness: matrix_core::brightness::effective(&config.brightness, panel)
                         .level(),
                     name: panel.name.clone(),

@@ -1,6 +1,6 @@
 # Hardware-session handoff
 
-Updated **2026-11-23** after switching the existing account to the installed Linux daemon.
+Updated **2026-11-24** after owner review of all four Signal Room workspaces.
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 
 **Current checkpoint: Linux feedback overlays (#27) and packaging/login startup
@@ -17,6 +17,12 @@ touchpad input. Full-day soak and Windows bay qualification remain pending.
 - `fw16-ledmatrix.service` is the **enabled, active systemd user service** from
   package `0.1.0-3`. The packaged daemon served revision 26, identical to the
   saved handoff config at cutover, and alone held both firmware-0.20 ports.
+- During design review the service uses a **runtime** `90-preview-fix.conf`
+  override to launch the newer Rust binary. The `matrix41-hardware-desktop`
+  user unit opens the rebuilt desktop on the regular daemon socket. The menu
+  still launches the installed `0.1.0-3` UI. Upgrade the package to a matching
+  build before relying on a new login for newer settings and preview support.
+  The separate OpenAI polling preference is persistent; Claude polling is off.
 - The legacy `matrixd.service` is disabled and inactive. The transient handoff
   daemon was stopped before starting the installed service. Private POC backups
   and the handoff config remain in `$HOME/.local/share/fw16-matrix-handoff/`.
@@ -47,7 +53,7 @@ installed Rust service is the recovery target; see [MIGRATION.md](MIGRATION.md).
 | #32/#37 optics | Left numeric layout showed legible overflow `XX` at 100% battery and correct gauge placement. Right sparse clock at brightness 3/intensity 180 was dim but readable. Both preview checks restored saved output. |
 | #38 preview ownership/restoration | Competing client rejected; owner EOF released lease. Isolated expiry/cancel/owner-kill restored concurrent Apply. On hardware the left clock appeared after expiry, rollback restored its battery gauge, and the right clock stayed visible. The 1.99 s acknowledgment includes human reaction; it is not LED latency. |
 | #26 display/session | Right clock visibly followed screen 55% → 25%; left override held. Owner confirmed per-panel locked roles, DPMS sleep/wake, and both roles and input after system resume. Linear/quadratic mapping, manual fallback, monitor restart and latest-output restoration tested in fixtures. Windows remains unqualified. |
-| #41 product design | Owner selected **Signal Room** from the [three design studies](https://github.com/jschraub/fw16-ledmatrix/tree/prototype/41-design-studies). Select a bay for content and brightness; use Workspace for setup or diagnostics. Direction chosen, native release sign-off pending. |
+| #41 product design | Owner selected **Signal Room** from the [three design studies](https://github.com/jschraub/fw16-ledmatrix/tree/prototype/41-design-studies) and responded positively to the [four redesigned workspaces](design/workspace-audit.md). Native release sign-off pending. |
 
 Repeatable Linux fixtures (after building `matrix-daemon`): `python3
 tools/check-display-follow.py`, `python3 tools/check-lifecycle-signals.py`,
@@ -128,9 +134,8 @@ can be closed merely by connecting hardware.
 - [WIDGETS.md](WIDGETS.md): actual renderer, brightness, assignment and recovery limits.
 - [INTEGRATIONS.md](INTEGRATIONS.md): producer installation, paths, schema and privacy.
 - [SUPPORT.md](SUPPORT.md): evidence versus unverified platform support.
-- [DEVELOPMENT.md](DEVELOPMENT.md): toolchains, dependencies and local IPC.
-  Its introductory #9-only description is historical: the current daemon **does**
-  open serial devices after identification or physical assignment.
+- [DEVELOPMENT.md](DEVELOPMENT.md): toolchains, dependencies, local IPC and
+  the isolated desktop smoke check.
 - [`poc/`](../poc/): preserved Python reference, tests, installer and hardware tools.
   Keep it intact for reference.
 

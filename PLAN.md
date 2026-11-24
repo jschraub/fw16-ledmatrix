@@ -2,7 +2,7 @@
 
 Status: agreed v1 scope; implementation and qualification are in progress.
 
-## Delivery checkpoint — 2026-11-23
+## Delivery checkpoint — 2026-11-24
 
 **21 of the original 22 delivery slices are closed** (#9–#29).
 This measures software delivery, not release readiness.
@@ -20,12 +20,15 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
    feedback gauges and bounded charging indication. #28 delivered Arch packaging and
    existing-account login startup; see [packaging evidence](docs/PACKAGING.md).
 3. **Release UX — #41:** owner selected Signal Room (study A): panel-first
-   navigation, round phosphor dots and a focused bay editor. Native usability
-   and release sign-off remain open.
+   navigation, round phosphor dots and a focused bay editor. The [four-workspace
+   redesign](docs/design/workspace-audit.md) landed in `c2f9a82`; the owner
+   reported “This looks much better.” Final release sign-off remains open.
 4. **Qualification — #31–#40:** keep gathering evidence alongside development.
    Linux optics, preview ownership/restoration and diagnostics have passed
    specific scenarios. Physical serial failure capture, safe reconnect, Linux
-   bay identity, integration activation and the full-day soak remain open.
+   bay identity, remaining integration checks and the full-day soak remain open.
+   The OpenCode V2 feed is live on the owner's Linux account (#39); Claude
+   interactive activation (#40) is still pending.
 5. **Release qualification:** #29 delivered one-way migration and Rust diagnostics; #30 requires packaging,
    qualified environments, hardware parity, full-day results, green CI and #41.
 

@@ -1,8 +1,9 @@
 # Hardware-free development
 
-Issue #9 supplies a walking skeleton, not the complete configuration application.
-It opens **no serial ports**, reads no assistant credentials, and installs no
-services. The panel is simulated; the local wall clock is real.
+Unassigned layouts render without hardware. The daemon can also drive assigned
+physical panels or identify devices on request. Usage polling is opt-in.
+For an isolated Linux native save/report check, see
+[`tools/check-desktop-recovery.py`](../tools/check-desktop-recovery.py).
 
 ## Prerequisites
 
@@ -21,7 +22,7 @@ services. The panel is simulated; the local wall clock is real.
 
 ## Run
 
-In a terminal at the repository root:
+On a development machine without an existing daemon, run from the repository root:
 
 ```sh
 cargo run --locked -p matrix-daemon

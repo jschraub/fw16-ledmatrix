@@ -399,3 +399,16 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
 - Pending: complete OS/kernel/display/driver inventory, reorder/reconnect
   persistence, brightness calibration, remaining power/preview scenarios and
   recovery checks. Tickets remain open; Windows hardware is untested.
+
+## Signal Room and OpenCode review — 2026-11-24
+
+- **Linux desktop review (`c2f9a82`):** 35 desktop tests passed.
+  The native release build and isolated save/report smoke passed. All four
+  redesigned workspaces fit 820×720 and 460×650 in the browser fixture;
+  [screenshots and owner feedback](design/workspace-audit.md).
+- **OpenCode activation (#39, `b2f2ba3`):** with owner approval, the global
+  configuration retained its existing entries and loaded `fw16-matrix.metadata`.
+  OpenCode 2.3.2 reported the plugin active; the daemon received a context
+  percentage and rendered lit pixels in the right panel's number region.
+  This verifies the feed and software output, not optical readability or
+  every session-selection, permissions and expiry scenario.

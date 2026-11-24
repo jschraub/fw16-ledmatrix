@@ -136,7 +136,7 @@ policy afterward. Firmware sleep/wake behavior requires panel qualification.
 
 In the configuration draft, refresh assignment candidates after identifying a
 panel visually. Bind each logical panel to its unique physical location, then
-Apply. Duplicate bindings are rejected; absent and ambiguous identities never
+choose **Save changes**. Duplicate bindings are rejected; absent and ambiguous identities never
 fall back to USB serial numbers or tty/COM enumeration order. Saved bindings
 survive restart/disconnection. Unknown Windows locations remain unassignable
 until the native location adapter is qualified on real hardware.

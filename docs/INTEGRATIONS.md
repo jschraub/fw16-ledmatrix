@@ -168,6 +168,8 @@ are rejected without chmod or replacement. Windows uses inherited per-user local
 data directory ACLs; custom shared paths need operator ACL review. JS/Rust
 contract and fake-client tests do not establish interactive OpenCode activation,
 Windows ACLs, or physical panel readability; those require separate qualification.
+For the separate live Linux activation result on OpenCode 2.3.2, see the
+[support record](SUPPORT.md#signal-room-and-opencode-review--2026-11-24).
 ## Account usage windows (Linux)
 
 For a panel slot choose **five_hour** or **weekly**, then Claude or OpenCode /

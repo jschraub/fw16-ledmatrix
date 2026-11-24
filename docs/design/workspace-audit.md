@@ -27,6 +27,7 @@ overflow at 820×720 and 460×650. Native smoke coverage uses a separate Linux
 Tauri process and isolated daemon; UI fixtures cover keyboard navigation,
 reconnect, provider degradation, scan failure and report redaction.
 
-Owner review remains open, particularly for finding less frequent controls
-after moving them behind disclosures. Screenshots do not establish physical
+On 2026-11-24, after restarting the rebuilt native desktop, the owner reported
+“This looks much better.” This records positive design feedback, not release
+sign-off or a walkthrough of every task. Screenshots do not establish physical
 identification or clipboard behavior on every desktop.

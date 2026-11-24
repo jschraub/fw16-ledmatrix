@@ -30,19 +30,19 @@ function Harness() {
 }
 test("each panel can opt into individual effects without enabling the other panel", () => {
   render(<Harness />);
-  const left = panel("left").getByLabelText("Volume and mute");
-  const right = panel("right").getByLabelText("Volume and mute");
+  const left = panel("left").getByLabelText("Volume and mute duration");
+  const right = panel("right").getByLabelText("Volume and mute duration");
   expect(left).toHaveValue("0");
   fireEvent.change(right, { target: { value: "6" } });
   const width = panel("right").getByLabelText("Volume and mute bar width");
   expect(width).toHaveValue("5");
   fireEvent.change(width, {target:{value:"7"}});
-  fireEvent.change(panel("right").getByLabelText("Brightness change"), {target:{value:"3"}});
+  fireEvent.change(panel("right").getByLabelText("Brightness change duration"), {target:{value:"3"}});
   expect(panel("right").getByLabelText("Brightness change bar width")).toHaveValue("5");
   expect(width).toHaveValue("7");
   fireEvent.click(panel("left").getByLabelText("Pulse while charging"));
   expect(right).toHaveValue("6");
   expect(left).toHaveValue("0");
   expect(panel("right").getByLabelText("Pulse while charging")).not.toBeChecked();
-  expect(panel("left").getByLabelText("Brightness change")).toHaveValue("0");
+  expect(panel("left").getByLabelText("Brightness change duration")).toHaveValue("0");
 });

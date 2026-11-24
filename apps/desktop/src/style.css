@@ -65,4 +65,21 @@ textarea {width:100%}summary {cursor:pointer;padding:8px 0}p {overflow-wrap:anyw
 .bay-output figcaption {font-size:.8rem}
 .panel-effects {margin-top:20px;border-top:1px solid var(--line)}
 .panel-effects summary {padding:12px 0;color:var(--accent)}
-.panel-effects label {margin:12px 0}
+.effect-settings {container-type:inline-size;display:grid;gap:28px;padding:10px 0}
+.effect-settings h4 {margin:0 0 12px;font-size:.96rem}
+.effect-settings label,.effect-settings input,.effect-settings select {margin:0}
+.effect-settings select,.effect-settings input[type=number] {width:100%;min-width:0}
+.pulse-toggle {display:flex;align-items:center;gap:8px}
+.effect-settings .pulse-field {display:grid;grid-template-columns:minmax(0,1fr) minmax(7rem,1fr);align-items:center;gap:12px;margin-top:10px}
+.effect-settings small {display:block;margin-top:8px}
+.gauge-head,.gauge-row {display:grid;grid-template-columns:minmax(0,1.25fr) repeat(2,minmax(0,1fr));align-items:center;gap:12px}
+.gauge-head,.compact-caption {color:var(--muted);font-size:.8rem}
+.gauge-row {padding:10px 0;border-top:1px solid var(--line)}
+.gauge-head {padding-bottom:6px}
+.compact-caption {display:none}
+@container (max-width: 23rem) {
+  .gauge-head {display:none}
+  .gauge-row {grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px}
+  .event-name {grid-column:1/-1}
+  .compact-caption {display:block;margin-bottom:4px}
+}

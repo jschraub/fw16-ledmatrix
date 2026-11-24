@@ -1,4 +1,4 @@
-import { useState, useImperativeHandle, type Ref } from "react";
+import { useState, useEffect, useImperativeHandle, type Ref } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Config } from "./bindings/Config";
 import type { DisplaySources } from "./bindings/DisplaySources";
@@ -14,6 +14,15 @@ import { ViewNav } from "./ViewNav";
 import { BayEditor } from "./BayEditor";
 
 const tasks = ["Layout", "Brightness", "Feedback", "Assignments", "Preview"] as const;
+type Notice = { tone: "success" | "neutral" | "error"; text: string };
+const outcomes = {
+  read: {tone:"neutral", text:"Settings loaded."},
+  valid: {tone:"success", text:"Settings valid."},
+  applied: {tone:"success", text:"Changes saved."},
+  invalid: {tone:"error", text:"Settings are invalid."},
+  conflict: {tone:"error", text:"Saved settings have changed."},
+  save_failed: {tone:"error", text:"Couldn’t save. Your draft is still here."},
+} satisfies Record<ConfigReply["status"], Notice>;
 
 export interface EditorActions { loadIfNeeded(): void; openAssignments(): void }
 export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: string | null; ref?: Ref<EditorActions>; sources?: DisplaySources }) {
@@ -21,7 +30,12 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
   const [saved, setSaved] = useState<SavedConfig | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState<Notice | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), notice.tone === "error" ? 8000 : 3000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   const [conflict, setConflict] = useState<SavedConfig | null>(null);
   function encodable(value: unknown): boolean {
     if (typeof value === "number") return Number.isInteger(value) && value >= 0 && value <= 255;
@@ -30,20 +44,22 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
     return true;
   }
   const numericSettingsValid = draft === null || encodable(draft);
-  async function command(request: Request, retainDraft = false) {
+  async function command(request: Request, retainDraft = false, automatic = false) {
     setBusy(true);
+    setNotice(null);
     try {
       const reply = await invoke<ConfigReply>("configuration", { request });
-      setMessage(reply.errors.length ? reply.errors.map((e) => `${e.field}: ${e.message}`).join("; ") : reply.status);
+      if (reply.errors.length) setNotice({tone:"error", text:reply.errors.map(e => `${e.field}: ${e.message}`).join("; ")});
+      else if (!automatic || reply.status !== "read") setNotice({...outcomes[reply.status]});
       if (reply.status === "conflict") setConflict(reply.saved);
       if (reply.status === "read" || reply.status === "applied") {
         setSaved(reply.saved); setConflict(null);
         if (!retainDraft) setDraft(reply.saved.config);
       }
-    } catch { setMessage("Configuration unavailable. Reconnect and retry; your draft is retained."); }
+    } catch { setNotice({tone:"error", text:"Reconnect and retry. Your draft is still here."}); }
     finally { setBusy(false); }
   }
-  function loadIfNeeded() { if (!draft && !busy) void command({ type: "read_config" }); }
+  function loadIfNeeded() { if (!draft && !busy) void command({ type: "read_config" }, false, true); }
   useImperativeHandle(ref, () => ({ loadIfNeeded, openAssignments() { setTask("Assignments"); loadIfNeeded(); } }));
   const panel = draft?.panels?.find(p => p.name === panelName);
   return <section aria-label="Configuration">
@@ -74,14 +90,13 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
       </div></div>
       {!panelName && <div hidden={task !== "Preview"}><HardwarePreview config={draft} /></div>}
       <div className="draft-actions">
-      {panelName && <p>Save or discard all pending panel changes.</p>}
       {!numericSettingsValid && <p role="alert">Numeric settings must be whole values in the 0–255 wire range; use the narrower limits shown by each control.</p>}
       {!panelName && <button disabled={busy || !numericSettingsValid} onClick={() => void command({ type: "validate_config", config: draft })}>Validate</button>}
       <button disabled={busy || !numericSettingsValid || draft.clock_intensity < 1}
         onClick={() => void command({ type: "apply_config", expected_revision: saved.revision, config: draft })}>{panelName ? "Save changes" : "Apply"}</button>
-      <button disabled={busy} onClick={() => { setDraft(saved.config); setMessage("Draft cancelled"); }}>{panelName ? "Discard changes" : "Cancel draft"}</button>
+      <button disabled={busy} onClick={() => { setDraft(saved.config); setNotice({tone:"neutral", text:"Changes discarded."}); }}>{panelName ? "Discard changes" : "Cancel draft"}</button>
       </div>
     </>}
-    <p aria-live="polite">{message}</p>
+    <div className="action-notice" data-tone={notice?.tone} aria-live="polite" aria-atomic="true">{notice?.text}</div>
   </section>;
 }

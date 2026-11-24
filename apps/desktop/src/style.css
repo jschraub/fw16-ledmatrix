@@ -46,6 +46,10 @@ output {float:right;color:var(--muted);font-variant-numeric:tabular-nums}
 .draft-actions button {margin:0 6px 6px 0}
 .hardware-preview-actions {display:flex;flex-wrap:wrap;gap:10px}
 .draft-actions button:nth-last-child(2) {background:var(--accent);color:var(--paper)}
+.action-notice {color:var(--muted);font-size:.9rem}
+.action-notice:not(:empty) {padding-block:4px}
+.action-notice[data-tone=success] {color:var(--accent)}
+.action-notice[data-tone=error] {color:#ffba93}
 fieldset {min-width:0;margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:5px}
 label {display:block;margin:10px 0}input,select,textarea {max-width:100%;padding:6px;margin:3px 6px;color:var(--ink);background:var(--surface);accent-color:var(--accent)}
 textarea {width:100%}summary {cursor:pointer;padding:8px 0}p {overflow-wrap:anywhere}

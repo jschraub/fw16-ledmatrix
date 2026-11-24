@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { ConfigEditor } from "./ConfigEditor";
@@ -28,10 +28,20 @@ test("loads a draft, applies through daemon validation and cancels local changes
   expect(invoke).toHaveBeenCalledTimes(1);
   vi.mocked(invoke).mockResolvedValue({ status: "applied", saved: { revision: 1, config: { ...saved.config, clock_intensity: 220 } }, errors: [] });
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  expect(await screen.findByText("applied")).toBeInTheDocument();
+  expect(await screen.findByText("Changes saved.")).toBeInTheDocument();
   fireEvent.change(input, { target: { value: "200" } });
-  fireEvent.click(screen.getByRole("button", { name: "Cancel draft" }));
-  expect(input).toHaveValue(220);
+  vi.useFakeTimers();
+  try {
+    const discard = screen.getByRole("button", { name: "Cancel draft" });
+    fireEvent.click(discard);
+    expect(input).toHaveValue(220);
+    act(() => vi.advanceTimersByTime(2000));
+    fireEvent.click(discard);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(screen.getByText("Changes discarded.")).toBeVisible();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.queryByText("Changes discarded.")).toBeNull();
+  } finally { vi.useRealTimers(); }
 });
 test("retains the draft after a failed save", async () => {
   vi.mocked(invoke).mockResolvedValue({ status: "read", saved, errors: [] });
@@ -39,7 +49,7 @@ test("retains the draft after a failed save", async () => {
   const input = await screen.findByLabelText("Clock intensity"); fireEvent.change(input, { target: { value: "200" } });
   vi.mocked(invoke).mockResolvedValue({ status: "save_failed", saved, errors: [] });
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
-  expect(await screen.findByText("save_failed")).toBeInTheDocument(); expect(input).toHaveValue(200);
+  expect(await screen.findByText("Couldn’t save. Your draft is still here.")).toBeInTheDocument(); expect(input).toHaveValue(200);
 });
 
 test("shows conflicts and requires an explicit refresh before reapplying the retained draft", async () => {

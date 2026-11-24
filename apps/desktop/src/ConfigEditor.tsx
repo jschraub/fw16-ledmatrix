@@ -11,11 +11,13 @@ import { BrightnessEditor } from "./BrightnessEditor";
 import { HardwarePreview } from "./HardwarePreview";
 import { FeedbackEditor } from "./FeedbackEditor";
 import { ViewNav } from "./ViewNav";
+import { BayEditor } from "./BayEditor";
+import type { Frame } from "./bindings/Frame";
 
 const tasks = ["Layout", "Brightness", "Feedback", "Assignments", "Preview"] as const;
 
 export interface EditorActions { loadIfNeeded(): void; openAssignments(): void }
-export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: string | null; ref?: Ref<EditorActions>; sources?: DisplaySources }) {
+export function ConfigEditor({ panelName = null, ref, sources, output }: { panelName?: string | null; ref?: Ref<EditorActions>; sources?: DisplaySources; output?:Frame }) {
   const [task, setTask] = useState<typeof tasks[number]>("Layout");
   const [saved, setSaved] = useState<SavedConfig | null>(null);
   const [draft, setDraft] = useState<Config | null>(null);
@@ -46,11 +48,12 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
   useImperativeHandle(ref, () => ({ loadIfNeeded, openAssignments() { setTask("Assignments"); loadIfNeeded(); } }));
   const panel = draft?.panels?.find(p => p.name === panelName);
   return <section aria-label="Configuration">
-    <h2>{panelName ? `Customize ${panelName} panel` : "Configuration"}</h2>
+    {panelName && <p className="kicker">Panel editor</p>}
+    <h2 className={panelName ? "bay-name" : undefined}>{panelName ? `${panelName} panel` : "Configuration"}</h2>
     {(!panelName || !draft) && <button disabled={busy} onClick={() => void command({ type: "read_config" })}>Load saved configuration</button>}
     {draft && saved && <>
       <p className="draft-state">{panelName ? "Panel editor" : `Saved revision ${saved.revision}`} · {JSON.stringify(draft) === JSON.stringify(saved.config) ? "No draft changes" : "Unsaved draft"}</p>
-      <details open={conflict ? true : undefined}><summary>Revision options</summary>
+      <details hidden={!!panelName && !conflict} open={conflict ? true : undefined}><summary>Revision options</summary>
       <button disabled={busy} onClick={() => void command({ type: "read_config" }, true)}>Refresh saved state (keep draft)</button>
       </details>
       {conflict && <div role="alert">
@@ -58,15 +61,11 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
         <p>Current saved clock intensity: {conflict.config.clock_intensity}. Draft clock intensity: {draft.clock_intensity}.</p>
         <p>Refresh to adopt the current revision while keeping your draft, review it, then Apply explicitly; or load saved configuration to discard your draft.</p>
       </div>}
-      {panelName ? panel && <label>Panel brightness <input type="number" min={1} max={255}
-        value={(panel.brightness_override ?? draft.brightness).manual}
-        onChange={e => setDraft({ ...draft, panels: draft.panels.map(p => p !== panel ? p : {
-          ...p, brightness_override: { ...(p.brightness_override ?? draft.brightness), manual: Number(e.target.value) },
-        }) })} /></label> : null}
+      {panel && <BayEditor config={draft} panel={panel} output={output} change={setDraft}/>}
       {!panelName && <ViewNav label="Configuration tasks" items={tasks} current={task} select={setTask} />}
       <div hidden={!panelName && task !== "Layout"}>{!panelName && <label>Clock intensity <input type="number" min={1} max={255} value={draft.clock_intensity}
         onChange={(e) => setDraft({ ...draft, clock_intensity: Number(e.target.value) })} /></label>}
-      <Layouts config={draft} change={setDraft} panelName={panelName} /></div>
+      {!panelName && <Layouts config={draft} change={setDraft} />}</div>
       <div hidden={!!panelName}>
       <div hidden={task !== "Brightness"}><BrightnessEditor config={draft} change={setDraft} sources={sources} /></div>
       <div hidden={task !== "Feedback"}><FeedbackEditor config={draft} change={setDraft} /></div>
@@ -74,8 +73,7 @@ export function ConfigEditor({ panelName = null, ref, sources }: { panelName?: s
       <div hidden={task !== "Preview"}>
       {draft.panels && <DraftPreview config={draft} />}
       </div></div>
-      {panelName && <details><summary>Preview on screen</summary><DraftPreview config={draft} /></details>}
-      <div hidden={!panelName && task !== "Preview"}><HardwarePreview config={draft} /></div>
+      {!panelName && <div hidden={task !== "Preview"}><HardwarePreview config={draft} /></div>}
       <div className="draft-actions">
       {panelName && <p>Save or discard all pending panel changes.</p>}
       {!numericSettingsValid && <p role="alert">Numeric settings must be whole values in the 0–255 wire range; use the narrower limits shown by each control.</p>}

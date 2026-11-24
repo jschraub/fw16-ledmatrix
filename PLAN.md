@@ -19,9 +19,9 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
    desktop and on the right panel; Claude fixture-tested only. #27 delivered per-panel
    feedback gauges and bounded charging indication. #28 delivered Arch packaging and
    existing-account login startup; see [packaging evidence](docs/PACKAGING.md).
-3. **Release UX — #41:** the panel-map design was selected and its first native
-   workflow implemented. Significant redesign and owner usability sign-off
-   remain a release gate; the hardware-test UI is not the final design.
+3. **Release UX — #41:** owner selected Signal Room (study A): panel-first
+   navigation, round phosphor dots and a focused bay editor. Native usability
+   and release sign-off remain open.
 4. **Qualification — #31–#40:** keep gathering evidence alongside development.
    Linux optics, preview ownership/restoration and diagnostics have passed
    specific scenarios. Physical serial failure capture, safe reconnect, Linux

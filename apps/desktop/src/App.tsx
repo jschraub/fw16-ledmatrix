@@ -18,6 +18,8 @@ export function App() {
   const editor = useRef<EditorActions>(null);
 
   const back = useRef<HTMLButtonElement>(null);
+  const [menu, setMenu] = useState(false);
+  const workspace = useRef<HTMLButtonElement>(null);
   function edit(name: string) {
     setSelected(name); editor.current?.loadIfNeeded();
     requestAnimationFrame(()=>back.current?.focus());
@@ -25,10 +27,11 @@ export function App() {
 
   return (
     <main>
-      <header>
-        <p className="eyebrow">FRAMEWORK LAPTOP 16</p>
-        <h1>LED Matrix</h1>
+      <header className="mast">
+        <h1><span className="matrix-mark" aria-hidden="true"/>Matrix Studio</h1>
+        <button ref={workspace} aria-expanded={menu} aria-controls="workspace-nav" onClick={()=>setMenu(!menu)}>Workspace</button>
       </header>
+      <div id="workspace-nav" hidden={!menu}><ViewNav label="Main navigation" items={views} current={view} select={item => { setView(item); setSelected(null); setMenu(false); workspace.current?.focus(); }} /></div>
       <section className="status" aria-label="Daemon connection">
         <span className={`dot ${hello ? "online" : ""}`} aria-hidden="true" />
         <span role="status">{connecting ? "Connecting…" : hello ? "Connected to daemon" : "Daemon disconnected"}</span>
@@ -44,14 +47,14 @@ export function App() {
           <p>Diagnostics exclude endpoint paths, usernames, credentials, and message payloads. No running process will be stopped or replaced.</p>
         </details>
       </div>}
-      <ViewNav label="Main navigation" items={views} current={view} select={item => { setView(item); setSelected(null); }} />
       <div hidden={view !== "Overview" || !!selected}>
       <PanelMap snapshot={snapshot} connected={!!hello} edit={edit} setup={()=>setView("Devices")} />
       <footer>Closing this window leaves the daemon running.</footer>
       </div>
       <div hidden={view !== "Configuration" && !(view === "Overview" && selected)}>
         {selected && <button ref={back} onClick={()=>{setSelected(null); requestAnimationFrame(()=>document.getElementById("map-title")?.focus());}}>← Your panels</button>}
-        <ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources} />
+        <ConfigEditor ref={editor} panelName={selected} sources={snapshot?.display_sources}
+          output={snapshot?.panels.find(p=>p.name===selected)?.frame} />
         {view === "Configuration" && <LoginStartup />}
       </div>
       <div hidden={view !== "Devices"}><Devices />

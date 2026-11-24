@@ -52,6 +52,7 @@ def run(root):
                 button = find(app.pid, lambda n: n.get_name() == name and n.get_role() == Atspi.Role.PUSH_BUTTON)
                 assert button.do_action(0), name
             try:
+                click("Workspace")
                 click("Configuration")
                 click("Load saved configuration")
                 # Change the layout by removing the second simulated panel.
@@ -74,6 +75,7 @@ def run(root):
                         if names == ["left"]:
                             break
                     assert names == ["left"]
+                click("Workspace")
                 click("Diagnostics")
                 click("Generate redacted report")
                 box = find(app.pid, lambda n: "Redacted report (JSON)" in (n.get_name() or "") and n.is_text())

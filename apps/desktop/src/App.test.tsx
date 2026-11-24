@@ -22,6 +22,9 @@ test("keyboard reaches device, display, layout, integration and support workflow
     expect(element).toHaveFocus();
   }
   async function activate(name: string) {
+    if (["Devices","Configuration","Integrations","Diagnostics"].includes(name)) {
+      await focus(screen.getByRole("button",{name:"Workspace"})); await user.keyboard("{Enter}");
+    }
     await focus(screen.getByRole("button",{name})); await user.keyboard("{Enter}");
   }
   await activate("Devices"); await activate("Discover physical panels");
@@ -61,7 +64,10 @@ test("navigation reveals one task at a time and keeps unsaved configuration", as
     revision: 4, config: { schema_version: 2, clock_intensity: 180, panels: [] },
   } });
   render(<App />);
-  const go = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
+  const go = (name: string) => {
+    if (["Configuration","Diagnostics"].includes(name)) fireEvent.click(screen.getByRole("button",{name:"Workspace"}));
+    fireEvent.click(screen.getByRole("button", { name }));
+  };
   expect(screen.queryByRole("button", { name: "Load saved configuration" })).toBeNull();
   go("Configuration"); go("Load saved configuration");
   fireEvent.change(await screen.findByLabelText("Clock intensity"), { target: { value: "160" } });

@@ -35,6 +35,9 @@ qualified; **do not remove a module from a running laptop
 to troubleshoot**. Removal interrupted keyboard and touchpad input in testing.
 See [tested behavior and known limits](docs/SUPPORT.md).
 
+Have a setup question or want help with a panel? [Ask in Q&A](https://github.com/jschraub/fw16-ledmatrix/discussions/categories/q-a).
+To suggest a widget, layout, or workflow, [share it in Ideas](https://github.com/jschraub/fw16-ledmatrix/discussions/categories/ideas).
+
 For a bug, open an [issue](https://github.com/jschraub/fw16-ledmatrix/issues)
 with the package version, distribution, and steps to reproduce. If diagnostics
 would help, use **Workspace → Diagnostics → Generate redacted report** and

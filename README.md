@@ -5,7 +5,7 @@ Linux. Give each panel its own clock, battery gauge or brightness setting, and
 preview a layout before saving it. Close the desktop and the daemon keeps the
 panels running. No assistant account is required.
 
-![Matrix Studio showing two panel previews, one with a battery gauge and one with a clock](docs/design/signal-room-linux.png)
+![Matrix Studio showing two panel previews, one with a battery gauge and one with a clock](docs/design/readme-panel-overview.png)
 
 ## Key features
 

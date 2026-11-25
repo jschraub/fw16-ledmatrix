@@ -12,37 +12,21 @@ lock, display-off and an attended system suspend/resume cycle passed. Details ar
 Physical module-removal testing is paused because it interrupted keyboard and
 touchpad input. Full-day soak and Windows bay qualification remain pending.
 
-## Resume this machine
+## Packaged hardware baseline
 
-- `fw16-ledmatrix.service` is the **enabled, active systemd user service** from
-  package `0.1.0-4`. The installed `/usr/bin/matrix-daemon` resumed revision 35
-  and alone owned both ports. The temporary `90-preview-fix.conf` was removed;
-  the only remaining drop-in enables OpenAI polling and leaves Claude off.
-- The review desktop unit was stopped. The **Matrix Studio** launcher opened
-  `/usr/bin/matrix-desktop` and the packaged panel map connected successfully.
-- The legacy `matrixd.service` is disabled and inactive. The transient handoff
-  daemon was stopped before starting the installed service. Private POC backups
-  and the handoff config remain in `$HOME/.local/share/fw16-matrix-handoff/`.
-- Launch **Matrix Studio** from the desktop menu or `/usr/bin/matrix-desktop`
-  without handoff environment overrides. The installed config is now
-  `~/.config/fw16-matrix/config.json`; the endpoint is `$XDG_RUNTIME_DIR/fw16-matrix/daemon.sock`.
-  Do not launch a second daemon with the old physical bindings.
-
-```sh
-systemctl --user show matrixd.service fw16-ledmatrix.service fw16-matrix-handoff-daemon.service --property=Id,ActiveState,UnitFileState,MainPID
-fuser -v /dev/ttyACM{0,1}
-```
-
-Keep the POC service disabled. The owner designated it reference-only. The
-installed Rust service is the recovery target; see [MIGRATION.md](MIGRATION.md).
+The `0.1.0-4` upgrade preserved saved settings. The packaged systemd user
+service ran `/usr/bin/matrix-daemon` without a binary override and alone held
+both ports. The **Matrix Studio** launcher started `/usr/bin/matrix-desktop`
+and connected to that service. For first install see [PACKAGING.md](PACKAGING.md);
+for an existing prototype installation see [MIGRATION.md](MIGRATION.md).
 
 ## Immediate test and session results
 
 1. Existing-account graphical login passed: the owner saw the clock and battery
    gauge return after logout/login. The packaged daemon had a new PID, served
    revision 26 on default IPC and alone held both firmware-0.20 ports.
-2. Fresh-user login was not tested; the owner accepted the existing-account
-   login and staged package transactions for #28. Leave installed startup enabled.
+2. Coverage for #28 includes an existing-account login and staged package
+   transactions. Fresh-user graphical login was not tested.
 
 | Area | Evidence from this session |
 | --- | --- |
@@ -158,23 +142,14 @@ observations in SUPPORT.md. Check the new pushed revision's Linux/Windows CI;
 the failed baseline does not describe the fixed code, and local success is not
 proof of remote CI success.
 
-The machine's system Rust/Node are newer than the pins. This session used an
-isolated rustup under `/tmp/opencode`:
-
-```sh
-env PATH="/tmp/opencode/cargo/bin:$PATH" RUSTUP_HOME=/tmp/opencode/rustup cargo test --locked
-npx --yes --package=node@24.15.0 --package=npm@11.16.0 --call 'npm test'
-```
-
-Run the npm command in the relevant package directory. Temporary toolchains may
-be cleared; reinstall the pinned prerequisites when needed. OpenCode integration
-dependency installation reported 24 moderate vulnerabilities; no dependency
-upgrade was attempted.
+Use the pinned tools in [DEVELOPMENT.md](DEVELOPMENT.md) to reproduce these
+checks. The historical OpenCode integration dependency installation reported
+24 moderate vulnerabilities; these tests did not assess or fix them.
 
 ## Fresh-machine checkout and first launch
 
-Use this section for a fresh environment. On the current laptop, begin with
-the resume checkpoint above so existing bindings and USB ownership are understood.
+Use this section for a fresh qualification environment. On an installed system,
+check existing bindings and USB ownership before starting a test daemon.
 
 1. Clone/pull `main`, inspect `git status`, and note the exact commit:
 
@@ -204,14 +179,14 @@ the resume checkpoint above so existing bindings and USB ownership are understoo
 
 4. Use separate configuration, IPC and feeds for qualification. Do not reuse
    production configuration with saved physical bindings on the first run.
-   In **both** the daemon and desktop terminals, set the same values:
+   Set these variables once, then start both processes from that environment
+   (or export the same paths in the second terminal):
 
    **Linux / Bash**
 
    ```sh
    umask 077
-   export HANDOFF_ROOT="$HOME/.local/share/fw16-matrix-handoff"
-   mkdir -p "$HANDOFF_ROOT"
+   export HANDOFF_ROOT="$(mktemp -d)"
    export MATRIX_CONFIG="$HANDOFF_ROOT/config.json"
    export MATRIX_ENDPOINT="$HANDOFF_ROOT/ipc/daemon.sock"
    export MATRIX_FEEDS="$HANDOFF_ROOT/feeds"

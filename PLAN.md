@@ -27,7 +27,7 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
    Linux optics, preview ownership/restoration and diagnostics have passed
    specific scenarios. Physical serial failure capture, safe reconnect, Linux
    bay identity, remaining integration checks and the full-day soak remain open.
-   The OpenCode V2 feed is live on the owner's Linux account (#39); Claude
+   The OpenCode V2 feed passed a live Linux activation check (#39); Claude
    interactive activation (#40) is still pending.
 5. **Release qualification:** #29 delivered one-way migration and Rust diagnostics; #30 requires packaging,
    qualified environments, hardware parity, full-day results, green CI and #41.

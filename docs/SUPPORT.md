@@ -76,7 +76,7 @@ NE160QDM-NZ6, 2560×1600 at 165 Hz, scale 1. Both Framework USB interfaces
 (`32ac:0020`) used `cdc_acm`. With the qualification daemon active and the POC
 service inactive, a separate `--probe` run detected two panels, a sysfs
 backlight and battery, a reachable audio server and a reachable user systemd
-manager. Both credential presence checks reported available (existence only).
+manager. Credential probes check existence only; they are not login tests.
 The probe reported bay identity, lock/display-off/suspend events and snapshot
 storage as not verified. No suspend or module removal was performed.
 
@@ -321,17 +321,13 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   brightness or cycle time. Automated tests cover the other pulse profiles,
   configured brightness limits, explicit sleep, and centered 1/3/5/7/9-column
   gauge widths; individual presets and widths were not optically qualified.
-- Subscription usage (#22): one owner-authorized OpenAI check using the active
-  OpenCode V2 SQLite login returned a fresh weekly percentage and reset time.
-  No five-hour window was present. This was a standalone request, not a panel
-  observation or a change to service settings. Claude had no subscription
-  available for live verification; its result is fixture-only.
-- Packaged check (#22): the checksum-verified `0.1.0-1006` candidate ran with
-  a temporary copy of revision 26. The owner saw 18% weekly usage in the
-  desktop and 18 on the right panel; the five-hour window was unavailable
-  and Claude polling was off. After the candidate stopped, the installed
-  daemon resumed revision 26 and alone owned both ports. The owner confirmed
-  the right clock and left battery gauge returned.
+- Subscription usage (#22): an opt-in Linux OpenAI check returned a fresh
+  weekly percentage and reset time. The absent five-hour window was reported
+  as unavailable. Claude usage has fixture coverage only.
+- Packaged check (#22): the checksum-verified `0.1.0-1006` candidate displayed
+  the same weekly reading in the desktop and on the right panel. Afterward,
+  the installed daemon resumed the unchanged settings, alone held both ports,
+  and restored the clock and battery layouts.
 - Migration and recovery (#29): after a brief ownership handoff the installed
   Rust daemon was enabled and alone on both ports, with byte-identical revision
   26; the legacy unit was disabled and inactive. The POC is reference-only.
@@ -392,10 +388,8 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
 - Automated validation before hardware: Rust 1.94.0, Node 24.15.0, npm 11.16.0;
   59 Rust, 13 producer and 23 UI tests passed; formatting, workspace Clippy,
   frontend and native debug no-bundle builds passed; generated bindings unchanged.
-- Pause checkpoint: isolated saved configuration revision 4, both inherited
-  manual brightness 32, no overrides, explicit sleep disabled. Rust daemon and
-  desktop left running, POC stopped but still enabled. Resume instructions and
-  the official firmware-release check are in HARDWARE-HANDOFF.md.
+- The [hardware handoff](HARDWARE-HANDOFF.md) records the firmware-release
+  check, packaged baseline and outstanding qualification steps.
 - Pending: complete OS/kernel/display/driver inventory, reorder/reconnect
   persistence, brightness calibration, remaining power/preview scenarios and
   recovery checks. Tickets remain open; Windows hardware is untested.
@@ -406,8 +400,8 @@ Related tickets: #31 (capability evidence), #32 (clock optics/latency),
   The native release build and isolated save/report smoke passed. All four
   redesigned workspaces fit 820×720 and 460×650 in the browser fixture;
   [screenshots and owner feedback](design/workspace-audit.md).
-- **OpenCode activation (#39, `b2f2ba3`):** with owner approval, the global
-  configuration retained its existing entries and loaded `fw16-matrix.metadata`.
+- **OpenCode activation (#39, `b2f2ba3`):** enabling `fw16-matrix.metadata`
+  preserved existing configuration entries.
   OpenCode 2.3.2 reported the plugin active; the daemon received a context
   percentage and rendered lit pixels in the right panel's number region.
   This verifies the feed and software output, not optical readability or

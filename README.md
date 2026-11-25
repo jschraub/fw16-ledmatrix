@@ -1,77 +1,51 @@
-# Framework LED Matrix
+# Matrix Studio
 
-A configurable ambient display application for the Framework Laptop 16 LED
-Matrix modules.
+Matrix Studio configures one or two Framework Laptop 16 LED Matrix modules on
+Linux. Give each panel its own clock, battery gauge or brightness setting, and
+preview a layout before saving it. Close the desktop and the daemon keeps the
+panels running. No assistant account is required.
 
-The native application uses a standalone Rust daemon and a React/TypeScript
-Tauri desktop. **Linux is the only v1 release target.** Closing the UI leaves rendering and
-sources running. **Development builds are available; this is not yet a qualified
-packaged release.**
+![Matrix Studio showing two panel previews, one with a battery gauge and one with a clock](docs/design/signal-room-linux.png)
 
-Implemented software paths:
+## Try it on Linux
 
-- Private local IPC, capability reporting, durable validated configuration,
-  Save/Discard drafts, revision conflicts and bounded temporary output previews.
-- Guided one/two-panel layouts, live clocks and battery widgets, independent
-  widget intensity, manual brightness limits/overrides and explicit sleep.
-- Framework discovery/firmware identification, physical-location bindings,
-  independent output routing, bounded retries and partial-write quarantine.
-- Metadata-only Claude helper and OpenCode V2 plugin, provider/session selection,
-  context/activity widgets, heartbeat expiry and integration health.
+**Development preview:** unsigned x86-64 Arch/CachyOS package candidates are
+available from the [Arch package workflow](https://github.com/jschraub/fw16-ledmatrix/actions/workflows/arch-package.yml).
+There is no stable release, AUR entry, or Debian/Ubuntu package from this project yet.
 
-Linux display/session policies are implemented; tested hardware scenarios and
-remaining limits are recorded below. Windows is post-v1:
-[development #42](https://github.com/jschraub/fw16-ledmatrix/issues/42) and
-[support qualification #43](https://github.com/jschraub/fw16-ledmatrix/issues/43).
-Optional usage windows, per-panel charging and feedback effects, Arch packaging,
-login startup and [one-way migration](docs/MIGRATION.md) are implemented.
-Release qualification remains open. See the
-[roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1),
-[support evidence](docs/SUPPORT.md), [widget behavior](docs/WIDGETS.md), and
-[integration setup](docs/INTEGRATIONS.md). Hardware follow-ups remain open rather
-than treating simulated tests as physical evidence.
+1. Follow the [package guide](docs/PACKAGING.md) to download, verify and install
+   a candidate. If you previously used the Python prototype, follow the
+   [migration guide](docs/MIGRATION.md) first so only one daemon owns the panels.
+2. Launch **Matrix Studio** from the application menu. Start the daemon if
+   prompted. Open **Workspace → Devices** to identify the panels, then choose
+   **Assign panels to sides** and save the assignments.
+3. Return to **Overview**, choose a panel and try a layout. On-screen changes
+   are a draft; hardware preview is temporary. Choose **Save changes** to keep it.
 
-## Develop without panels
+Clock, battery, brightness and charging effects work independently of assistant
+integrations. To add session activity or usage windows, see
+[optional integrations](docs/INTEGRATIONS.md).
 
-For the native Arch/CachyOS package candidate, see [Linux packaging](docs/PACKAGING.md).
+## Compatibility and support
 
-Continuing on a laptop with panels? Start with the
-[hardware-machine handoff](docs/HARDWARE-HANDOFF.md), including open tickets,
-safe first-run steps and the current review environment.
+Two-panel hardware testing has been performed on CachyOS with Hyprland.
+Ubuntu CI builds and hardware-free tests do not establish USB or desktop
+support there. Windows is not a v1 target. USB reconnect and full-day soak
+qualification are still open; **do not remove a module from a running laptop
+to troubleshoot**. Removal interrupted keyboard and touchpad input in testing.
+See [tested behavior and known limits](docs/SUPPORT.md).
 
-At the root, start `cargo run --locked -p matrix-daemon`. In another terminal,
-run `npm ci` followed by `npm run tauri -- dev` from `apps/desktop`.
-The daemon remains running when you close the desktop window.
+For a bug, open an [issue](https://github.com/jschraub/fw16-ledmatrix/issues)
+with the package version, distribution, and steps to reproduce. If diagnostics
+would help, use **Workspace → Diagnostics → Generate redacted report** and
+review it before sharing. Keep credentials, raw logs and client settings private.
 
-See [development instructions](docs/DEVELOPMENT.md) for prerequisites, tests,
-endpoint overrides, and platform validation limits.
+## Development
 
-## Design review
+You can [run the Rust daemon and Tauri desktop without panels](docs/DEVELOPMENT.md).
+See the [widget guide](docs/WIDGETS.md), [design audit](docs/design/workspace-audit.md),
+and [v1 roadmap](https://github.com/jschraub/fw16-ledmatrix/issues/1).
+The [Python prototype](poc/README.md) is historical reference, not an install
+or recovery path.
 
-[Signal Room workspace audit and screenshots](docs/design/workspace-audit.md):
-Overview edits one bay; Configuration manages settings; Devices identifies
-hardware; Integrations shows provider health; Diagnostics generates a support report.
-
-See [PLAN.md](PLAN.md) for the approved architecture, release scope, milestones,
-validation strategy, and remaining decisions.
-
-## Existing proof of concept
-
-The working Linux/Python implementation is preserved in [`poc/`](poc/), including
-its integrations, installer, tests, hardware tools, and historical design notes.
-See its [README](poc/README.md) and [status](poc/STATUS.md).
-
-Validate without hardware:
-
-```sh
-cd poc
-python3 -m unittest discover -s tests -t .
-node --test tests/test_opencode_plugin.mjs
-```
-
-Keep the POC for reference. On migrated machines leave it disabled; the packaged
-Rust service is the sole panel writer and the recovery target.
-
-## License
-
-[MIT](LICENSE).
+Independent community project, not an official Framework product. [MIT license](LICENSE).

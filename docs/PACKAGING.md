@@ -35,6 +35,12 @@ as an unprivileged user. Two revisions from the same source exercise the pacman
 upgrade path, not compatibility across different app versions. The newer
 revision is `1000 + 2 × workflow run number`. Successful runs upload only this
 tested package and `SHA256SUMS`, in an artifact named with the commit SHA.
+Before upload, CI scans the finished archive, including stripped binaries and
+package metadata, for `/home/` paths other than the generic container builder
+and a documented example. To check a candidate yourself, run
+`python3 packaging/arch/check-release-paths.py /path/to/package.pkg.tar.zst`
+(requires `zstd`). Use CI candidates for distribution: a build from your own
+checkout can embed your home path even after stripping.
 Unpack the Actions artifact and run `sha256sum -c SHA256SUMS` there before
 installing. This is an unsigned candidate, not a signed pacman repository.
 The Arch base and system libraries are rolling; pinned app toolchains and

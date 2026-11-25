@@ -7,6 +7,26 @@ panels running. No assistant account is required.
 
 ![Matrix Studio showing two panel previews, one with a battery gauge and one with a clock](docs/design/signal-room-linux.png)
 
+## Key features
+
+- **Claude and OpenAI subscription usage:** Show how much of your five-hour or
+  weekly allowance you’ve used, when the provider supplies that window. Polling
+  is opt-in: Claude uses your local Claude Code login and OpenAI uses your
+  OpenCode login. OpenAI weekly usage has been verified on a physical panel;
+  Claude usage has been tested with simulated provider responses.
+  [Set up subscription usage](docs/INTEGRATIONS.md#account-usage-windows-linux).
+- **Assistant session activity:** See how much context a session is using or
+  whether it’s busy. The [Claude Code helper](docs/INTEGRATIONS.md#claude-code-rust-helper)
+  and [OpenCode plugin](docs/INTEGRATIONS.md#opencode-v2-producer) share session
+  metadata, not conversation text. Session activity works independently of
+  subscription polling.
+- **Independent panel layouts:** Put a clock and battery bar on one side and a
+  weekly usage gauge on the other. Try a draft on the physical panels for ten
+  seconds before deciding whether to save it.
+- **Brightness and feedback:** Set brightness per panel or follow the display.
+  Show a charging pulse or briefly replace a layout with a volume or brightness
+  gauge, then let the usual content return.
+
 ## Try it on Linux
 
 **Development preview:** unsigned x86-64 Arch/CachyOS package candidates are
@@ -21,10 +41,6 @@ There is no stable release, AUR entry, or Debian/Ubuntu package from this projec
    **Assign panels to sides** and save the assignments.
 3. Return to **Overview**, choose a panel and try a layout. On-screen changes
    are a draft; hardware preview is temporary. Choose **Save changes** to keep it.
-
-Clock, battery, brightness and charging effects work independently of assistant
-integrations. To add session activity or usage windows, see
-[optional integrations](docs/INTEGRATIONS.md).
 
 ## Compatibility and support
 

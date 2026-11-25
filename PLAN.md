@@ -2,7 +2,7 @@
 
 Status: agreed v1 scope; implementation and qualification are in progress.
 
-## Delivery checkpoint — 2026-11-24
+## Linux v1 release checkpoint
 
 **21 of the original 22 delivery slices are closed** (#9–#29).
 This measures software delivery, not release readiness.
@@ -23,14 +23,12 @@ and [support record](docs/SUPPORT.md) separates physical evidence from fixtures.
    navigation, round phosphor dots and a focused bay editor. The [four-workspace
    redesign](docs/design/workspace-audit.md) landed in `c2f9a82`; the owner
    reported “This looks much better.” Final release sign-off remains open.
-4. **Qualification — #31–#40:** keep gathering evidence alongside development.
-   Linux optics, preview ownership/restoration and diagnostics have passed
-   specific scenarios. Physical serial failure capture, safe reconnect, Linux
-   bay identity, remaining integration checks and the full-day soak remain open.
-   The OpenCode V2 feed passed a live Linux activation check (#39); Claude
-   interactive activation (#40) is still pending.
-5. **Release qualification:** #29 delivered one-way migration and Rust diagnostics; #30 requires packaging,
-   qualified environments, hardware parity, full-day results, green CI and #41.
+4. **Field acceptance:** #2–#7 and #31–#40 are closed. The installed service
+   and OpenAI usage work in ordinary use. OpenCode activation passed separately;
+   Claude remains fixture-only. Untested scenarios are not certified.
+5. **Release decision:** #30 requires green Linux candidate checks, the #41 UX
+   decision and published support limits. Historical qualification plans below
+   are not additional gates. No forced module removal or full-day soak is required.
 
 ## 1. Agreed direction
 

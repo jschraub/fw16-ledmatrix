@@ -30,8 +30,8 @@ integrations. To add session activity or usage windows, see
 
 Two-panel hardware testing has been performed on CachyOS with Hyprland.
 Ubuntu CI builds and hardware-free tests do not establish USB or desktop
-support there. Windows is not a v1 target. USB reconnect and full-day soak
-qualification are still open; **do not remove a module from a running laptop
+support there. Windows is not a v1 target. Hot-swap recovery has not been
+qualified; **do not remove a module from a running laptop
 to troubleshoot**. Removal interrupted keyboard and touchpad input in testing.
 See [tested behavior and known limits](docs/SUPPORT.md).
 

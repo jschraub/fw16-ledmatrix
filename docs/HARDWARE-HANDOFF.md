@@ -1,5 +1,10 @@
 # Hardware-session handoff
 
+**Release scope:** This is a historical test record. #31–#40 are closed;
+their outstanding experiments below are not a release checklist. The current
+[Linux release decision](https://github.com/jschraub/fw16-ledmatrix/issues/30)
+does not require module removal or an instrumented full-day soak.
+
 Updated **2026-11-24** after owner review of all four Signal Room workspaces.
 Repository: [jschraub/fw16-ledmatrix](https://github.com/jschraub/fw16-ledmatrix).
 

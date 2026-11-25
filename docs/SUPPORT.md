@@ -1,5 +1,10 @@
 # Capability evidence and qualification
 
+The packaged Linux service and OpenAI integration have been reported working
+in ordinary use. The dated observations below preserve the distinction between
+physical evidence and fixtures. Untested scenarios are support limits rather
+than outstanding release tasks; see [#30](https://github.com/jschraub/fw16-ledmatrix/issues/30).
+
 V1 targets Linux only. Windows rows record portability evidence, not v1 support
 or release requirements (post-v1 development #42, support qualification #43).
 A successful build is not a claim that all desktop,

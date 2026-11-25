@@ -7,6 +7,9 @@ user unit and the narrow Framework `32ac:0020` active-seat udev rule. It does
 not enable a service, launch a process, migrate POC settings or install an
 assistant integration. This is not an Ubuntu package or a signed release.
 
+To build from the proposed AUR recipe instead, see the
+[AUR build and submission guide](../packaging/aur/README.md) in the source repository.
+
 ## Build and test without installing
 
 Use the repo's pinned Rust and Node versions, the Tauri Linux build prerequisites,

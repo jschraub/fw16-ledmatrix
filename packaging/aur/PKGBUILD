@@ -1,0 +1,54 @@
+# Maintainer: jschraub (https://github.com/jschraub)
+pkgname=fw16-ledmatrix
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Matrix Studio desktop and user daemon for Framework Laptop 16 LED Matrix modules'
+arch=('x86_64')
+url='https://github.com/jschraub/fw16-ledmatrix'
+license=('MIT')
+depends=('ca-certificates' 'cairo' 'dbus' 'gcc-libs' 'gdk-pixbuf2' 'glib2' 'glibc'
+         'gtk3' 'libsoup3' 'openssl' 'systemd' 'webkit2gtk-4.1')
+makedepends=('cargo' 'rust>=1.94' 'nodejs>=22.12.0' 'npm' 'pkgconf')
+optdepends=('libpulse: volume feedback via pactl')
+# Bundled SQLite is built with cc; GCC LTO objects cannot be linked by rust-lld.
+options=('!debug' '!lto')
+_commit=020a9952c751056ff71e824e467bebbe0585790f
+source=("$pkgname-$pkgver-$_commit.tar.gz::$url/archive/$_commit.tar.gz")
+sha256sums=('015c0dacef99560afbaf24d95a2fdc3d1c373d038b38a5abec813755d06a68de')
+
+prepare() {
+    cd "$pkgname-$_commit"
+    cargo fetch --locked --target x86_64-unknown-linux-gnu
+    cd apps/desktop
+    npm ci --include=dev --no-audit --no-fund
+}
+
+build() {
+    cd "$pkgname-$_commit"
+    export CARGO_TARGET_DIR="$PWD/target"
+    cargo build --release --locked --offline -p matrix-daemon -p matrix-claude
+    cd apps/desktop
+    npm run tauri -- build --no-bundle -- --locked --offline
+}
+
+check() {
+    cd "$pkgname-$_commit/apps/desktop"
+    npm test
+}
+
+package() {
+    cd "$pkgname-$_commit"
+    local bin guide
+    for bin in matrix-desktop matrix-daemon matrix-claude; do
+        install -Dm755 "target/release/$bin" "$pkgdir/usr/bin/$bin"
+    done
+    install -Dm644 packaging/linux/fw16-ledmatrix.desktop -t "$pkgdir/usr/share/applications"
+    install -Dm644 packaging/linux/fw16-ledmatrix.service -t "$pkgdir/usr/lib/systemd/user"
+    install -Dm644 poc/udev/60-framework-ledmatrix.rules -t "$pkgdir/usr/lib/udev/rules.d"
+    install -Dm644 apps/desktop/src-tauri/icons/icon.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/$pkgname.png"
+    install -Dm644 apps/desktop/src-tauri/icons/source.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+    install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+    for guide in INTEGRATIONS MIGRATION PACKAGING; do
+        install -Dm644 "docs/$guide.md" -t "$pkgdir/usr/share/doc/$pkgname"
+    done
+}

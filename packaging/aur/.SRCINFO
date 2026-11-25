@@ -1,0 +1,31 @@
+pkgbase = fw16-ledmatrix
+	pkgdesc = Matrix Studio desktop and user daemon for Framework Laptop 16 LED Matrix modules
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/jschraub/fw16-ledmatrix
+	arch = x86_64
+	license = MIT
+	makedepends = cargo
+	makedepends = rust>=1.94
+	makedepends = nodejs>=22.12.0
+	makedepends = npm
+	makedepends = pkgconf
+	depends = ca-certificates
+	depends = cairo
+	depends = dbus
+	depends = gcc-libs
+	depends = gdk-pixbuf2
+	depends = glib2
+	depends = glibc
+	depends = gtk3
+	depends = libsoup3
+	depends = openssl
+	depends = systemd
+	depends = webkit2gtk-4.1
+	optdepends = libpulse: volume feedback via pactl
+	options = !debug
+	options = !lto
+	source = fw16-ledmatrix-1.0.0-020a9952c751056ff71e824e467bebbe0585790f.tar.gz::https://github.com/jschraub/fw16-ledmatrix/archive/020a9952c751056ff71e824e467bebbe0585790f.tar.gz
+	sha256sums = 015c0dacef99560afbaf24d95a2fdc3d1c373d038b38a5abec813755d06a68de
+
+pkgname = fw16-ledmatrix

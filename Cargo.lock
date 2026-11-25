@@ -1854,7 +1854,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-claude"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "libc",
  "matrix-client",
@@ -1867,7 +1867,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-client"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dirs 6.0.0",
  "libc",
@@ -1882,7 +1882,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-daemon"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "dirs 6.0.0",
@@ -1910,7 +1910,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-desktop"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "matrix-client",
  "matrix-core",

@@ -29,9 +29,10 @@ panels running. No assistant account is required.
 
 ## Try it on Linux
 
-**Development preview:** unsigned x86-64 Arch/CachyOS package candidates are
-available from the [Arch package workflow](https://github.com/jschraub/fw16-ledmatrix/actions/workflows/arch-package.yml).
-There is no stable release, AUR entry, or Debian/Ubuntu package from this project yet.
+Check [GitHub Releases](https://github.com/jschraub/fw16-ledmatrix/releases)
+for published Arch/CachyOS x86-64 packages and verification instructions.
+Unsigned development candidates are available separately from the
+[Arch package workflow](https://github.com/jschraub/fw16-ledmatrix/actions/workflows/arch-package.yml).
 
 1. Follow the [package guide](docs/PACKAGING.md) to download, verify and install
    a candidate. If you previously used the Python prototype, follow the

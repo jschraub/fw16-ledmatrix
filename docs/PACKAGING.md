@@ -15,7 +15,7 @@ Arch `base-devel`, Python 3 and `npm ci` in `apps/desktop`. From the checkout:
 ```sh
 bash packaging/arch/build.sh
 PKGREL=2 bash packaging/arch/build.sh
-bash packaging/arch/check-package.sh target/packages/fw16-ledmatrix-0.1.0-{1,2}-x86_64.pkg.tar.zst
+bash packaging/arch/check-package.sh target/packages/fw16-ledmatrix-1.0.0-{1,2}-x86_64.pkg.tar.zst
 ```
 
 The release version comes from the Cargo workspace; `PKGREL` distinguishes
@@ -36,7 +36,7 @@ upgrade path, not compatibility across different app versions. The newer
 revision is `1000 + 2 × workflow run number`. Successful runs upload only this
 tested package and `SHA256SUMS`, in an artifact named with the commit SHA.
 Before upload, CI scans the finished archive, including stripped binaries and
-package metadata, for `/home/` paths other than the generic container builder
+package metadata, for Linux home-directory paths other than the generic container builder
 and a documented example. To check a candidate yourself, run
 `python3 packaging/arch/check-release-paths.py /path/to/package.pkg.tar.zst`
 (requires `zstd`). Use CI candidates for distribution: a build from your own
